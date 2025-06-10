@@ -69,7 +69,14 @@ class GenomeSort {
 private:
 	std::list<Block> blocks;
 	int blockId_max;
-	std::vector<Block*> genes_to_blocks; // map between genes and blocks.
+	std::vector<std::list<Block>::iterator> genes_to_blocks; // map between genes and blocks.
+
+	void splitBlock(std::list<Block>::iterator b, int g){
+		
+		b->block;
+		
+		return ;
+	}
 
 public:
 	// Parameterized constructor.
@@ -88,10 +95,11 @@ public:
 
 		// Create a list of blocks.
 		for (int i = 0; i < permList.size(); ++i) {
-			Block& new_block = blocks.emplace_back(i, permList[i]);
-
+			blocks.emplace_back(i, permList[i]); // It return a reference to the block (Block&)
+			// Get an iterator to the last block added to the list.
+			std::list<Block>::iterator new_block = std::prev(blocks.end());
 			// Update map between genes and blocks.
-			for(auto const &g : permList[i]) {genes_to_blocks[std::abs(g)] = &new_block;}
+			for(auto const &g : permList[i]) {genes_to_blocks[std::abs(g)] = new_block;}
 		}
 		blockId_max = permList.size();
 
@@ -104,19 +112,15 @@ public:
 		std::cout.put('\n');
 	}
 
-	/*
 	std::list<Block>::iterator getBlock(int gene){
 		return genes_to_blocks[std::abs(gene)];
 	}
 	
-	// TODO: Save it in git
-	// Replace Vector by List
-	// Replace map from int to references
 	void applyReversal(int g1, int g2){
 
 		// Retrieve blocks where genes are.
-		std::list<Block>::iterator b1 = getBlock(genes_to_blocks[std::abs(g1)]);
-		std::list<Block>::iterator b2 = getBlock(genes_to_blocks[std::abs(g2)]);
+		std::list<Block>::iterator b1 = getBlock(g1);
+		std::list<Block>::iterator b2 = getBlock(g2);
 
 		std::cout << "Gene 1: " << g1 << "; Block 1: ";
 		(*b1).printBlock();
@@ -124,8 +128,9 @@ public:
 		(*b2).printBlock();
 
 		// Split blocks.
+
 	}
-	*/
+	
 };
 
 int main(int argc, char* argv[]) {
