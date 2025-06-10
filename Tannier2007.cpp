@@ -1,9 +1,11 @@
 #include <iostream>
+#include <list>
 #include <vector>
 #include <numeric> // iota
 #include <cmath> 
-#include <string>
+#include <string> // convert input args (string to int)
 #include <algorithm> // find_if
+//#include <memory> // shared_ptr
 #include <chrono>
 
 // It makes code a bit clear: 
@@ -16,24 +18,24 @@
 
 // Splits a vector into chunks of size approximately [chunkSize].
 std::vector<std::vector<int>> splitVector(const std::vector<int>& original, int idealChunkSize) {
-    std::vector<std::vector<int>> result;
+	std::vector<std::vector<int>> result;
 
-	int const numChunks     = original.size() / idealChunkSize; // number of chunks.
+	int const numChunks	 = original.size() / idealChunkSize; // number of chunks.
 	int const baseChunkSize = original.size() / numChunks;
-	int const remainder     = original.size() % numChunks;
+	int const remainder	 = original.size() % numChunks;
 
-    // At each step creates a new sub-list.
+	// At each step creates a new sub-list.
 	int begIdx = 0;
-    for (int i=0; i<numChunks; i++) {
+	for (int i=0; i<numChunks; i++) {
 		int const currentChunkSize = baseChunkSize + (i < remainder ? 1 : 0);
-        // Create a sub-vector from the current position to the next N elements.
-        std::vector<int> subVector( original.begin() + begIdx, 
-                                    original.begin() + begIdx + currentChunkSize);
-        // Add the new list at the end.
-        result.push_back(subVector);
-        begIdx += currentChunkSize;
-    }
-    return result;
+		// Create a sub-vector from the current position to the next N elements.
+		std::vector<int> subVector( original.begin() + begIdx, 
+									original.begin() + begIdx + currentChunkSize);
+		// Add the new list at the end.
+		result.push_back(subVector);
+		begIdx += currentChunkSize;
+	}
+	return result;
 }
 
 /*******************************************************
@@ -47,9 +49,9 @@ public:
 	std::vector<int> block;
 	bool reversed; // raised if the block should be read in the reverse order, changing the sign of the elements.
 
-	Block(int id, std::vector<int>& b){
+	Block(int id, std::vector<int> b){
 		blockId  = id;
-		block    = b;
+		block	 = b;
 		reversed = false;
 	}
 
@@ -65,9 +67,9 @@ public:
 
 class GenomeSort {
 private:
-	std::vector<Block> blocks;
+	std::list<Block> blocks;
 	int blockId_max;
-	std::vector<int> genes_to_blocks; // map between genes and blocks.
+	std::vector<Block*> genes_to_blocks; // map between genes and blocks.
 
 public:
 	// Parameterized constructor.
@@ -86,10 +88,10 @@ public:
 
 		// Create a list of blocks.
 		for (int i = 0; i < permList.size(); ++i) {
-			blocks.emplace_back(i, permList[i]);
+			Block& new_block = blocks.emplace_back(i, permList[i]);
 
 			// Update map between genes and blocks.
-			for(auto const &g : permList[i]) {genes_to_blocks[std::abs(g)] = i;}
+			for(auto const &g : permList[i]) {genes_to_blocks[std::abs(g)] = &new_block;}
 		}
 		blockId_max = permList.size();
 
@@ -102,20 +104,19 @@ public:
 		std::cout.put('\n');
 	}
 
-	std::vector<Block>::iterator getBlock(int blockId){
-		return std::find_if(blocks.begin(), blocks.end(), [blockId](Block const& b){
-			return b.blockId == blockId;
-		});
+	/*
+	std::list<Block>::iterator getBlock(int gene){
+		return genes_to_blocks[std::abs(gene)];
 	}
-
+	
 	// TODO: Save it in git
 	// Replace Vector by List
 	// Replace map from int to references
 	void applyReversal(int g1, int g2){
 
 		// Retrieve blocks where genes are.
-		std::vector<Block>::iterator b1 = getBlock(genes_to_blocks[std::abs(g1)]);
-		std::vector<Block>::iterator b2 = getBlock(genes_to_blocks[std::abs(g2)]);
+		std::list<Block>::iterator b1 = getBlock(genes_to_blocks[std::abs(g1)]);
+		std::list<Block>::iterator b2 = getBlock(genes_to_blocks[std::abs(g2)]);
 
 		std::cout << "Gene 1: " << g1 << "; Block 1: ";
 		(*b1).printBlock();
@@ -124,36 +125,21 @@ public:
 
 		// Split blocks.
 	}
+	*/
 };
 
 int main(int argc, char* argv[]) {
 
 	int const n = std::stoi(argv[1]); // input (command line argument): number of genes
 
-	std::vector<int> perm(n);
-
-    
-    std::list<Block> genome_vec(n);
-
-    auto start = std::chrono::high_resolution_clock::now();
-    std::reverse(genome_vec.begin(), genome_vec.end());
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> duration = end - start;
-    std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
-
-    // Create a list with n elements, each initialized to initialValue
-    std::list<Block> genome_lst(n);
-
-
-		
-
 	// Start vector with Identity permutation (for testing).
+	std::vector<int> perm(n);
 	std::iota(perm.begin(), perm.end(), 1);
 
-	std::cout << "Hello World! :-D\nVector with " << n << " elements!\n";
+	std::cout << "Hello World! :-D\nVector with " << n << " elements!" << std::endl;
 	
 	for(int i=0; i<n; i++){
-		std::cout << "\t pos. " << i << " = " << perm[i] << "\n";
+		std::cout << "\t pos. " << i << " = " << perm[i] << std::endl;
 	}
 	
 	GenomeSort genomeSort = GenomeSort(perm);
