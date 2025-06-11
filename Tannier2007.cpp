@@ -60,6 +60,14 @@ private:
 		}
 		// Updates the reference block for affected genes.
 	    for (const int& g : permSegment) {genes_to_blocks[g] = new_block;}
+
+	    std::cout << "New block=";
+		new_block->printBlock();
+
+		for (auto gene_it = new_block->permutationSegment.begin(); gene_it != new_block->permutationSegment.end(); ++gene_it) {
+			int g = std::abs(*gene_it); // Access the first element of the iterator.
+			genes[g] = gene_it;
+		}
 	}
 
 	std::list<Block>::iterator splitBlock(int gene){
@@ -68,6 +76,13 @@ private:
 		// Retrieve block where gene is currently located.
 		std::list<Block>::iterator b_it = genes_to_blocks[g];
 		std::list<int>::iterator g_it   = genes[g];
+
+		// Print debug info on the retrieved block.
+		std::cout << "Gene 1: " << g << "; Block 1: ";
+		b_it->printBlock();
+		std::cout << "Gene 1 (from ref): " << (*g_it) << ";\n";
+		std::cout << "Gene 1 (next): " << (*std::next(g_it)) << ";\n";
+
 
 		// Creates an iterator for a potential new block.
 		std::list<Block>::iterator b_new_it = b_it;
@@ -90,7 +105,7 @@ private:
 	/* Method used only during construction of the object, 
 	to initialize references to genes. */
 	void initializeGenes(){
-		genes.resize(n);
+		//genes.resize(n);
 		for(auto &b : blocks) {
 			for (auto gene_it = b.permutationSegment.begin(); gene_it != b.permutationSegment.end(); ++gene_it) {
 				int g = std::abs(*gene_it); // Access the first element of the iterator.
@@ -110,6 +125,7 @@ private:
 
 		// Create a list of blocks with size Θ(√n×log(n)). 
 		genes_to_blocks.resize(n);
+		genes.resize(n);
 		int begIdx = 0;
 		for (int i=0; i<numChunks; i++) {
 			// Take a segment of the permutation.
@@ -131,7 +147,7 @@ public:
 		// Create a list of blocks with size Θ(√n×log(n)). 
 		initializeBlocks(perm);
 		// Initialize map of genes.
-		initializeGenes();
+		//initializeGenes();
 		// Print blocks.
 		printBlocks();
 	}
@@ -143,6 +159,7 @@ public:
 		
 	void applyReversal(int g1, int g2){
 		splitBlock(g1);
+		printBlocks();
 		splitBlock(g2);
 		printBlocks();
 		// Reverse segment.
