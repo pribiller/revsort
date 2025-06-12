@@ -36,9 +36,11 @@ public:
 	Block(int id, std::list<int>& p_tmp):blockId(id),permutationSegment(std::move(p_tmp)){ 
 	}
 
-	void printBlock(){
-		for(auto const &g : permutationSegment) {std::cout << g << " ";}
-		std::cout.put('\n');
+	std::string printBlock(){
+		std::string block_str = "[ ";
+		for(int const &g : permutationSegment) {block_str +=  (std::to_string(g) + " ");}
+		block_str += ("].rev=" + std::to_string(reversed));
+		return block_str;
 	}
 };
 
@@ -80,7 +82,7 @@ private:
 		return new_block;
 	}
 
-	std::list<Block>::iterator splitBlock(const int gene){
+	void splitBlock(const int gene){
 		int g = std::abs(gene);
 
 		// Retrieve block where gene is currently located.
@@ -88,32 +90,42 @@ private:
 		std::list<int>::iterator g_it   = genes[g];
 
 		// Creates an iterator for a potential new block.
-		std::list<Block>::iterator new_block;
+		std::list<Block>::iterator new_block; // new_block = b_it;
 
-		// Check if ``gene`` is not the last element in the list.
-		if ((g_it != b_it->permutationSegment.end()) && (std::next(g_it) != b_it->permutationSegment.end())) {
+		// Split depends on the block's flag ``reversed``.
 
-			// Move genes that appear after `gene` to a new list.
-			std::list<int> permSegment;
-			permSegment.splice(permSegment.begin(), b_it->permutationSegment, std::next(g_it), b_it->permutationSegment.end());
+		// Case 1: block->reversed = true. before: A = B + C, rev(A)=true / after: C + B, rev(B) = rev(C) = true.
+		if (b_it->reversed){
 
-			// Create a new block containing all genes that appear after the gene specified in the input.
-			// ``permSegment`` becomes unusable after this point.
-			// Position of the new block will depend on the flag ``reversed`` of current block.
-			// reversed=true -> The new block will appear *before* the current block in the block list.
-			if(b_it->reversed){
-				new_block = createNewBlock(permSegment, ((b_it != blockList.begin()) ? std::prev(b_it) : blockList.begin()));
-			// reversed=false -> The new block will appear *next* the current block in the block list.
-			} else {
+			// Check if ``gene`` is not the first element in the list (nothing to split).
+			if (g_it != b_it->permutationSegment.begin()) {
+
+				// Move genes that appear before `gene` to a new list.
+				std::list<int> permSegment;
+				permSegment.splice(permSegment.begin(), b_it->permutationSegment, b_it->permutationSegment.begin(), g_it);
+
+				// Create a new block containing all genes that appear before the gene specified in the input.
+				// ``permSegment`` becomes unusable after this point.
+				new_block = createNewBlock(permSegment, b_it);
+				new_block->reversed = b_it->reversed;
+			}
+
+		// Case 2: block->reversed = false. before: A = B + C, rev(A)=false / after: B + C, rev(B) = rev(C) = false.
+		} else {
+			// Check if ``gene`` is not the last element in the list.
+			if ((g_it != b_it->permutationSegment.end()) && (std::next(g_it) != b_it->permutationSegment.end())) {
+
+				// Move genes that appear after `gene` to a new list.
+				std::list<int> permSegment;
+				permSegment.splice(permSegment.begin(), b_it->permutationSegment, std::next(g_it), b_it->permutationSegment.end());
+
+				// Create a new block containing all genes that appear after the gene specified in the input.
+				// ``permSegment`` becomes unusable after this point.
 				new_block = createNewBlock(permSegment, b_it);
 			}
-			new_block->reversed = b_it->reversed;
-		// If ``gene`` is the last element in the list, there is nothing to be split.
-		} else {
-			new_block = b_it;
 		}
 		// Return new block.
-		return new_block;
+		// return new_block;
 	}
 
 	void reverseBlock(std::list<Block>::iterator& b){
@@ -184,8 +196,7 @@ private:
 		// If the block is too small, then concatenate the block with a neighboring block.
 		while(b->permutationSegment.size() < minBlockSize){
 
-			std::cout << "Block needs to increase in size: cur.size=" <<  b->permutationSegment.size() << " / minBlockSize=" << minBlockSize << " / ";
-			b->printBlock();
+			std::cout << "\t [balanceBlock] Block needs to increase in size: cur.size=" <<  b->permutationSegment.size() << " / minBlockSize=" << minBlockSize << " / " << b->printBlock() << std::endl;
 
 			std::list<Block>::iterator b_prev = std::prev(b);
 			std::list<Block>::iterator b_next = std::next(b);
@@ -193,28 +204,26 @@ private:
 			const int b_next_size = (b_next != blockList.end()) ? b_next->permutationSegment.size() : (n+1);
 			// Concatenate blocks.
 			if(b_prev_size < b_next_size){
-				std::cout << "Concatenate blocks: " << b_prev_size << ", " <<  b_next_size <<"\n";
-				b_prev->printBlock();
-				std::cout << "and \n";
-				b->printBlock();
+				std::cout << "\t [balanceBlock] Concatenate blocks: " << b_prev->printBlock() << " and " << b->printBlock() << std::endl;
 				concatenateBlocks(b_prev, b);
 				b = b_prev; // b was erased; update reference.
 			} else {
-				std::cout << "Concatenate blocks: " << b_prev_size << ", " <<  b_next_size <<"\n";
-				b->printBlock();
-				std::cout << "and \n";
-				b_next->printBlock();
+				std::cout << "\t [balanceBlock] Concatenate blocks: " << b->printBlock() << " and " << b_next->printBlock() << std::endl;
 				concatenateBlocks(b, b_next);
 			}
-			std::cout << "After concatenation\n";
-			printBlocks();
+			std::cout << "\t [balanceBlock] After concatenation: " << printBlocks() << std::endl;
 		}
 		
 		// If the block is too big, then split the block into two blocks.
-		if(b->permutationSegment.size() > maxBlockSize){
+		if(b->permutationSegment.size() > maxBlockSize) {
+			std::cout << "\t [balanceBlock] Block needs to reduce in size: cur.size=" <<  b->permutationSegment.size() << " / maxBlockSize=" << maxBlockSize << " / " << b->printBlock() << std::endl;
 
+			std::list<int>::iterator g_mid_it = b->permutationSegment.begin();
+			std::advance(g_mid_it, std::floor(b->permutationSegment.size()/2));
+			const int g_mid = (*g_mid_it);
+			splitBlock(g_mid);
 		}
-		//
+		
 	}
 
 	/* Method used only during construction of the object, 
@@ -265,26 +274,26 @@ public:
 		// Initialize map of genes.
 		initializeGenes();
 		// Print blocks.
-		printBlocks();
+		std::cout << printBlocks() << std::endl;
 	}
 
-	void printBlocks(){
-		for(auto &b : blockList) {b.printBlock();}
-		std::cout.put('\n');
+	std::string printBlocks(const std::string& sep=" "){
+		std::string blockList_str;
+		for(auto &b : blockList) {blockList_str += (sep + b.printBlock());}
+		return blockList_str;
 	}
 		
 	void applyReversal(const int g_beg, const int g_end){
-		
-		std::cout << "Before splitting blocks (" << g_beg << ", " << g_end << "): \n";
-		printBlocks();
 
+		std::string applyReversal_str = "<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
+		
+		std::cout << applyReversal_str << " Before splitting blocks: " << printBlocks("\n\t") << std::endl;
 
 		// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 		splitBlock(g_beg);
 		splitBlock(g_end);
 
-		std::cout << "After splitting blocks: \n";
-		printBlocks();
+		std::cout << applyReversal_str << " After splitting blocks: " << printBlocks("\n\t") << std::endl;
 
 		// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
 		std::list<Block>::iterator reversal_beg = std::next(genes_to_blocks[std::abs(g_beg)]);
@@ -296,8 +305,7 @@ public:
 		const int g_after_end = reversal_end->permutationSegment.front();
 		std::reverse(reversal_beg, reversal_end); // Reverses the order of the elements in the range [first, last).
 
-		std::cout << "After reversing blocks: \n";
-		printBlocks();
+		std::cout << applyReversal_str << " After reversing blocks: " << printBlocks("\n\t") << std::endl;
 
 		// (4) Concatenate and split blocks in such a way that the size of each block 
 		// lies within the interval [½×√(n×log(n)), 2×√(n×log(n))].
@@ -307,7 +315,6 @@ public:
 		balanceBlock(g_after_beg);
 		balanceBlock(g_after_end);
 	}
-	
 };
 
 int main(int argc, char* argv[]) {
@@ -325,9 +332,9 @@ int main(int argc, char* argv[]) {
 	}
 	
 	GenomeSort genomeSort = GenomeSort(perm);
-	genomeSort.applyReversal(2, 9);
-	// genomeSort.applyReversal(4, 5);
-	// genomeSort.applyReversal(4, 10);
+	genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
+	genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
+	genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
 
 	return 0;
 }
