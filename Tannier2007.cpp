@@ -20,18 +20,19 @@
 
 class Gene {
 public:
-	int id;
-	int pos;
-	bool reversed{false};
+	int id;  // Absolute value of the gene.
+	int pos; // Relative position inside the block.
+	bool reversed{false}; // Orientation of the gene (+ or -).
 	Gene(const int id_, const int pos_, const bool sign_):id(id_),pos(pos_),reversed(sign_){
 	}
 };
 
 class Block {
 public:
-
+	
 	std::list<Gene> permutationSegment;
 	bool reversed{false}; // raised if the block should be read in the reverse order, changing the sign of the elements.
+	int pos; // Starting index of the permutation segment in the current permutation.
 
 	/* p is a **rvalue reference** (&&) to a ``permutation segment`` created externally 
 	(i.e., a list of ints with type std::list<int>). The parameter ``p`` itself is a **lvalue**.
@@ -41,12 +42,22 @@ public:
 	we use instead ``permutationSegment(std::move(p))``.
 	After this operation, the parameter ``p`` becomes in an unspecified state and should no longer be used.
 	*/
-	Block(std::list<Gene>& p_tmp):permutationSegment(std::move(p_tmp)){ 
+	Block(const int posBeg, std::list<Gene>& p_tmp):pos(posBeg),permutationSegment(std::move(p_tmp)){ 
+		// Update relative position of genes in the new block.
+		int relPos = 0;
+		for(Gene &g : permutationSegment) {g.pos=relPos++;}
+	}
+
+	/* It computes the absolute position of the gene based on its 
+	relative position and the absolute starting position of the block.
+	*/
+	inline int genePosAbs(Gene const &g){
+		return (reversed ? (pos + permutationSegment.size() - 1 -g.pos) : (pos + g.pos));
 	}
 
 	std::string printBlock(){
 		std::string block_str = "[ ";
-		for(Gene const &g : permutationSegment) {block_str +=  (std::to_string(g.id) + "(" + std::to_string(g.pos) + ") ");}
+		for(Gene const &g : permutationSegment) {block_str +=  (std::to_string(g.id) + "(" + std::to_string(genePosAbs(g)) + ") ");}
 		block_str += ("].rev=" + std::to_string(reversed));
 		return block_str;
 	}
@@ -71,16 +82,16 @@ private:
 	/* Adds a new block after the specified position. 
 	WARNING! ``permSegment`` will become unusable at the end of this method.
 	*/
-	std::list<Block>::iterator createNewBlock(std::list<Gene>& permSegment, std::list<Block>::iterator position){
+	std::list<Block>::iterator createNewBlock(const int pos, std::list<Gene>& permSegment, std::list<Block>::iterator position){
 		// Create a new block containing all genes from ``permSegment``.
 		// This new block will be inserted after the block given in the input.
 		std::list<Block>::iterator new_block;
 		if (position != blockList.end()) {
-			blockList.emplace(std::next(position), permSegment);
+			blockList.emplace(std::next(position), pos, permSegment);
 			// Get an iterator to the new block added to the list.
 			new_block = std::next(position);
 		} else {
-			blockList.emplace_back(permSegment); // It return a reference to the block (Block& b)
+			blockList.emplace_back(pos, permSegment); // It return a reference to the block (Block& b)
 			// Get an iterator to the new block added to the list.
 			new_block = std::prev(blockList.end());
 		}
@@ -110,10 +121,13 @@ private:
 				// Move genes that appear before `gene` to a new list.
 				std::list<Gene> permSegment;
 				permSegment.splice(permSegment.begin(), b_it->permutationSegment, b_it->permutationSegment.begin(), g_it);
+				// Update relative positions of genes.
+				int relPos = 0;
+				for (Gene& g : b_it->permutationSegment) {g.pos = relPos++;}
 
 				// Create a new block containing all genes that appear before the gene specified in the input.
 				// ``permSegment`` becomes unusable after this point.
-				new_block = createNewBlock(permSegment, b_it);
+				new_block = createNewBlock(b_it->pos + b_it->permutationSegment.size(), permSegment, b_it);
 				new_block->reversed = b_it->reversed;
 			}
 
@@ -128,7 +142,7 @@ private:
 
 				// Create a new block containing all genes that appear after the gene specified in the input.
 				// ``permSegment`` becomes unusable after this point.
-				new_block = createNewBlock(permSegment, b_it);
+				new_block = createNewBlock(b_it->pos+b_it->permutationSegment.size(), permSegment, b_it);
 			}
 		}
 		// Return new block.
@@ -140,8 +154,9 @@ private:
 		b->reversed = !(b->reversed);
 		// (2) Change the order of the elements.
 		b->permutationSegment.reverse();
-		// (3) Change the sign of the elements.
-		for (Gene& g : b->permutationSegment) {g.reversed = !g.reversed;}
+		// (3) Change the sign of the elements and their relative position.
+		int relPos = 0;
+		for (Gene& g : b->permutationSegment) {g.reversed = !g.reversed; g.pos = relPos++;}
 	}
 
 	/* Block b1 = b1 + b2. Block b2: deleted. */
@@ -153,10 +168,14 @@ private:
 		if(b1->reversed == b2->reversed){
 			// Case 1: b1.reversed = true; b2.reversed = true --> new_b1 = b2 + b1; new_b1.reversed = true;
 			if (b1->reversed) {
+				// Update relative positions of genes in b1.
+				for (Gene& g : b1->permutationSegment) {g.pos += b2->permutationSegment.size();}
 				// Move items of ``b2`` to the start of ``b1`` (emptying ``b2`` at the same time).
 				(b1->permutationSegment).splice((b1->permutationSegment).begin(), b2->permutationSegment);
 			// Case 2: b1.reversed = false; b2.reversed = false --> new_b1 = b1 + b2; new_b1.reversed = false;
 			} else {
+				// Update relative positions of genes in b2.
+				for (Gene& g : b2->permutationSegment) {g.pos += b1->permutationSegment.size();}
 				// Move items of ``b2`` to the end of ``b1`` (emptying ``b2`` at the same time).
 				(b1->permutationSegment).splice((b1->permutationSegment).end(), b2->permutationSegment);
 			}
@@ -167,11 +186,15 @@ private:
 				// Case 3.1: b1.reversed = true; b2.reversed = false; |b1| < |b2| --> new_b1 = flip(b1) + b2; new_b1.reversed = false;
 				if(b1->permutationSegment.size() < b2->permutationSegment.size()){
 					reverseBlock(b1);
+					// Update relative positions of genes in b2.
+					for (Gene& g : b2->permutationSegment) {g.pos += b1->permutationSegment.size();}
 					// Move items of ``b2`` to the end of ``b1`` (emptying ``b2`` at the same time).
 					(b1->permutationSegment).splice((b1->permutationSegment).end(), b2->permutationSegment);
 				// Case 3.2: b1.reversed = true; b2.reversed = false; |b1| >= |b2| --> new_b1 = flip(b2) + b1; new_b1.reversed = true;
 				} else {
 					reverseBlock(b2);
+					// Update relative positions of genes in b1.
+					for (Gene& g : b1->permutationSegment) {g.pos += b2->permutationSegment.size();}
 					// Move items of ``b2`` to the start of ``b1`` (emptying ``b2`` at the same time).
 					(b1->permutationSegment).splice((b1->permutationSegment).begin(), b2->permutationSegment);
 				}
@@ -180,11 +203,15 @@ private:
 				// Case 4.1: b1.reversed = false; b2.reversed = true; |b1| < |b2| --> new_b1 = b2 + flip(b1); new_b1.reversed = true;
 				if(b1->permutationSegment.size() < b2->permutationSegment.size()){
 					reverseBlock(b1);
+					// Update relative positions of genes in b1.
+					for (Gene& g : b1->permutationSegment) {g.pos += b2->permutationSegment.size();}
 					// Move items of ``b2`` to the start of ``b1`` (emptying ``b2`` at the same time).
 					(b1->permutationSegment).splice((b1->permutationSegment).begin(), b2->permutationSegment);
 				// Case 4.2: b1.reversed = false; b2.reversed = true; |b1| >= |b2| --> new_b1 = b1 + flip(b2); new_b1.reversed = false;
 				} else {
 					reverseBlock(b2);
+					// Update relative positions of genes in b2.
+					for (Gene& g : b2->permutationSegment) {g.pos += b1->permutationSegment.size();}
 					// Move items of ``b2`` to the end of ``b1`` (emptying ``b2`` at the same time).
 					(b1->permutationSegment).splice((b1->permutationSegment).end(), b2->permutationSegment);
 				}
@@ -263,12 +290,12 @@ private:
 
 			std::list<Gene> permSegment;
 			for (int size = 0; size < currentChunkSize; ++size, ++pos) {
-				permSegment.emplace_back(std::abs(perm[pos]), pos, (perm[pos] < 0));
+				permSegment.emplace_back(std::abs(perm[pos]), size, (perm[pos] < 0));
     		}
 
 			// Make a block with the permutation segment.
 			// ``permSegment`` becomes unusable after this point.
-			createNewBlock(permSegment, blockList.end());
+			createNewBlock(pos-currentChunkSize+1,permSegment, blockList.end());
 		}
 	}
 
@@ -316,19 +343,11 @@ public:
 		const int g_after_beg = reversal_beg->permutationSegment.front().id;
 		const int g_after_end = reversal_end->permutationSegment.front().id;
 		std::reverse(reversal_beg, reversal_end); // Reverses the order of the elements in the range [first, last).
-
-		// (3.1) Update positions of reversed genes.
-		int genePos = genes[g_beg]->pos;
+		// (3.1) Update positions of reversed blocks.
+		int blockPos = genes_to_blocks[g_beg]->pos + genes_to_blocks[g_beg]->permutationSegment.size();
 		for (std::list<Block>::iterator b = genes_to_blocks[g_end]; b != std::next(genes_to_blocks[g_after_beg]); ++b) { 
-			if(b->reversed){
-			    for (std::list<Gene>::reverse_iterator g = b->permutationSegment.rbegin(); g != b->permutationSegment.rend(); ++g) {
-					g->pos = ++genePos;
-			    }
-			} else {
-			    for (std::list<Gene>::iterator g = b->permutationSegment.begin(); g != b->permutationSegment.end(); ++g) {
-					g->pos = ++genePos;
-			    }
-			}
+			b->pos = blockPos;
+			blockPos += b->permutationSegment.size();
 		}
 
 		std::cout << applyReversal_str << " After reversing blocks: " << printBlocks("\n\t") << std::endl;
