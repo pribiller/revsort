@@ -19,11 +19,14 @@
  * Auxiliary data structures.
  *******************************************************/
 
+class Block; // forward declaration
+
 class Gene {
 public:
 	int id;  // Absolute value of the gene.
 	int pos; // Relative position inside the block.
-	bool reversed{false}; // Orientation of the gene (+ or -).
+	bool reversed{false};             // Orientation of the gene (+ or -).
+	std::list<Block>::iterator block; // Block where gene currently is.
 	Gene(const int id_, const int pos_, const bool sign_):id(id_),pos(pos_),reversed(sign_){
 	}
 };
@@ -52,11 +55,11 @@ public:
 	/* It computes the absolute position of the gene based on its 
 	relative position and the absolute starting position of the block.
 	*/
-	inline int genePosAbs(Gene const &g){
+	inline int genePosAbs(Gene const &g) const {
 		return (reversed ? (pos + permutationSegment.size() - 1 -g.pos) : (pos + g.pos));
 	}
 
-	std::string printBlock(){
+	std::string printBlock() const {
 		std::string block_str = "[ ";
 		for(Gene const &g : permutationSegment) {block_str +=  (std::to_string(g.id) + "(" + std::to_string(genePosAbs(g)) + ") ");}
 		block_str += ("].rev=" + std::to_string(reversed));
@@ -68,27 +71,35 @@ public:
                     // Base hook with default options (i.e., optimized for speed).
 class Node : public boost::intrusive::set_base_hook<> {
 public:
-
-	int id;               // node id (i).
-	int pos_next;         // the position of node i's successor in the current permutation.
-	bool oriented{false}; // if the arc i is oriented or not (oriented: sign of i and (i+1) are flipped).
+	const Gene& gene;
+	const Gene& gene_next;
 	int orientedTotal{0}; // the number of oriented arcs in the subtree rooted at node i.
 	bool reversed{false}; // nodes should be ordered backwards with respect to the original order, and all nodes change orientation.
 
-	Node(const int id, const int pos_next, const bool oriented):id(id),pos_next(pos_next),oriented(oriented){ 
+	Node(const Gene& g, const Gene& g_next):gene(g),gene_next(g_next){ 
+	}
+
+	// Returns the position of node i's successor in the current permutation.
+	inline int getPosNext() const {
+		return gene_next.block->genePosAbs(gene_next);
+	}
+
+	// Returns if the arc i is oriented or not (oriented: sign of i and (i+1) are flipped).
+	inline bool getOrientation() const {
+		return (gene.reversed != gene_next.reversed);
 	}
 
 	// Overload the '<' operator.
 	friend bool operator<(const Node &a, const Node &b){
-		return a.pos_next < b.pos_next;
+		return a.getPosNext() < b.getPosNext();
 	}
 	// Overload the '>' operator.
 	friend bool operator>(const Node &a, const Node &b){
-		return a.pos_next > b.pos_next;
+		return a.getPosNext() > b.getPosNext();
 	}
 	// Overload the '==' operator.
 	friend bool operator==(const Node &a, const Node &b){
-		return a.pos_next == b.pos_next;
+		return a.getPosNext() == b.getPosNext();
 	}
 };
 
@@ -99,7 +110,6 @@ public:
 class GenomeSort {
 private:
 	std::list<Block> blockList;
-	std::vector<std::list<Block>::iterator> genes_to_blocks; // map between genes and blocks (size=n genes).
 	std::vector<std::list<Gene>::iterator> genes; // references of genes (size=n genes).
 	std::vector<Node> nodes; // references of nodes in balanced binary trees for each block (size=n-1 arcs).
 	int n; // number of genes
@@ -126,7 +136,7 @@ private:
 			new_block = std::prev(blockList.end());
 		}
 		// Updates the reference block for affected genes.
-		for (const Gene& g : new_block->permutationSegment) {genes_to_blocks[g.id-1] = new_block;}
+		for (Gene& g : new_block->permutationSegment) {g.block = new_block;}
 		return new_block;
 	}
 
@@ -134,8 +144,8 @@ private:
 		int g = std::abs(gene);
 
 		// Retrieve block where gene is currently located.
-		std::list<Block>::iterator b_it = genes_to_blocks[g-1];
-		std::list<Gene>::iterator g_it  = genes[g-1];
+		std::list<Gene>::iterator  g_it = genes[g-1];
+		std::list<Block>::iterator b_it = g_it->block;
 
 		// Creates an iterator for a potential new block.
 		std::list<Block>::iterator new_block; // new_block = b_it;
@@ -192,7 +202,7 @@ private:
 	/* Block b1 = b1 + b2. Block b2: deleted. */
 	void concatenateBlocks(std::list<Block>::iterator& b1, std::list<Block>::iterator& b2){
 		// Update the reference block for affected genes.
-		for (const Gene& g : b2->permutationSegment) {genes_to_blocks[g.id-1] = b1;}
+		for (Gene& g : b2->permutationSegment) {g.block = b1;}
 		// Flag ``reversed``: 4 cases to consider.
 		// Case 1 and Case 2: Blocks have ``reversed`` flag with the same value.
 		if(b1->reversed == b2->reversed){
@@ -255,7 +265,7 @@ private:
 	lies within the interval [½×√(n×log(n)), 2×√(n×log(n))]. */
 	void balanceBlock(const int gene){
 
-		std::list<Block>::iterator b = genes_to_blocks[std::abs(gene)-1];
+		std::list<Block>::iterator b = genes[std::abs(gene)-1]->block;
 
 		// If the block is too small, then concatenate the block with a neighboring block.
 		while(b->permutationSegment.size() < minBlockSize){
@@ -294,14 +304,9 @@ private:
 	to initialize references to nodes. */
 	void initializeNodes(){
 		nodes.reserve(n-1);
-		for (int g=0; g<(n-1); g++) {
-			// Position of the next element in the current permutation.
-			const int pos_next  = genes_to_blocks[g+1]->genePosAbs((*genes[g+1]));
-			const bool oriented = (genes[g]->reversed != genes[g+1]->reversed);
-			nodes.emplace_back(genes[g]->id, pos_next, oriented);
-		}
+		for (int g=0; g<(n-1); g++) {nodes.emplace_back((*genes[g]), (*genes[g+1]));}
 	}
-
+	
 	/* Method used only during construction of the object, 
 	to initialize references to genes. */
 	void initializeGenes(){
@@ -324,7 +329,6 @@ private:
 		int const remainder		= n % numChunks;
 
 		// Create a list of blocks with size Θ(√n×log(n)).
-		genes_to_blocks.resize(n);
 		int pos = 0;
 		for (int i=0; i<numChunks; i++) {
 			// Take a segment of the permutation.
@@ -378,8 +382,8 @@ public:
 		std::cout << applyReversal_str << " After splitting blocks: " << printBlocks("\n\t") << std::endl;
 
 		// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
-		std::list<Block>::iterator reversal_beg  = std::next(genes_to_blocks[g_beg-1]); // this block is the first reversed block.
-		std::list<Block>::iterator reversal_last = genes_to_blocks[g_end-1];   // this block is the last reversed block.
+		std::list<Block>::iterator reversal_beg  = std::next(genes[g_beg-1]->block); // this block is the first reversed block.
+		std::list<Block>::iterator reversal_last = genes[g_end-1]->block;    // this block is the last reversed block.
 		std::list<Block>::iterator reversal_end  = std::next(reversal_last); // this block will not be reversed.
 		for (std::list<Block>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed);}
 
@@ -388,8 +392,8 @@ public:
 		const int g_after_end = reversal_end->permutationSegment.front().id;
 		std::reverse(reversal_beg, reversal_end); // Reverses the order of the elements in the range [first, last).
 		// (3.1) Update positions of reversed blocks.
-		int blockPos = genes_to_blocks[g_beg-1]->pos + genes_to_blocks[g_beg-1]->permutationSegment.size();
-		for (std::list<Block>::iterator b = genes_to_blocks[g_end-1]; b != std::next(genes_to_blocks[g_after_beg-1]); ++b) { 
+		int blockPos = (genes[g_beg-1]->block)->pos + (genes[g_beg-1]->block)->permutationSegment.size();
+		for (std::list<Block>::iterator b = genes[g_end-1]->block; b != std::next(genes[g_after_beg-1]->block); ++b) { 
 			b->pos = blockPos;
 			blockPos += b->permutationSegment.size();
 		}
