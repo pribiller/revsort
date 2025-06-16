@@ -49,17 +49,14 @@ public:
 
 	// Overload the '<' operator.
 	friend bool operator<(const Node &a, const Node &b){
-		std::cout << "Comp <\n";
 		return a.getPosNext() < b.getPosNext();
 	}
 	// Overload the '>' operator.
 	friend bool operator>(const Node &a, const Node &b){
-		std::cout << "Comp >\n";
 		return a.getPosNext() > b.getPosNext();
 	}
 	// Overload the '==' operator.
 	friend bool operator==(const Node &a, const Node &b){
-		std::cout << "Comp ==\n";
 		return a.getPosNext() == b.getPosNext();
 	}
 };
