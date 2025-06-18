@@ -19,18 +19,14 @@
 #include <iostream>
 #include <list>
 #include <vector>
-#include <numeric> // iota
+#include <numeric>   // iota
 #include <cmath> 
-#include <string> // convert input args (string to int)
-#include <utility> // move
+#include <string>    // convert input args (string to int)
+#include <utility>   // move
 #include <algorithm> // find_if, reverse
-#include <unordered_map>
-#include <unordered_set>
-#include "genomePermutation.hpp"
-//#include <memory> // shared_ptr
-//#include <chrono>
 
-#include <boost/intrusive/rbtree.hpp>
+#include "genomePermutation.hpp"
+#include "reversalBST_KaplanVerbin2003.hpp"
 
 // It makes code a bit clear: 
 // instead of std::cout you can type directly cout.
@@ -41,58 +37,22 @@
  * binary trees for blocks.
  *******************************************************/
 
-/* Each node corresponds to an arc v_i. */
-                    // Base hook with default options (i.e., optimized for speed).
-template <typename BlockT>
-class Node : public boost::intrusive::set_base_hook<> {
-public:
-	const Gene<BlockT>& gene;
-	const Gene<BlockT>& gene_next;
-	int orientedTotal{0}; // the number of oriented arcs in the subtree rooted at node i.
-	bool reversed{false}; // nodes should be ordered backwards with respect to the original order, and all nodes change orientation.
-
-	Node(const Gene<BlockT>& g, const Gene<BlockT>& g_next):gene(g),gene_next(g_next){ 
-	}
-
-	// Returns if the arc i is oriented or not (oriented: sign of i and (i+1) are flipped).
-	inline bool getOrientation() const {
-		return (gene.reversed != gene_next.reversed);
-	}
-
-	// Returns the position of node i's successor in the current permutation.
-	inline int getPosNext() const {
-		return gene_next.block->genePosAbs(gene_next);
-	}
-
-	// Overload the '<' operator.
-	friend bool operator<(const Node &a, const Node &b){
-		return a.getPosNext() < b.getPosNext();
-	}
-	// Overload the '>' operator.
-	friend bool operator>(const Node &a, const Node &b){
-		return a.getPosNext() > b.getPosNext();
-	}
-	// Overload the '==' operator.
-	friend bool operator==(const Node &a, const Node &b){
-		return a.getPosNext() == b.getPosNext();
-	}
-};
-
 class BlockTree : public BlockBase<BlockTree> {
 public:
-	boost::intrusive::rbtree<Node<BlockTree>> tree; // Balanced binary tree with segment elements as nodes.	
+	RedBlackTree<BlockTree> tree; // Balanced binary tree with segment elements as nodes.	
 
     // Inherit constructors from BlockBase
     using BlockBase<BlockTree>::BlockBase;
-    
+
 	void makeTree(std::vector<Node<BlockTree>>& nodes){
-		tree.clear();
+		//tree.clear();
 		for (std::list<Gene<BlockTree>>::iterator gene = permutationSegment.begin(); gene != permutationSegment.end(); ++gene){
 			if(gene->id < nodes.size()){ // The last gene does not have an arc.
-				tree.insert_equal(nodes[gene->id-1]);				
+				tree.insert(&nodes[gene->id-1]);
 			}
 		}
 	}
+
 	void updateTree(){}
 };
 
@@ -121,7 +81,9 @@ private:
 	to initialize references to nodes. */
 	void initializeNodes(){
 		nodes.reserve(genperm.n-1);
-		for (int g=0; g<(genperm.n-1); g++) {nodes.emplace_back((*genperm.genes[g]), (*genperm.genes[g+1]));}
+		for (int g=0; g<(genperm.n-1); g++) {
+			nodes.emplace_back((*genperm.genes[g]), (*genperm.genes[g+1]));
+		}
 	}
 	
 public:
@@ -178,10 +140,6 @@ public:
 		genperm.balanceBlock(g_after_end);
 	}
 
-	/* Temporary function to handle memory of boost trees. */
-	void clearTrees(){
-		for(auto &b : genperm.blockList) {b.tree.clear();}
-	}
 };
 
 int main(int argc, char* argv[]) {
@@ -203,7 +161,6 @@ int main(int argc, char* argv[]) {
 	// genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
 	// genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
 
-	genomeSort.clearTrees();
 	std::cout << "Bye bye\n";
 	return 0;
 }

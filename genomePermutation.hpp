@@ -16,6 +16,8 @@
  * New Randomized Approach for Sorting Signed Permutations by Reversals"
  *******************************************************/
 
+#pragma once // It avoid class redefinition.
+
 #include <iostream>
 #include <list>
 #include <vector>
