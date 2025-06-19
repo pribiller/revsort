@@ -49,6 +49,8 @@ public:
 		for (std::list<Gene<BlockTree>>::iterator gene = permutationSegment.begin(); gene != permutationSegment.end(); ++gene){
 			if(gene->id < nodes.size()){ // The last gene does not have an arc.
 				tree.insert(&nodes[gene->id-1]);
+				//std::cout << "After inserting node " << gene->id << "\n";
+				//tree.printTree();
 			}
 		}
 	}
@@ -85,6 +87,10 @@ private:
 			nodes.emplace_back((*genperm.genes[g]), (*genperm.genes[g+1]));
 		}
 	}
+
+	void printTrees(){
+		for(BlockTree &b : genperm.blockList) {b.tree.printTree();}
+	}
 	
 public:
 	// Parameterized constructor.
@@ -94,7 +100,8 @@ public:
 		// Initialize trees.
 		initializeTrees();
 		// Print blocks.
-		//std::cout << genperm.printBlocks() << std::endl;
+		std::cout << genperm.printBlocks() << std::endl;
+		printTrees();
 	}
 
 	void applyReversal(int g_beg, int g_end){
