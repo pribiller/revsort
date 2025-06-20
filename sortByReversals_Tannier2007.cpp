@@ -24,6 +24,7 @@
 #include <string>    // convert input args (string to int)
 #include <utility>   // move
 #include <algorithm> // find_if, reverse
+#include <cstdlib>   // exit
 
 #include "genomePermutation.hpp"
 #include "reversalBST_KaplanVerbin2003.hpp"
@@ -45,7 +46,7 @@ public:
     using BlockBase<BlockTree>::BlockBase;
 
 	void makeTree(std::vector<Node<BlockTree>>& nodes){
-		//tree.clear();
+		tree.cleanTree();
 		for (std::list<Gene<BlockTree>>::iterator gene = permutationSegment.begin(); gene != permutationSegment.end(); ++gene){
 			if(gene->id < nodes.size()){ // The last gene does not have an arc.
 				tree.insert(&nodes[gene->id-1]);
@@ -53,9 +54,40 @@ public:
 				// tree.printTree();
 			}
 		}
+		status = OK;
 	}
 
-	void updateTree(){}
+	// Update tree after reversal (g_beg, g_end]
+	void updateTree(const int g_beg, const int g_end){
+		if ((status.find(SPLIT) != std::string::npos) || (status.find(CONC) != std::string::npos)){
+			std::cout << "ERROR! Trying to update tree that needs to be remade first (status=" << status << ")" << std::endl;
+		} else {
+
+			std::cout << "Split tree at " << g_beg << "= " << printBlock() << std::endl;
+			tree.printTree();
+
+			std::cout << "Split START" << std::endl;
+			// Split tree into three trees:
+			// The middle tree will contain all pairs whose ``remote`` element 
+			// is part of the reversal, and the other two trees will contain the 
+			// pairs whose ``remote`` element is out of the reversal.
+			RedBlackTree<BlockTree> t2{}; // TODO: do I need to free this memory?
+			tree.split(g_beg, t2);
+
+			std::cout << "Split END" << std::endl;
+			tree.printTree();
+			t2.printTree();
+
+			// if(status == MUT){
+
+			// } else {
+
+			// }
+
+			exit(0);
+		}
+		status = OK;
+	}
 };
 
 /*******************************************************
@@ -85,6 +117,16 @@ private:
 		nodes.reserve(genperm.n-1);
 		for (int g=0; g<(genperm.n-1); g++) {
 			nodes.emplace_back((*genperm.genes[g]), (*genperm.genes[g+1]));
+		}
+	}
+	
+	void updateTrees(const int g_beg, const int g_end){
+		for(BlockTree &b : genperm.blockList) {
+			if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
+				b.makeTree(nodes); // Make tree from scratch.
+			} else {
+				b.updateTree(g_beg, g_end);	
+			}
 		}
 	}
 
@@ -123,7 +165,7 @@ public:
 		std::list<BlockTree>::iterator reversal_beg  = std::next(genperm.getBlock(g_beg)); // this block is the first reversed block.
 		std::list<BlockTree>::iterator reversal_last = genperm.getBlock(g_end);  // this block is the last reversed block.
 		std::list<BlockTree>::iterator reversal_end  = std::next(reversal_last); // this block will not be reversed.
-		for (std::list<BlockTree>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed);}
+		for (std::list<BlockTree>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed); b->status += MUT;}
 
 		// (3) Reverse the order of the blocks between the endpoints of the reversal;
 		const int g_after_beg = reversal_beg->permutationSegment.front().id;
@@ -135,6 +177,9 @@ public:
 			b->pos = blockPos;
 			blockPos += b->permutationSegment.size();
 		}
+		// (3.2) After reversing the order and ﬂags of the blocks inside the reversal, 
+		// every tree, even those outside the reversal, are processed separately.
+		updateTrees(g_beg, g_end);
 
 		std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
@@ -165,8 +210,8 @@ int main(int argc, char* argv[]) {
 	
 	GenomeSort genomeSort = GenomeSort(perm);
 	genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
-	genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
-	genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
+	// genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
+	// genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
 
 	std::cout << "Bye bye\n";
 	return 0;

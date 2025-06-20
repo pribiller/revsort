@@ -46,11 +46,10 @@ public:
 };
 
 // Status of blocks.
-const std::string OK      =  ""; // No events happened.
-const std::string SPLIT   = "S"; // Block split.
-const std::string CONC    = "C"; // Block concatenation.
-const std::string MUT_IN  = "I"; // Block inside mutation.
-const std::string MUT_OUT = "O"; // Block outside mutation.
+const std::string OK    =  ""; // No events happened.
+const std::string SPLIT = "S"; // Block split.
+const std::string CONC  = "C"; // Block concatenation.
+const std::string MUT   = "M"; // Block inside mutation.
 
 template <typename BlockT>
 class BlockBase {
