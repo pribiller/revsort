@@ -49,8 +49,8 @@ public:
 		for (std::list<Gene<BlockTree>>::iterator gene = permutationSegment.begin(); gene != permutationSegment.end(); ++gene){
 			if(gene->id < nodes.size()){ // The last gene does not have an arc.
 				tree.insert(&nodes[gene->id-1]);
-				//std::cout << "After inserting node " << gene->id << "\n";
-				//tree.printTree();
+				// std::cout << "After inserting node " << gene->id << "\n";
+				// tree.printTree();
 			}
 		}
 	}
@@ -164,9 +164,9 @@ int main(int argc, char* argv[]) {
 	}
 	
 	GenomeSort genomeSort = GenomeSort(perm);
-	// genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
-	// genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
-	// genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
+	genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
+	genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
+	genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
 
 	std::cout << "Bye bye\n";
 	return 0;

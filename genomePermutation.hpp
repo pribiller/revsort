@@ -98,8 +98,8 @@ protected:
 
 	// Invariant: at *all* points during the sorting algorithm, 
 	// the block sizes are between [½×√(n×log(n)), 2×√(n×log(n))].
-	int minBlockSize;
-	int maxBlockSize;
+	int minBlockSize{0};
+	int maxBlockSize{0};
 
 	/* Adds a new block after the specified position. 
 	WARNING! ``permSegment`` will become unusable at the end of this method.
@@ -126,7 +126,11 @@ public:
 	std::vector<typename std::list<Gene<BlockT>>::iterator> genes;  // references of genes (size=n genes).
 
 	// Parameterized constructor.
-	GenomePermutation(const std::vector<int>& perm):n(perm.size()),minBlockSize(std::floor(0.5*(std::sqrt(n*std::log(n))))),maxBlockSize(std::ceil(2*(std::sqrt(n*std::log(n))))){
+	GenomePermutation(const std::vector<int>& perm):n(perm.size()){
+		
+		minBlockSize = std::floor(0.5*(std::sqrt(n*std::log(n))));
+		maxBlockSize = std::ceil(2*(std::sqrt(n*std::log(n))));
+
 		// Split permutation into blocks.
 		// Create a list of blocks with size Θ(√n×log(n)). 
 		initializeBlocks(perm);
@@ -194,6 +198,7 @@ typename std::list<BlockT>::iterator GenomePermutation<BlockT>::createNewBlock(c
 	return new_block;
 }
 
+/* Block is split into [1 2 .. gene] [gene+1 .. n]*/
 // replace by pair (or tuple)
 template <typename BlockT>
 void GenomePermutation<BlockT>::splitBlock(const int gene){
@@ -225,6 +230,10 @@ void GenomePermutation<BlockT>::splitBlock(const int gene){
 			// ``permSegment`` becomes unusable after this point.
 			new_block = createNewBlock(b_it->pos + b_it->permutationSegment.size(), permSegment, b_it);
 			new_block->reversed = b_it->reversed;
+
+			// Update status of blocks.
+			b_it->status      += SPLIT;
+			new_block->status += SPLIT;
 		}
 
 	// Case 2: block->reversed = false. before: A = B + C, rev(A)=false / after: B + C, rev(B) = rev(C) = false.
@@ -239,11 +248,12 @@ void GenomePermutation<BlockT>::splitBlock(const int gene){
 			// Create a new block containing all genes that appear after the gene specified in the input.
 			// ``permSegment`` becomes unusable after this point.
 			new_block = createNewBlock(b_it->pos+b_it->permutationSegment.size(), permSegment, b_it);
+
+			// Update status of blocks.
+			b_it->status      += SPLIT;
+			new_block->status += SPLIT;
 		}
 	}
-	// Update status of blocks.
-	b_it->status      += SPLIT;
-	new_block->status += SPLIT;
 	// Return affected blocks.
 	// return {(*b_it), (*new_block)};
 }

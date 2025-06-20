@@ -75,6 +75,10 @@ public:
 	// if the node itself is black, then its blackHeight is >= 1.
 	int blackHeight{0}; 
 
+	// Keep minimum and maximum values found in the subtree.
+	Node* min{nullptr};
+	Node* max{nullptr};
+
 	/* Genome properties. */
 
 	const Gene<BlockT>& gene;
@@ -102,7 +106,7 @@ public:
 	// unused=true and oriented=false;
 	int unused_oriented_tot{0};
 
-	Node(const Gene<BlockT>& g, const Gene<BlockT>& g_next):gene(g),gene_next(g_next){ 
+	Node(const Gene<BlockT>& g, const Gene<BlockT>& g_next):gene(g),gene_next(g_next),min(this),max(this){ 
 		const bool sign_g	  = (g.reversed != g.block->reversed);
 		const bool sign_g_next = (gene_next.reversed != gene_next.block->reversed);
 		oriented = getOrientation();
@@ -142,6 +146,9 @@ public:
 		parent = nullptr;
 		left   = nullptr;
 		right  = nullptr;
+
+		min    = this;
+		max    = this;
 
 		color  = RED;
 		blackHeight = 0;
@@ -235,6 +242,10 @@ private:
 		child->left = node;
 		node->parent = child;
 
+		// Update min and max values.
+		node->max  = (node->right != nullptr) ? node->right->max : node;
+		child->min = node->min;
+
 		// Update counts of rotated nodes.
 		// node, node->right (child), and node->right->left (node's new right) have the same ``reversed`` flag (=false).
 		const int unused_node_nochild = node->unused_tot - child->unused_tot;
@@ -283,6 +294,10 @@ private:
 			node->parent->right = child;
 		child->right = node;
 		node->parent = child;
+
+		// Update min and max values.
+		node->min  = (node->left != nullptr) ? node->left->min : node;
+		child->max = node->max;
 
 		// Update counts of rotated nodes.
 		// node, node->left (child), and node->left->right (node's new left) have the same ``reversed`` flag (=false).
@@ -385,15 +400,17 @@ private:
 		}
 	}
 
-	// Case: Black height of the tree t1 is higher than the one from t2.
-	RedBlackTree joinRight(RedBlackTree t1, Node<BlockT>* node, RedBlackTree t2){
+	// Case: t1 < k < t2; t1.blackHeight >= t2.blackHeight.
+	// The tree with smaller black height will always end up 
+	// as a subtree of the tree with bigger black height.
+	void joinRight(RedBlackTree& t1, Node<BlockT>*& node, RedBlackTree& t2){
 		// Clear reversed flags (turn them off),
 		// in order to simplify update of counts.
-		t2->root->clearReversedFlag();
-		node->clearReversedFlag();
 		t1->root->clearReversedFlag();
+		node->clearReversedFlag();
+		t2->root->clearReversedFlag();
 
-		// Update in the counts of all nodes in the way from the root until insertion position.
+		// Update the counts of all nodes from the root until insertion position.
 		const int unused_tot_upd = node->unused_tot + t2->root->unused_tot;
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t2->root->unused_oriented_tot;
 		Node<BlockT>* current = t1->root;
@@ -416,6 +433,8 @@ private:
 		node->parent = parent;   // red (potential conflict with parent; fixed later in fixInsert)
 		node->left   = current;  // black
 		node->right  = t2->root; // black
+		node->min    = node->left->min;
+		node->max    = node->right->max;
 		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
 		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
 		// node, t1 and t2 have the same ``reversed`` flag (= false).
@@ -423,12 +442,12 @@ private:
 
 		// Fix tree balance if needed. It also updates the counts of nodes.
 		t1->fixInsert(node);
-		return t1;
 	}
 
-	// Case: Black height of the tree t1 is lower or equal than the one from t2.
-	// TODO: Check once more it might have typos in it.
-	RedBlackTree joinLeft(RedBlackTree t1, Node<BlockT>* node, RedBlackTree t2){
+	// Case: t1 < k < t2; t1.blackHeight < t2.blackHeight.
+	// The tree with smaller black height will always end up 
+	// as a subtree of the tree with bigger black height.
+	void joinLeft(RedBlackTree& t1, Node<BlockT>*& node, RedBlackTree& t2){
 		// Clear reversed flags (turn them off),
 		// in order to simplify update of counts.
 		t2->root->clearReversedFlag();
@@ -458,6 +477,8 @@ private:
 		node->parent = parent;   // red (potential conflict with parent; fixed later in fixInsert)
 		node->left   = t1->root; // black
 		node->right  = current;  // black
+		node->min    = node->left->min;
+		node->max    = node->right->max;
 		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
 		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
 		// node, t1 and t2 have the same ``reversed`` flag (= false).
@@ -465,7 +486,6 @@ private:
 
 		// Fix tree balance if needed. It also updates the counts of nodes.
 		t2->fixInsert(node);
-		return t2;
 	}
 
 public:
@@ -475,70 +495,164 @@ public:
 
 	}
 
-	// Make a function that joins another tree to the current tree.
+	void cleanTree(){
+		root = nullptr;
+	}
 
+	void reroot(Node<BlockT>* new_root){
+		root = new_root;
+		if(root->parent != nullptr){
+			// WARNING! If new_root was part of some previous tree,
+			// this other tree will become invalid (unbalanced, outdated, etc.).
+			if (root->parent->right == root){
+				root->parent->right = nullptr;
+			} else if (root->parent->left == root){
+				root->parent->left = nullptr;
+			}
+			root->parent = nullptr;
+		}
+		root->color = BLACK;
+		root->blackHeight += 1;
+		root->clearReversedFlag();
+	}
 
-	// The function Join is on two red-black trees t1 and t2 and a key k, 
+	// Join acts on two red-black trees t1 and t2 and a key k, 
 	// where t1 < k < t2, i.e. all keys in t1 are less than k (node), and 
 	// all keys in t2 are greater than k. 
-	// It returns a tree containing all elements in t1, t2 as well as k.
-	RedBlackTree join(RedBlackTree t1, Node<BlockT>* node, RedBlackTree t2){
-		if ((t1->root == nullptr) || (t2->root == nullptr)){
-			std::cout << " [Join trees] ERROR! Trees ``t1`` and ``t2`` are empty. Nothing to join." << std::endl;
-			return t1;
+	// WARNING: The data structure of both trees will be modified.
+	//			Specifically, node pointers will be modified by this function.
+	void join(Node<BlockT>* node, RedBlackTree& another_tree){
+		if (root == nullptr) {
+			another_tree.insert(node);
+			root = another_tree.root;
+		} else if (another_tree.root == nullptr) {
+			insert(node);
 		} else {
-			// Add nodes from t2 to t1.
-			if (t1->root->blackHeight > t2->root->blackHeight) {
-				return joinRight(t1, node, t2);
-			// Add nodes from t1 to t2.
+			node->cleanNode();
+			// this tree < k < another tree.
+			if((*root) < (*node)){
+				// Add nodes from t2 to t1.
+				if (root->blackHeight > another_tree.root->blackHeight) {
+					joinRight(this, node, another_tree);
+				// Add nodes from t1 to t2.
+				} else {
+					joinLeft(this, node, another_tree);
+					root = another_tree->root;
+				}
+			// another tree < k < this tree
 			} else {
-				return joinLeft(t1, node, t2);
+				// Add nodes from t1 to t2.
+				if (root->blackHeight > another_tree.root->blackHeight) {
+					joinLeft(another_tree, node, this);
+				// Add nodes from t2 to t1.
+				} else {
+					joinRight(another_tree, node, this);
+					root = another_tree->root;
+				}
 			}
 		}
 	}
 
 	// Split the current tree into two subtrees: 
-	// t_l (with all elements < val); 
-	// t_r (with all elements >= val).
-	void split(int val, RedBlackTree& t_l, RedBlackTree& t_r) {
-		if (root == nullptr) {
-			t_l->root = nullptr;
-			t_r->root = nullptr;
-		} else {
-			Node<BlockT>* current = root;
-			Node<BlockT>* parent  = nullptr;
-			// Find position to insert node.
-			while (current != nullptr){
-				// Make sure that the ``reversed`` flag is set to false 
-				// in all the way between the root and the insertion point.
-				current->clearReversedFlag();
-				if(val < (*current)){
-					
-					parent  = current;
-					current = current->left;
+	// current tree (with all elements < val); 
+	// another_tree (with all elements >= val).
+	void split(int val, RedBlackTree& another_tree) {
+		
+		// TODO: This is just a ``trick`` to deal with the case where val == node.
+		// In this case, both node->right and node->left 
+		// would need to be joined, but node can be used 
+		// only in one of the join operations.
+		double key = val;
 
-					// All nodes in the right subtree (+ the current node) 
-					// are smaller than val, but bigger than all values 
-					// already inserted in t_r.
-					if (t_r->root == nullptr) {
-						t_r->root = parent->right;
-						t_r->insert(parent);
-						t_r = join(current->right, current, t_r);
-					} 
+		Node<BlockT>* current = root;
+		Node<BlockT>* parent  = nullptr;
+		RedBlackTree tmp_t    = new RedBlackTree();
+		// Clean both trees.
+		cleanTree();
+		another_tree.cleanTree();
+		// Find position to insert node.
+		while (current != nullptr){
+			// Make sure that the ``reversed`` flag is set to false 
+			// in all the way between the root and the insertion point.
+			current->clearReversedFlag();
+			if(key < current->getPosNext()) {
+				parent  = current;
+				current = current->left;
+				// All nodes in the right subtree (+ the current node) 
+				// are bigger than val, but smaller than all values 
+				// inserted in another_tree so far.
+				tmp_t.reroot(parent->right);
+				another_tree->join(parent, tmp_t);
+				
+			} if(key > current->getPosNext()) {
+				parent  = current;
+				current = current->right;
+				// All nodes in the left subtree (+ the current node) 
+				// are smaller than val, but bigger than all values 
+				// inserted in another_tree so far.
+				tmp_t.reroot(parent->left);
+				join(parent, tmp_t);
 
-					
-					
-					
-				} if(val > (*current)) {
-					t_l = join(t_l, current, current->left);
-					current = current->right;
+			// val == current.
+			} else {
+				
+				parent  = current;
+				current = current->left;
+				
+				tmp_t.reroot(parent->right);
+				another_tree->join(parent, tmp_t);
+
+				// Shortcut: If the maximum node from the left tree can be easily extracted:
+				// Join left tree using the maximum node as ``k``.
+				if ((current != nullptr) && (current->max->color == RED)){
+					Node<BlockT>* max = current->max;
+					tmp_t.reroot(current);
+					tmp_t.deleteMax();
+					join(max, tmp_t);
+					break;
+
+				// Otherwise, ``key`` value is adjusted to force
+				// the loop go until one of the leaves.
+				} else {
+					key -= 0.1;
 				}
 			}
-			// All values in the tree are smaller than val.
-			if(current == nullptr):
-				t_l = this;
+		}
+		delete tmp_t;
+	}
 
-			// Either (current == nullptr) 
+	// Public function: Remove the max node from the Red-Black Tree.
+	// Only deals with a very easy case (max is RED).
+	void deleteMax() {
+		Node<BlockT>* max    = root->max;
+		if(max->color != RED){return;}
+		// ``max`` has one child at most, which can be either on the left or on the right side,
+		// depending whether the cummulated ``reversed`` flag is on.
+		Node<BlockT>* child   = (max->left != nullptr) ? max->left : max->right;
+		Node<BlockT>* parent  = max->parent;
+		Node<BlockT>* new_max = (child != nullptr) ? child : parent;
+		// Update max and counts in parents.
+		Node<BlockT>* current = root;
+		bool reversed = false;
+		while(current != max){
+			// Update global/accumulated ``reversed`` flag. 
+			reversed = (reversed != current->reversed);
+			current->max = new_max;
+			current->unused_tot -= ((max->unused) ? 1 : 0);
+			current->unused_oriented_tot -= ((reversed != max->oriented) ? 1 : 0);
+			current = (reversed)? current->left : current->right;
+		}
+		// Replace max node by its kid. 
+		// Kid is black, as well as the new maximum value in the tree.
+		if (parent != nullptr){
+			if (parent->right == max){
+				parent->right = child;
+			} else {
+				parent->left = child;
+			}			
+		}
+		if(child != nullptr){
+			child->parent = max->parent;
 		}
 	}
 
@@ -549,7 +663,6 @@ public:
 
 		// Re-set properties related to the tree.
 		node->cleanNode();
-
 		Node<BlockT>* current = root;
 		Node<BlockT>* parent  = nullptr;
 		bool reversed = false;
@@ -575,15 +688,19 @@ public:
 			// Traverse the tree in an inverted order (Right;Root;Left).
 			if(reversed){
 				if ((*node) < (*current)){
+					if((*node) < (*(current->min))){current->min = node;}
 					current = current->right;
 				} else {
+					if((*node) > (*(current->max))){current->max = node;}
 					current = current->left;
 				}				
 			// Traverse the tree in the correct order (Left;Root;Right).
 			} else{
 				if ((*node) < (*current)){
+					if((*node) < (*(current->min))){current->min = node;}
 					current = current->left;
 				} else {
+					if((*node) > (*(current->max))){current->max = node;}
 					current = current->right;
 				}
 			}
