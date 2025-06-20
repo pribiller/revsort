@@ -136,6 +136,48 @@ public:
 		return a.getPosNext() == b.getPosNext();
 	}
 
+	// Some properties related to the arc are **not** cleared: 
+	// pointers to the genes (i and i+1) and flag ``unused``.
+	void cleanNode() {
+		parent = nullptr;
+		left   = nullptr;
+		right  = nullptr;
+
+		color  = RED;
+		blackHeight = 0;
+
+		unused_tot  = 0;
+		unused_oriented_tot = 0;
+
+		reversed = false;
+		oriented = getOrientation();
+	}
+
+	void swapChildren() {
+		Node* temp = left;
+		left  = right;
+		right = temp;
+	}
+
+	// Utility function specific to Genomic context:
+	// Pushing down the reversed ﬂags before applying Rotation.
+	// A rotation on nodes with reversed flags turned off 
+	// correctly maintains the structure.
+	void clearReversedFlag(){
+		if(reversed) {
+			// Exchange children.
+			// TODO: Can I use std::swap?
+			swapChildren();
+			// Flip the reversed flag in each of them.
+			// As the ``reversed`` flag is also flipped for the parent node, 
+			// the current reversed state for the children is not modified.
+			if (right != nullptr) {right->reversed = !right->reversed;}
+			if (left  != nullptr) {left->reversed  = !left->reversed;}
+			// Flipping the sign of the element at the node and update its counts.
+			reversed = !reversed;
+			unused_oriented_tot = unused_tot - unused_oriented_tot;
+		}
+	}
 };
 
 /********************************************************
@@ -148,51 +190,6 @@ public:
 template <typename BlockT>
 class RedBlackTree {
 private:
-
-	// Properties related to the arc itself are **not** touched by this function: 
-	// pointers to the genes (i and i+1) and flag ``unused``.
-	void cleanNode(Node<BlockT>*& node) {
-		node->parent = nullptr;
-		node->left   = nullptr;
-		node->right  = nullptr;
-
-		node->color		 = RED;
-		node->blackHeight = 0;
-
-		node->unused_tot = 0;
-		node->unused_oriented_tot = 0;
-
-		node->reversed = false;
-		node->oriented = node->getOrientation();
-	}
-
-	void swapChildren(Node<BlockT>*& node) {
-		if (node != nullptr) {
-			Node<BlockT>* temp = node->left;
-			node->left  = node->right;
-			node->right = temp;
-		}
-	}
-
-	// Utility function specific to Genomic context:
-	// Pushing down the reversed ﬂags before applying Rotation.
-	// A rotation on nodes with reversed flags turned off 
-	// correctly maintains the structure.
-	void clearReversedFlag(Node<BlockT>*& node){
-		if((node != nullptr) && (node->reversed)){
-			// Exchange children.
-			// TODO: Can I use std::swap?
-			swapChildren(node);
-			// Flip the reversed flag in each of them.
-			// As the ``reversed`` flag is also flipped for the parent node, 
-			// the current reversed state for the children is not modified.
-			if (node->right != nullptr) {node->right->reversed = !node->right->reversed;}
-			if (node->left  != nullptr) {node->left->reversed  = !node->left->reversed;}
-			// Flipping the sign of the element at the node and update its counts.
-			node->reversed = !node->reversed;
-			node->unused_oriented_tot = node->unused_tot - node->unused_oriented_tot;
-		}
-	}
 
 	// Return the ``cummulated`` reversed flag from the root until this node.
 	bool getReversedFlag(Node<BlockT>*& node){
@@ -220,9 +217,9 @@ private:
 	{
 		// Clear reversed flags (turn them off),
 		// to make sure that rotation is valid.
-		clearReversedFlag(node);
-		clearReversedFlag(node->right);
-		if (node->right->left != nullptr) {clearReversedFlag(node->right->left);}
+		node->clearReversedFlag();
+		node->right->clearReversedFlag();
+		if (node->right->left != nullptr) {node->right->left->clearReversedFlag();}
 
 		Node<BlockT>* child = node->right;
 		node->right = child->left;
@@ -269,9 +266,9 @@ private:
 	{
 		// Clear reversed flags (turn them off),
 		// to make sure that rotation is valid.
-		clearReversedFlag(node);
-		clearReversedFlag(node->left);
-		if (node->left->right != nullptr) {clearReversedFlag(node->left->right);}
+		node->clearReversedFlag();
+		node->left->clearReversedFlag();
+		if (node->left->right != nullptr) {node->left->right->clearReversedFlag();}
 
 		Node<BlockT>* child = node->left;
 		node->left = child->right;
@@ -388,11 +385,161 @@ private:
 		}
 	}
 
+	// Case: Black height of the tree t1 is higher than the one from t2.
+	RedBlackTree joinRight(RedBlackTree t1, Node<BlockT>* node, RedBlackTree t2){
+		// Clear reversed flags (turn them off),
+		// in order to simplify update of counts.
+		t2->root->clearReversedFlag();
+		node->clearReversedFlag();
+		t1->root->clearReversedFlag();
+
+		// Update in the counts of all nodes in the way from the root until insertion position.
+		const int unused_tot_upd = node->unused_tot + t2->root->unused_tot;
+		const int unused_oriented_tot_upd = node->unused_oriented_tot + t2->root->unused_oriented_tot;
+		Node<BlockT>* current = t1->root;
+		while((current->blackHeight != t2->root->blackHeight) || (current->color != BLACK)){
+			// Update counts.
+			current->unused_tot += unused_tot_upd;
+			current->unused_oriented_tot += unused_oriented_tot_upd;
+			current = current->right;
+			current->clearReversedFlag();
+		}
+		// At this point: t1 and t2 have the same height; t1 and t2 roots are black.
+
+		// Insert node.
+		Node<BlockT>* parent = current->parent;
+		if (parent == nullptr) {
+			t1->root = node;
+		} else {
+			parent->right = node;
+		}
+		node->parent = parent;   // red (potential conflict with parent; fixed later in fixInsert)
+		node->left   = current;  // black
+		node->right  = t2->root; // black
+		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
+		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
+		// node, t1 and t2 have the same ``reversed`` flag (= false).
+		node->unused_oriented_tot += (node->left->unused_oriented_tot + node->right->unused_oriented_tot);
+
+		// Fix tree balance if needed. It also updates the counts of nodes.
+		t1->fixInsert(node);
+		return t1;
+	}
+
+	// Case: Black height of the tree t1 is lower or equal than the one from t2.
+	// TODO: Check once more it might have typos in it.
+	RedBlackTree joinLeft(RedBlackTree t1, Node<BlockT>* node, RedBlackTree t2){
+		// Clear reversed flags (turn them off),
+		// in order to simplify update of counts.
+		t2->root->clearReversedFlag();
+		node->clearReversedFlag();
+		t1->root->clearReversedFlag();
+
+		// Update in the counts of all nodes in the way from the root until insertion position.
+		const int unused_tot_upd = node->unused_tot + t1->root->unused_tot;
+		const int unused_oriented_tot_upd = node->unused_oriented_tot + t1->root->unused_oriented_tot;
+		Node<BlockT>* current = t2->root;
+		while((current->blackHeight != t1->root->blackHeight) || (current->color != BLACK)){
+			// Update counts.
+			current->unused_tot += unused_tot_upd;
+			current->unused_oriented_tot += unused_oriented_tot_upd;
+			current = current->left;
+			current->clearReversedFlag();
+		}
+		// At this point: t1 and t2 have the same height; t1 and t2 roots are black.
+
+		// Insert node.
+		Node<BlockT>* parent = current->parent;
+		if (parent == nullptr) {
+			t2->root = node;
+		} else {
+			parent->left = node;
+		}
+		node->parent = parent;   // red (potential conflict with parent; fixed later in fixInsert)
+		node->left   = t1->root; // black
+		node->right  = current;  // black
+		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
+		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
+		// node, t1 and t2 have the same ``reversed`` flag (= false).
+		node->unused_oriented_tot += (node->left->unused_oriented_tot + node->right->unused_oriented_tot);
+
+		// Fix tree balance if needed. It also updates the counts of nodes.
+		t2->fixInsert(node);
+		return t2;
+	}
+
 public:
 	Node<BlockT>* root{nullptr}; // Root of the Red-Black Tree
 
 	RedBlackTree() {
 
+	}
+
+	// Make a function that joins another tree to the current tree.
+
+
+	// The function Join is on two red-black trees t1 and t2 and a key k, 
+	// where t1 < k < t2, i.e. all keys in t1 are less than k (node), and 
+	// all keys in t2 are greater than k. 
+	// It returns a tree containing all elements in t1, t2 as well as k.
+	RedBlackTree join(RedBlackTree t1, Node<BlockT>* node, RedBlackTree t2){
+		if ((t1->root == nullptr) || (t2->root == nullptr)){
+			std::cout << " [Join trees] ERROR! Trees ``t1`` and ``t2`` are empty. Nothing to join." << std::endl;
+			return t1;
+		} else {
+			// Add nodes from t2 to t1.
+			if (t1->root->blackHeight > t2->root->blackHeight) {
+				return joinRight(t1, node, t2);
+			// Add nodes from t1 to t2.
+			} else {
+				return joinLeft(t1, node, t2);
+			}
+		}
+	}
+
+	// Split the current tree into two subtrees: 
+	// t_l (with all elements < val); 
+	// t_r (with all elements >= val).
+	void split(int val, RedBlackTree& t_l, RedBlackTree& t_r) {
+		if (root == nullptr) {
+			t_l->root = nullptr;
+			t_r->root = nullptr;
+		} else {
+			Node<BlockT>* current = root;
+			Node<BlockT>* parent  = nullptr;
+			// Find position to insert node.
+			while (current != nullptr){
+				// Make sure that the ``reversed`` flag is set to false 
+				// in all the way between the root and the insertion point.
+				current->clearReversedFlag();
+				if(val < (*current)){
+					
+					parent  = current;
+					current = current->left;
+
+					// All nodes in the right subtree (+ the current node) 
+					// are smaller than val, but bigger than all values 
+					// already inserted in t_r.
+					if (t_r->root == nullptr) {
+						t_r->root = parent->right;
+						t_r->insert(parent);
+						t_r = join(current->right, current, t_r);
+					} 
+
+					
+					
+					
+				} if(val > (*current)) {
+					t_l = join(t_l, current, current->left);
+					current = current->right;
+				}
+			}
+			// All values in the tree are smaller than val.
+			if(current == nullptr):
+				t_l = this;
+
+			// Either (current == nullptr) 
+		}
 	}
 
 	// Public function: Insert a node into the Red-Black Tree.
@@ -401,7 +548,7 @@ public:
 	void insert(Node<BlockT>* node) {
 
 		// Re-set properties related to the tree.
-		cleanNode(node);
+		node->cleanNode();
 
 		Node<BlockT>* current = root;
 		Node<BlockT>* parent  = nullptr;

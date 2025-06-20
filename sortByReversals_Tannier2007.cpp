@@ -1,11 +1,11 @@
 /*******************************************************
  * One genome is represented as one permutation. 
- * The permutation is given as a vector of ints,
+ * The permutation is given as a vector of integers (int),
  * where each int corresponds to a gene, and its sign
  * indicates the direction its transcription occurs.
  * 
  * This class stores this permutation as blocks
- * of size Θ(√n×log(n)), with the additional property
+ * of size Θ(√(n×log(n))), with the additional property
  * that each block has a balanced binary tree associated
  * with, where safe reversals can be easily retrieved.
  * 
