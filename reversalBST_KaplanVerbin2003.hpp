@@ -381,6 +381,145 @@ private:
 		}
 	}
 
+	// Utility function: Fixing Deletion Violation
+	void fixDelete(Node<BlockT>* node, Node<BlockT>* parent) {
+		std::cout << "FIX DELETE\n";
+		while ((node != root) && ((node == nullptr) || (node->color == BLACK))) {
+			
+			std::cout << "fixDelete\n";
+			printTree();
+
+			if (node == parent->left) {
+				Node<BlockT>* sibling = parent->right;
+				if (sibling->color == RED) {
+					sibling->color = BLACK;
+					parent->color  = RED;
+					// Update the ``blackHeight`` of parent and sibling nodes.
+					sibling->blackHeight += 1;
+					parent->blackHeight -= 1;
+					rotateLeft(parent);
+					sibling = parent->right;
+				}
+				// Sibling can be either BLACK or RED (both its children are BLACK).
+				if (((sibling->left  == nullptr) || (sibling->left->color  == BLACK))
+				&&  ((sibling->right == nullptr) || (sibling->right->color == BLACK))) {
+					// Update ``blackHeight`` if needed.
+					if (sibling->color == BLACK) {sibling->blackHeight -= 1;}
+					sibling->color = RED;
+					node   = parent;
+					parent = node->parent;
+				// Sibling is BLACK (at least one of its children is RED).
+				} else {
+					// Right is BLACK. Left is RED.
+					if ((sibling->right == nullptr) || (sibling->right->color == BLACK)) {
+						if (sibling->left != nullptr){
+							sibling->left->blackHeight += 1;
+							sibling->left->color = BLACK;
+						}
+						sibling->blackHeight -= 1;
+						sibling->color = RED;
+						rotateRight(sibling);
+						sibling = parent->right;
+					}
+					// Update ``blackHeight`` of parent and sibling.
+					if(parent->color == RED){
+						parent->blackHeight += 1;
+						if(sibling->color != parent->color){
+							sibling->blackHeight -= 1;
+						}
+					} else {
+						if(sibling->color != parent->color){
+							sibling->blackHeight += 1;
+						}
+					}
+					sibling->color = parent->color;
+					parent->color  = BLACK;
+					if (sibling->right != nullptr){
+						if(sibling->right->color == RED){sibling->right->blackHeight += 1;}
+						sibling->right->color = BLACK;
+					}
+					rotateLeft(parent);
+					node = root;
+				}
+			} else {
+				Node<BlockT>* sibling = parent->left;
+				if (sibling->color == RED) {
+					sibling->color = BLACK;
+					parent->color  = RED;
+					// Update the ``blackHeight`` of parent and sibling nodes.
+					sibling->blackHeight += 1;
+					parent->blackHeight  -= 1;
+					rotateRight(parent);
+					sibling = parent->left;
+				} 
+				// Sibling can be either BLACK or RED (both its children are BLACK).
+				if ( ((sibling->left  == nullptr) || (sibling->left->color  == BLACK))
+				  && ((sibling->right == nullptr) || (sibling->right->color == BLACK))) {
+					// Update ``blackHeight`` if needed.
+					if (sibling->color == BLACK) {sibling->blackHeight -= 1;}
+					sibling->color = RED;
+					node   = parent;
+					parent = node->parent;
+				// Sibling is BLACK (at least one of its children is RED).
+				} else {
+					// Left is BLACK. Right is RED.
+					if ((sibling->left == nullptr) || (sibling->left->color == BLACK)) {
+						if (sibling->right != nullptr){
+							sibling->right->blackHeight += 1;
+							sibling->right->color = BLACK;
+						}
+						sibling->blackHeight -= 1;
+						sibling->color = RED;
+						rotateLeft(sibling);
+						sibling = parent->left;
+					}
+					// Update ``blackHeight`` of parent and sibling.
+					if(parent->color == RED){
+						parent->blackHeight += 1;
+						if(sibling->color != parent->color){
+							sibling->blackHeight -= 1;
+						}
+					} else {
+						if(sibling->color != parent->color){
+							sibling->blackHeight += 1;
+						}
+					}
+					sibling->color = parent->color;
+					parent->color  = BLACK;
+					if (sibling->left != nullptr){
+						if(sibling->left->color == RED){sibling->left->blackHeight += 1;}
+						sibling->left->color = BLACK;
+					}
+					rotateRight(parent);
+					node = root;
+				}
+			}
+		}
+		if(node != nullptr){node->color = BLACK;}
+	}
+
+	// Utility function: Transplant nodes in Red-Black Tree
+	void transplant(Node<BlockT>*& u, Node<BlockT>*& v){
+
+		// Clear ``reversed`` flags before transplanting.
+		if (u->parent != nullptr){
+			u->parent->clearReversedFlag();
+		}
+		u->clearReversedFlag();
+
+		// TODO: Update any counts? (blackHeight, total unused, etc.?)
+
+		// Transplant: ``v`` takes the place of ``u``.
+		if (u->parent == nullptr)
+			root = v;
+		else if (u == u->parent->left)
+			u->parent->left = v;
+		else
+			u->parent->right = v;
+		if (v != nullptr)
+			v->parent = u->parent;
+	}
+
 	// Utility function: Helper to print Red-Black Tree
 	void printHelper(Node<BlockT>* root, std::string indent, bool last) {
 		if (root != nullptr) {
@@ -394,7 +533,7 @@ private:
 				indent += "|  ";
 			}
 			std::string sColor = (root->color == RED) ? "RED" : "BLACK";
-			std::cout << root->printNode() << "(" << sColor << ";BH=" << root->blackHeight << ";UN=" << root->unused_tot << ";OR=" << root->unused_oriented_tot << ")" << std::endl;
+			std::cout << root->printNode() << "(" << sColor << ";BH=" << root->blackHeight << ";UN=" << root->unused_tot << ";OR=" << root->unused_oriented_tot << ";MIN=" << root->min->gene.id << ";MAX=" << root->max->gene.id << ")" << std::endl;
 			printHelper(root->left, indent, false);
 			printHelper(root->right, indent, true);
 		}
@@ -620,75 +759,141 @@ public:
 				printTree();
 
 			// val == current.
+			// ``Shortcut case``: loop does not need to go until a leaf.
 			} else {
 				
+				// All nodes in the left subtree (+ the current node) 
+				// are smaller or equal than val, but bigger than all 
+				// values inserted in another_tree so far.
 				parent  = current;
 				current = current->right;
-				
-				reroot(parent->left);
-				insert(parent);
 
-				// ``key`` value is adjusted to force
-				// the loop go until one of the leaves.
-				key += 0.1;
+				tmp_t.reroot(parent->left);
+				join(parent, tmp_t);
+
+				// All nodes in the right subtree (+ the current node) 
+				// are bigger than val, but smaller than all values 
+				// inserted in another_tree so far.
+				if(current != nullptr){
+					tmp_t.reroot(current);
+					// Extract the minimum or maximum node from the right tree.
+					Node<BlockT>* k = ((another_tree.root != nullptr) || (*(another_tree.root->min)) > (*(tmp_t.root->max))) ? tmp_t.root->max : tmp_t.root->min;
+					tmp_t.remove(k);
+					another_tree.join(k, tmp_t);
+				}
 
 				std::cout << "[key=" << key << "] Tree bigger than key." << std::endl;
 				another_tree.printTree();
 				std::cout << "[key=" << key << "] Tree smaller than key." << std::endl;
 				printTree();
+				break;
 
-				/*
-				// Shortcut: If the minimum node from the right tree can be easily extracted:
-				// Join right tree using the minimum node as ``k``.
-				if ((current != nullptr) && (current->min->color == RED)){
-					Node<BlockT>* min = current->min;
-					tmp_t.reroot(current);
-					tmp_t.deleteMin(); // --> TODO: Not implemented yet.
-					another_tree.join(min, tmp_t);
-					break;
-
-				// Otherwise, ``key`` value is adjusted to force
+				/*************************************/
+				// Alternative implementation of this case.
+				// Here, ``key`` value is adjusted to force
 				// the loop go until one of the leaves.
-				} else {
-					key += 0.1;
-				}
-				*/
+
+				// parent  = current;
+				// current = current->right;
+				
+				// reroot(parent->left);
+				// insert(parent);
+
+				// // ``key`` value is adjusted to force
+				// // the loop go until one of the leaves.
+				// key += 0.1;
 			}
 		}
 	}
 
-	// Public function: Remove the max node from the Red-Black Tree.
-	// Only deals with a very easy case (max is RED).
-	void deleteMax() {
-		Node<BlockT>* max    = root->max;
-		if(max->color != RED){return;}
-		// ``max`` has one child at most, which can be either on the left or on the right side,
-		// depending whether the cummulated ``reversed`` flag is on.
-		Node<BlockT>* child   = (max->left != nullptr) ? max->left : max->right;
-		Node<BlockT>* parent  = max->parent;
-		Node<BlockT>* new_max = (child != nullptr) ? child : parent;
-		// Update max and counts in parents.
+	// Public function: Remove a value from Red-Black Tree.
+	// ``node`` is the node to be removed.
+	void remove(Node<BlockT>* node) {
+		Node<BlockT>* z = node;
+		Node<BlockT>* x = nullptr;
+		Node<BlockT>* y = nullptr;
+
+		if (z == nullptr) {return;}
+
+		// Check if the deleted node is the min or max of its parent.
+		// In this scenario, the node has at most one child.
+		Node<BlockT>* new_min = nullptr;
+		Node<BlockT>* new_max = nullptr;
+		if((z->parent != nullptr) && ((z == z->parent->min) || (z == z->parent->max))){
+			Node<BlockT>* child = (z->left != nullptr) ? z->left : z->right;
+			if(z == z->parent->min){
+				if ((child != nullptr) && ((*(child->min)) < (*(z->parent)))){
+					new_min = child->min;
+				} else {
+					new_min = z->parent;
+				}
+			}
+			if(z == z->parent->max){
+				if ((child != nullptr) && ((*(child->max)) > (*(z->parent)))){
+					new_max = child->max;
+				} else {
+					new_max = z->parent;
+				}
+			}
+		}
+
+		// Update min/max and other counts in the path between the root and the deleted node.
+		// Make sure that all ``reversed`` flags in the path 
+		// between the root and the deleted node are ``off``.
 		Node<BlockT>* current = root;
-		bool reversed = false;
-		while(current != max){
-			// Update global/accumulated ``reversed`` flag. 
-			reversed = (reversed != current->reversed);
-			current->max = new_max;
-			current->unused_tot -= ((max->unused) ? 1 : 0);
-			current->unused_oriented_tot -= ((reversed != max->oriented) ? 1 : 0);
-			current = (reversed)? current->left : current->right;
-		}
-		// Replace max node by its kid. 
-		// Kid is black, as well as the new maximum value in the tree.
-		if (parent != nullptr){
-			if (parent->right == max){
-				parent->right = child;
+		const int unused_upd  = ((node->unused) ? 1 : 0);
+		const int unused_oriented_upd = (((node->unused) && (node->oriented)) ? 1 : 0);
+		while(current != node){
+			current->clearReversedFlag();
+			if(current->max == node) {
+				current->max = new_max;
+			}
+			if(current->min == node) {
+				current->min = new_min;
+			}
+
+			current->unused_tot -= unused_upd;
+			current->unused_oriented_tot -= unused_oriented_upd;
+
+			// Traverse tree in the correct order (reversed flag=false).
+			if ((*node) < (*current)){
+				current = current->left;
 			} else {
-				parent->left = child;
-			}			
+				current = current->right;
+			}
+
 		}
-		if(child != nullptr){
-			child->parent = max->parent;
+
+		std::cout << "Tree AFTER UPDATING MIN MAX\n";
+		printTree();
+
+		y = z;
+		Color yOriginalColor = y->color;
+		if (z->left == nullptr) {
+			x = z->right;
+			transplant(z, z->right);
+		} else if (z->right == nullptr) {
+			x = z->left;
+			transplant(z, z->left);
+		} else {
+			y = z->right->min;
+			yOriginalColor = y->color;
+			x = y->right;
+			if (y->parent == z) {
+				if (x != nullptr) {x->parent = y;}
+			} else {
+				transplant(y, y->right);
+				y->right = z->right;
+				y->right->parent = y;
+			}
+			transplant(z, y);
+			y->left = z->left;
+			y->left->parent = y;
+			y->color = z->color;
+		}
+		if (yOriginalColor == BLACK) {
+			Node<BlockT>* parent = (x == nullptr) ? z->parent : x->parent;
+			fixDelete(x, parent);
 		}
 	}
 
