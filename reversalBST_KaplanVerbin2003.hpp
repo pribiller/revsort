@@ -980,6 +980,48 @@ public:
 		fixInsert(node);
 	}
 
+	// Returns an unused oriented arc from the tree (if it exists).
+	Node<BlockT>* getUnusedOriented(){
+		Node<BlockT>* current = root;
+		current->clearReversedFlag();
+
+		// ``reversed`` flag of the block should be taken 
+		// into account in the orientation of a node 
+		// (but **not** on how the tree is traversed).
+		bool const reversed_block = root->gene.block->reversed;
+
+		// Find an oriented unused arc in the tree.
+		int unused_oriented_tot  = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
+		bool curIsUnusedOriented = ((current->unused) && (current->getOrientation() != reversed_block));
+		while ((current != nullptr) && (!curIsUnusedOriented) && (unused_oriented_tot > 0)) {
+
+			// Compute amount of unused arcs in the right and left child.
+			int unused_oriented_left = 0;			
+			if(current->left != nullptr){
+				unused_oriented_left = reversed_block ? (current->left->unused_tot - current->left->unused_oriented_tot) : current->left->unused_oriented_tot;
+			}
+			int unused_oriented_right = 0;			
+			if(current->right != nullptr){
+				unused_oriented_right = reversed_block ? (current->right->unused_tot - current->right->unused_oriented_tot) : current->right->unused_oriented_tot;
+			}
+
+			// Move to the child with the highest amount of unused oriented arcs.
+			if(unused_oriented_left > unused_oriented_right){
+				current = current->left;
+			} else {
+				current = current->right;
+			}
+
+			// Update flag and count.
+			current->clearReversedFlag();
+			unused_oriented_tot = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
+			curIsUnusedOriented = ((current->unused) && (current->getOrientation() != reversed_block));
+		}
+
+		// Check if current node represents an arc that is unused and oriented.
+		return curIsUnusedOriented ? current : nullptr;
+	}
+
 	void printTree() const {
 		if (root == nullptr)
 			std::cout << "Tree is empty." << std::endl;

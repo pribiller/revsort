@@ -25,6 +25,7 @@
 #include <utility>   // move
 #include <algorithm> // find_if, reverse
 #include <cstdlib>   // exit
+#include <deque>
 
 #include "genomePermutation.hpp"
 #include "reversalBST_KaplanVerbin2003.hpp"
@@ -240,7 +241,7 @@ public:
 		printTrees();
 	}
 
-	void applyReversal(int g_beg, int g_end){
+	void applyReversal(int g_beg, int g_end) {
 
 		g_beg = std::abs(g_beg);
 		g_end = std::abs(g_end);
@@ -292,6 +293,53 @@ public:
 		printTrees();
 	}
 
+	Node<BlockTree>* getUnusedOriented() {
+		Node<BlockTree>* node = nullptr;
+		for(BlockTree &b : genperm.blockList) {
+			node = b.tree.getUnusedOriented();
+			if(node != nullptr){break;}
+		}
+		return node;
+	}
+
+	/* Sort by reversals.
+	Transform permutation A into B by reversal operations.
+	- Constraint: all components in the overlap graph of the 
+				  permutations A and B must be **oriented**.
+	*/
+	void sortByReversals(){
+		std::cout << " Sort by reversals: " << genperm.printBlocks("\n\t") << std::endl;
+		printTrees();
+
+		std::deque<std::pair<int,int>> S1{};
+		std::deque<std::pair<int,int>> S2{};
+
+		Node<BlockTree>* arc_unused_oriented = getUnusedOriented();
+		while(arc_unused_oriented != nullptr){
+			const int pos_beg = arc_unused_oriented->gene.block->genePosAbs(arc_unused_oriented->gene);
+			const int pos_end = arc_unused_oriented->gene_next.block->genePosAbs(arc_unused_oriented->gene_next);
+			const int g_beg = (pos_beg < pos_end) ? arc_unused_oriented->gene.id : arc_unused_oriented->gene_next.id;
+			const int g_end = (pos_beg < pos_end) ? arc_unused_oriented->gene_next.id : arc_unused_oriented->gene.id;
+			applyReversal(g_beg, g_end);
+
+			// Update status of arc from ``used`` to ``unused``.
+			// s1 <- s1 + [new arc]
+
+			// Check if s2[0] is oriented.
+			// If not, go one step back.
+			// Apparently this case only happens when the algorithm is about to end.
+
+			// If there are still ``unused`` arcs.
+
+			// while current permutation does not have unused oriented arc.
+				// Undo reversal.
+				// s1 <- s1 - [new arc]
+				// s2 <- [new arc] + s2
+			
+			// Get another unused oriented arc.
+			Node<BlockTree>* arc_unused_oriented = getUnusedOriented();
+		}
+	}
 };
 
 int main(int argc, char* argv[]) {

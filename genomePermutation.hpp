@@ -412,7 +412,3 @@ void GenomePermutation<BlockT>::initializeBlocks(const std::vector<int>& perm){
 		createNewBlock(pos-currentChunkSize+1,permSegment, blockList.end());
 	}
 }
-
-// int main(int argc, char* argv[]) {
-// 	std::cout << "Hello World! :-D\n";
-// }
