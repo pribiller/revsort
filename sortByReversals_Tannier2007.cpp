@@ -123,13 +123,16 @@ public:
 		} else {
 			// TODO: Depending on tree sizes, get max of one or the min from the other.
 			Node<BlockTree>* max_t1 = tree.getGlobalMax();
+			// std::cout << "[Merge trees] Max from T1: (" << max_t1->printNode() << ")" << std::endl;
 			tree.remove(max_t1);
+			// std::cout << "[Merge trees] T1 (x <= " << g_beg << ") after removing (" << max_t1->printNode() << ")" << std::endl;
+			// tree.printTree();
 			tree.join(max_t1,t2);
 		}
-		
+
 		// std::cout << "[Merge trees] After join t1 + t2 | Block: " << printBlock() << std::endl;
 		// tree.printTree();
-		
+
 		// Concatenate - Step 2: t1 = t1 + t2 + t3
 		if (tree.root == nullptr) {
 			tree.root = t3.root;
@@ -139,9 +142,9 @@ public:
 			// std::cout << "T1 (x <= " << g_beg << ")" << std::endl;
 			// tree.printTree();
 			Node<BlockTree>* max_t1 = tree.getGlobalMax();
-			// std::cout << "Max from T1: (" << max_t1->printNode() << ")" << std::endl;
+			// std::cout << "[Merge trees] Max from T1: (" << max_t1->printNode() << ")" << std::endl;
 			tree.remove(max_t1);
-			// std::cout << "T1 (x <= " << g_beg << ") after removing (" << max_t1->printNode() << ")" << std::endl;
+			// std::cout << "[Merge trees] T1 (x <= " << g_beg << ") after removing (" << max_t1->printNode() << ")" << std::endl;
 			// tree.printTree();
 			tree.join(max_t1,t3);
 		}
@@ -309,7 +312,7 @@ int main(int argc, char* argv[]) {
 	genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
 	genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
 	genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
-	
+
 	std::cout << "Bye bye\n";
 	return 0;
 }

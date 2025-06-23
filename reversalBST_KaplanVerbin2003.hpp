@@ -86,10 +86,6 @@ public:
 	const Gene<BlockT>& gene;
 	const Gene<BlockT>& gene_next;
 
-	// ``true`` if signs of genes (i) and (i+1) are flipped in the 
-	// current permutation; false otherwise.	
-	bool oriented{false}; 
-
 	// If reversed=true, then nodes should be ordered backwards 
 	// with respect to the original order, and all nodes change orientation.
 	bool reversed{false};
@@ -111,10 +107,11 @@ public:
 	Node(const Gene<BlockT>& g, const Gene<BlockT>& g_next):gene(g),gene_next(g_next),min(this),max(this){ 
 		const bool sign_g	  = (g.reversed != g.block->reversed);
 		const bool sign_g_next = (gene_next.reversed != gene_next.block->reversed);
-		oriented = getOrientation();
 	}
 
-	bool getOrientation(){
+	// ``true`` if signs of genes (i) and (i+1) are flipped in the 
+	// current permutation; false otherwise.
+	inline bool getOrientation() const {
 		const bool sign_g	  = (gene.reversed != gene.block->reversed);
 		const bool sign_g_next = (gene_next.reversed != gene_next.block->reversed);
 		return (sign_g != sign_g_next);
@@ -159,7 +156,6 @@ public:
 		unused_oriented_tot = 0;
 
 		reversed = false;
-		oriented = getOrientation();
 	}
 
 	void swapChildren() {
@@ -552,7 +548,7 @@ private:
 
 		bool const reversed_block = node->gene.block->reversed;
 		node->unused_tot = (node->unused) ? 1 : 0;
-		node->unused_oriented_tot = ((node->unused) && (node->oriented != reversed_block)) ? 1 : 0;
+		node->unused_oriented_tot = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
 
 		// Update the counts of all nodes from the root until insertion position.
 		const int unused_tot_upd = node->unused_tot + t2.root->unused_tot;
@@ -598,11 +594,11 @@ private:
 		t2.root->clearReversedFlag();
 		node->clearReversedFlag();
 		t1.root->clearReversedFlag();
-		
+
 		bool const reversed_block = node->gene.block->reversed;
 		node->unused_tot = (node->unused) ? 1 : 0;
-		node->unused_oriented_tot = ((node->unused) && (node->oriented != reversed_block)) ? 1 : 0;
-		
+		node->unused_oriented_tot = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
+
 		// Update in the counts of all nodes in the way from the root until insertion position.
 		const int unused_tot_upd = node->unused_tot + t1.root->unused_tot;
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t1.root->unused_oriented_tot;
@@ -832,7 +828,8 @@ public:
 		Node<BlockT>* y = nullptr;
 
 		if (z == nullptr) {return;}
-		
+		z->clearReversedFlag();
+
 		// Check if the deleted node is the min or max of its parent.
 		// In this scenario, the node has at most one child.
 		Node<BlockT>* new_min = nullptr;
@@ -840,7 +837,6 @@ public:
 		if((z->parent != nullptr) && ((z == z->parent->min) || (z == z->parent->max))){
 			Node<BlockT>* child = (z->left != nullptr) ? z->left : z->right;
 			// Make sure the ``reversed`` flags are off so comparison is valid.
-			z->clearReversedFlag();
 			if (child != nullptr) {child->clearReversedFlag();}
 			// Finds new min/max.
 			if(z == z->parent->min){
@@ -863,8 +859,9 @@ public:
 		// Make sure that all ``reversed`` flags in the path 
 		// between the root and the deleted node are ``off``.
 		Node<BlockT>* current = root;
+		bool const reversed_block = node->gene.block->reversed;
 		const int unused_upd  = ((node->unused) ? 1 : 0);
-		const int unused_oriented_upd = (((node->unused) && (node->oriented)) ? 1 : 0);
+		const int unused_oriented_upd = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
 		while(current != node){
 			current->clearReversedFlag();
 			if(current->max == node) {
@@ -954,7 +951,7 @@ public:
 				// arcs that are unused and oriented.
 				// If reversed = true, ``unused_oriented_tot`` keeps all 
 				// arcs that are unused and **not** oriented.
-				if(node->oriented != reversed_block) {current->unused_oriented_tot += 1;} 
+				if(node->getOrientation() != reversed_block) {current->unused_oriented_tot += 1;} 
 			}
 			// Traverse the tree in the correct order (Left;Root;Right).
 			// Cumulated ``reversed`` flag from root until current node is always false.
@@ -971,7 +968,7 @@ public:
 		node->blackHeight = 0; // New node is always (initially) a RED node.
 		node->unused_tot  = (node->unused) ? 1 : 0;
 		// It takes into account the ``reversed`` flag of the block.
-		node->unused_oriented_tot = ((node->unused) && (node->oriented != reversed_block)) ? 1 : 0;
+		node->unused_oriented_tot = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
 		if (parent == nullptr) {
 			root = node;
 		} else if ((*node) > (*parent)) {
