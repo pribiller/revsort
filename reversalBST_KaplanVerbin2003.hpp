@@ -24,6 +24,8 @@
  * and counters updated at all points.
  * 
  * Red-black tree implementation is based on:
+ * - Cormen's book: "Introduction to Algorithms", chapter 13 ("Red-black trees").
+ * - An implementation of Cormen's pseudocode in C++ is provided in: 
  * https://www.geeksforgeeks.org/cpp/red-black-tree-in-cpp/
  * 
  * For more details:
@@ -183,6 +185,10 @@ public:
 			// Flipping the sign of the element at the node and update its counts.
 			reversed = !reversed;
 			unused_oriented_tot = unused_tot - unused_oriented_tot;
+			// Flip min and max nodes.
+			Node* tmp = min;
+			min = max;
+			max = tmp;
 		}
 	}
 };
@@ -249,7 +255,7 @@ private:
 		// Update counts of rotated nodes.
 		// node, node->right (child), and node->right->left (node's new right) have the same ``reversed`` flag (=false).
 		const int unused_node_nochild = node->unused_tot - child->unused_tot;
-		const int unused_oriented_node_nochild = node->unused_oriented_tot - child->unused_oriented_tot;		
+		const int unused_oriented_node_nochild = node->unused_oriented_tot - child->unused_oriented_tot;
 		const int unused_new_right = ((node->right == nullptr) ? 0 : node->right->unused_tot);
 		const int unused_oriented_new_right = ((node->right == nullptr) ? 0 : node->right->unused_oriented_tot);
 		// The order the update is done is important (bottom-up direction).
@@ -383,12 +389,7 @@ private:
 
 	// Utility function: Fixing Deletion Violation
 	void fixDelete(Node<BlockT>* node, Node<BlockT>* parent) {
-		std::cout << "FIX DELETE\n";
 		while ((node != root) && ((node == nullptr) || (node->color == BLACK))) {
-			
-			std::cout << "fixDelete\n";
-			printTree();
-
 			if (node == parent->left) {
 				Node<BlockT>* sibling = parent->right;
 				if (sibling->color == RED) {
@@ -521,7 +522,7 @@ private:
 	}
 
 	// Utility function: Helper to print Red-Black Tree
-	void printHelper(Node<BlockT>* root, std::string indent, bool last) {
+	void printHelper(Node<BlockT>* root, std::string indent, bool last) const {
 		if (root != nullptr) {
 			std::cout << indent;
 			if (last) {
@@ -533,7 +534,7 @@ private:
 				indent += "|  ";
 			}
 			std::string sColor = (root->color == RED) ? "RED" : "BLACK";
-			std::cout << root->printNode() << "(" << sColor << ";BH=" << root->blackHeight << ";UN=" << root->unused_tot << ";OR=" << root->unused_oriented_tot << ";MIN=" << root->min->gene.id << ";MAX=" << root->max->gene.id << ")" << std::endl;
+			std::cout << root->printNode() << "(" << sColor << ";BH=" << root->blackHeight << ";UN=" << root->unused_tot << ";OR=" << root->unused_oriented_tot << ";MIN=" << root->min->printNode() << ";MAX=" << root->max->printNode() << ";REV=" << ((root->reversed) ? "T" : "F") << ")" << std::endl;
 			printHelper(root->left, indent, false);
 			printHelper(root->right, indent, true);
 		}
@@ -548,7 +549,6 @@ private:
 		t1.root->clearReversedFlag();
 		node->clearReversedFlag();
 		t2.root->clearReversedFlag();
-
 		// Update the counts of all nodes from the root until insertion position.
 		const int unused_tot_upd = node->unused_tot + t2.root->unused_tot;
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t2.root->unused_oriented_tot;
@@ -557,6 +557,8 @@ private:
 			// Update counts.
 			current->unused_tot += unused_tot_upd;
 			current->unused_oriented_tot += unused_oriented_tot_upd;
+			current->max = t2.root->max;
+			// Move to the next node in the path.
 			current = current->right;
 			current->clearReversedFlag();
 		}
@@ -569,17 +571,16 @@ private:
 		} else {
 			parent->right = node;
 		}
-		node->parent = parent;   // red (potential conflict with parent; fixed later in fixInsert)
-		node->left   = current;  // black
+		node->parent = parent;  // red (potential conflict with parent; fixed later in fixInsert)
+		node->left   = current; // black
 		node->right  = t2.root; // black
-		node->min    = node->left->min;
-		node->max    = node->right->max;
 		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
 		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
 		// node, t1 and t2 have the same ``reversed`` flag (= false).
 		node->unused_oriented_tot += (node->left->unused_oriented_tot + node->right->unused_oriented_tot);
-
-		// Fix tree balance if needed. It also updates the counts of nodes.
+		node->min    = node->left->min;
+		node->max    = node->right->max;
+		// Fix tree balance if needed.
 		t1.fixInsert(node);
 	}
 
@@ -601,6 +602,7 @@ private:
 			// Update counts.
 			current->unused_tot += unused_tot_upd;
 			current->unused_oriented_tot += unused_oriented_tot_upd;
+			current->min = t1.root->min;
 			current = current->left;
 			current->clearReversedFlag();
 		}
@@ -616,13 +618,12 @@ private:
 		node->parent = parent;   // red (potential conflict with parent; fixed later in fixInsert)
 		node->left   = t1.root; // black
 		node->right  = current;  // black
-		node->min    = node->left->min;
-		node->max    = node->right->max;
 		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
 		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
 		// node, t1 and t2 have the same ``reversed`` flag (= false).
 		node->unused_oriented_tot += (node->left->unused_oriented_tot + node->right->unused_oriented_tot);
-
+		node->min    = node->left->min;
+		node->max    = node->right->max;
 		// Fix tree balance if needed. It also updates the counts of nodes.
 		t2.fixInsert(node);
 	}
@@ -636,6 +637,14 @@ public:
 
 	void cleanTree(){
 		root = nullptr;
+	}
+
+	inline Node<BlockT>* getGlobalMin() const {
+		return (root->reversed) ? root->max : root->min;
+	}
+
+	inline Node<BlockT>* getGlobalMax() const {
+		return (root->reversed) ? root->min : root->max;
 	}
 
 	void reroot(Node<BlockT>* new_root){
@@ -664,14 +673,24 @@ public:
 	//			Specifically, node pointers will be modified by this function.
 	void join(Node<BlockT>* node, RedBlackTree& another_tree){
 		if (root == nullptr) {
+			// std::cout << "[Join trees] Current tree is empty - middle node id=" << node->gene.id << " "<< std::endl;
 			another_tree.insert(node);
 			root = another_tree.root;
+			// std::cout << "[Join trees] Current tree is empty - result" << std::endl;
+			// printTree();
 		} else if (another_tree.root == nullptr) {
 			insert(node);
 		} else {
 			node->cleanNode();
+			// std::cout << "[Join trees]  Middle (k) =" << node->gene.id << " "<< std::endl;
 			// this tree < k < another tree.
 			if((*root) < (*node)){
+				// std::cout << "[Join trees] this tree < k < another tree"<< std::endl;
+				// std::cout << "[Join trees] this tree"<< std::endl;
+				// printTree();
+				// std::cout << "[Join trees] another tree"<< std::endl;
+				// another_tree.printTree();
+
 				// Add nodes from t2 to t1.
 				if (root->blackHeight > another_tree.root->blackHeight) {
 					joinRight(*this, node, another_tree);
@@ -682,6 +701,12 @@ public:
 				}
 			// another tree < k < this tree
 			} else {
+				// std::cout << "[Join trees] another tree < k < this tree"<< std::endl;
+				// std::cout << "[Join trees] this tree"<< std::endl;
+				// printTree();
+				// std::cout << "[Join trees] another tree"<< std::endl;
+				// another_tree.printTree();
+
 				// Add nodes from t1 to t2.
 				if (root->blackHeight > another_tree.root->blackHeight) {
 					joinLeft(another_tree, node, *this);
@@ -700,11 +725,13 @@ public:
 	void split(int val, RedBlackTree& another_tree) {
 		
 		// Check extreme cases.
-		if(root->min->getPosNext() > val){
+		int const minval = (root->reversed) ? root->max->getPosNext() : root->min->getPosNext();
+		int const maxval = (root->reversed) ? root->min->getPosNext() : root->max->getPosNext();
+		if(minval > val){
 			another_tree.reroot(root);
 			cleanTree();
 			return;
-		} else if(root->max->getPosNext() <= val){
+		} else if(maxval <= val){
 			return;
 		}
 
@@ -720,43 +747,29 @@ public:
 		// Clean both trees.
 		cleanTree();
 		another_tree.cleanTree();
-		std::cout << "[key=" << key << "] Clean trees over" << std::endl;
 		// Find position to insert node.
 		while (current != nullptr){
 			// Make sure that the ``reversed`` flag is set to false 
 			// in all the way between the root and the insertion point.
 			current->clearReversedFlag();
-			std::cout << "[key=" << key << " / cur= " << current->getPosNext() << "] Clean reversed flag over" << std::endl;
-
 			if(key < current->getPosNext()) {
 				parent  = current;
 				current = current->left;
 				// All nodes in the right subtree (+ the current node) 
 				// are bigger than val, but smaller than all values 
 				// inserted in another_tree so far.
-				reroot(current);
 				tmp_t.reroot(parent->right);
 				another_tree.join(parent, tmp_t);
-
-				std::cout << "[key=" << key << "] Tree bigger than key." << std::endl;
-				another_tree.printTree();
-				std::cout << "[key=" << key << "] Tree smaller than key." << std::endl;
-				printTree();
 
 			} else if(key > current->getPosNext()) {
 				parent  = current;
 				current = current->right;
+
 				// All nodes in the left subtree (+ the current node) 
 				// are smaller than val, but bigger than all values 
 				// inserted in another_tree so far.
-				reroot(current);
 				tmp_t.reroot(parent->left);
 				join(parent, tmp_t);
-
-				std::cout << "[key=" << key << "] Tree bigger than key." << std::endl;
-				another_tree.printTree();
-				std::cout << "[key=" << key << "] Tree smaller than key." << std::endl;
-				printTree();
 
 			// val == current.
 			// ``Shortcut case``: loop does not need to go until a leaf.
@@ -777,15 +790,11 @@ public:
 				if(current != nullptr){
 					tmp_t.reroot(current);
 					// Extract the minimum or maximum node from the right tree.
+					// Both trees have ``reversed`` flag false.
 					Node<BlockT>* k = ((another_tree.root != nullptr) || (*(another_tree.root->min)) > (*(tmp_t.root->max))) ? tmp_t.root->max : tmp_t.root->min;
 					tmp_t.remove(k);
 					another_tree.join(k, tmp_t);
 				}
-
-				std::cout << "[key=" << key << "] Tree bigger than key." << std::endl;
-				another_tree.printTree();
-				std::cout << "[key=" << key << "] Tree smaller than key." << std::endl;
-				printTree();
 				break;
 
 				/*************************************/
@@ -806,7 +815,7 @@ public:
 		}
 	}
 
-	// Public function: Remove a value from Red-Black Tree.
+	// Public function: Remove a value from the Red-Black Tree.
 	// ``node`` is the node to be removed.
 	void remove(Node<BlockT>* node) {
 		Node<BlockT>* z = node;
@@ -814,13 +823,17 @@ public:
 		Node<BlockT>* y = nullptr;
 
 		if (z == nullptr) {return;}
-
+		
 		// Check if the deleted node is the min or max of its parent.
 		// In this scenario, the node has at most one child.
 		Node<BlockT>* new_min = nullptr;
 		Node<BlockT>* new_max = nullptr;
 		if((z->parent != nullptr) && ((z == z->parent->min) || (z == z->parent->max))){
 			Node<BlockT>* child = (z->left != nullptr) ? z->left : z->right;
+			// Make sure the ``reversed`` flags are off so comparison is valid.
+			z->clearReversedFlag();
+			if (child != nullptr) {child->clearReversedFlag();}
+			// Finds new min/max.
 			if(z == z->parent->min){
 				if ((child != nullptr) && ((*(child->min)) < (*(z->parent)))){
 					new_min = child->min;
@@ -864,9 +877,6 @@ public:
 
 		}
 
-		std::cout << "Tree AFTER UPDATING MIN MAX\n";
-		printTree();
-
 		y = z;
 		Color yOriginalColor = y->color;
 		if (z->left == nullptr) {
@@ -892,8 +902,13 @@ public:
 			y->color = z->color;
 		}
 		if (yOriginalColor == BLACK) {
-			Node<BlockT>* parent = (x == nullptr) ? z->parent : x->parent;
-			fixDelete(x, parent);
+			// Check if tree became empty.
+			if ((x == root) && (x == nullptr)){
+				cleanTree();
+			} else {
+				Node<BlockT>* parent = (x == nullptr) ? z->parent : x->parent;
+				fixDelete(x, parent);
+			}
 		}
 	}
 
@@ -906,15 +921,21 @@ public:
 		node->cleanNode();
 		Node<BlockT>* current = root;
 		Node<BlockT>* parent  = nullptr;
-		bool reversed = false;
 
+		// ``reversed`` flag of the block should be taken 
+		// into account in the orientation of a node 
+		// (but **not** on how the tree is traversed).
+		bool const reversed_block = node->gene.block->reversed;
 		// Find position to include node in the tree.
 		// Position is always as a leaf (parent->left/right=NULL).
 		// As it goes through the tree, update the counts of nodes.
 		while (current != nullptr) {
+
+			// Make sure that all ``reversed`` flags from root 
+			// until the inserted position are turned off.
+			current->clearReversedFlag();
+
 			parent = current;
-			// Update global/accumulated ``reversed`` flag. 
-			reversed = (reversed != current->reversed);
 			// Update counts of the current node.
 			if(node->unused){
 				current->unused_tot += 1;
@@ -924,49 +945,36 @@ public:
 				// arcs that are unused and oriented.
 				// If reversed = true, ``unused_oriented_tot`` keeps all 
 				// arcs that are unused and **not** oriented.
-				if(node->oriented != reversed) {current->unused_oriented_tot += 1;} 
+				if(node->oriented != reversed_block) {current->unused_oriented_tot += 1;} 
 			}
-			// Traverse the tree in an inverted order (Right;Root;Left).
-			if(reversed){
-				if ((*node) < (*current)){
-					if((*node) < (*(current->min))){current->min = node;}
-					current = current->right;
-				} else {
-					if((*node) > (*(current->max))){current->max = node;}
-					current = current->left;
-				}				
 			// Traverse the tree in the correct order (Left;Root;Right).
-			} else{
-				if ((*node) < (*current)){
-					if((*node) < (*(current->min))){current->min = node;}
-					current = current->left;
-				} else {
-					if((*node) > (*(current->max))){current->max = node;}
-					current = current->right;
-				}
+			// Cumulated ``reversed`` flag from root until current node is always false.
+			if ((*node) < (*current)){
+				if((*node) < (*(current->min))){current->min = node;}
+				current = current->left;
+			} else {
+				if((*node) > (*(current->max))){current->max = node;}
+				current = current->right;
 			}
 		}
-
 		// Insert node.
 		node->parent	  = parent;
 		node->blackHeight = 0; // New node is always (initially) a RED node.
 		node->unused_tot  = (node->unused) ? 1 : 0;
-		// It takes into account current state of ``reversed`` flag.
-		node->unused_oriented_tot = ((node->unused) && (node->oriented != reversed)) ? 1 : 0;
-
+		// It takes into account the ``reversed`` flag of the block.
+		node->unused_oriented_tot = ((node->unused) && (node->oriented != reversed_block)) ? 1 : 0;
 		if (parent == nullptr) {
 			root = node;
-		} else if (((*node) < (*parent)) == reversed) {
+		} else if ((*node) > (*parent)) {
 			parent->right = node;
 		} else {
 			parent->left  = node;
 		}
-
 		// Fix tree balance if needed. It also updates the counts of nodes.
 		fixInsert(node);
 	}
 
-	void printTree() {
+	void printTree() const {
 		if (root == nullptr)
 			std::cout << "Tree is empty." << std::endl;
 		else {

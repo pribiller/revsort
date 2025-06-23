@@ -161,7 +161,7 @@ template <typename BlockT>
 std::string BlockBase<BlockT>::printBlock() const {
 	std::string block_str = "[ ";
 	for(Gene<BlockT> const &g : permutationSegment) {block_str +=  (std::to_string(g.id) + "(" + std::to_string(genePosAbs(g)) + ") ");}
-	block_str += ("].rev=" + std::to_string(reversed));
+	block_str += ("].rev=" + std::to_string(reversed)) + " (" + status + ")";
 	return block_str;
 }
 

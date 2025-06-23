@@ -39,6 +39,23 @@
  *******************************************************/
 
 class BlockTree : public BlockBase<BlockTree> {
+private:
+	// Auxiliary structures used during tree update phase during a reversal.
+
+	// ``t2`` contains all arcs (i, i+1) whose ``remote`` element (i+1) is part of the reversal.
+	RedBlackTree<BlockTree> t2;
+	// ``t3`` contains all arcs (i, i+1) whose ``remote`` element (i+1) appears after reversal.
+	RedBlackTree<BlockTree> t3;
+
+	void printAuxTrees(const int g_beg, const int g_end) const {
+		std::cout << "T1 (x <= " << g_beg << ")" << std::endl;
+		tree.printTree();
+		std::cout << "T2 (" << g_beg << " < x <=" << g_end << ")" << std::endl;
+		t2.printTree();
+		std::cout << "T3 (x >" << g_end << ")" << std::endl;
+		t3.printTree();
+	}
+
 public:
 	RedBlackTree<BlockTree> tree; // Balanced binary tree with segment elements as nodes.	
 
@@ -46,91 +63,90 @@ public:
     using BlockBase<BlockTree>::BlockBase;
 
 	void makeTree(std::vector<Node<BlockTree>>& nodes){
+		// std::cout << "Make tree from scratch: " << printBlock() << "\n";
 		tree.cleanTree();
 		for (std::list<Gene<BlockTree>>::iterator gene = permutationSegment.begin(); gene != permutationSegment.end(); ++gene){
 			if(gene->id < nodes.size()){ // The last gene does not have an arc.
 				tree.insert(&nodes[gene->id-1]);
-				// std::cout << "After inserting node " << gene->id << "\n";
-				// tree.printTree();
 			}
 		}
+		// tree.printTree();
 		status = OK;
 	}
 
-	// Update tree after reversal (g_beg, g_end]
-	void updateTree(const int g_beg, const int g_end){
-		if ((status.find(SPLIT) != std::string::npos) || (status.find(CONC) != std::string::npos)){
-			std::cout << "ERROR! Trying to update tree that needs to be remade first (status=" << status << ")" << std::endl;
+	// Save state of the tree just before the reversal (g_beg, g_end]
+	// After moving blocks around, the tree is going to be in an
+	// inconsistent state, i.e., the order of the nodes might not be 
+	// correct anymore, so this step needs to be done before the reversal.
+	// Split tree into three trees:
+	// The middle tree (t2) will contain all pairs whose ``remote`` element 
+	// is part of the reversal, and the other two trees (tree and t3) will 
+	// contain the pairs whose ``remote`` element is out of the reversal.
+	void splitTree(const int g_beg, const int g_end) {
+		t2.cleanTree();
+		t3.cleanTree();
+
+		// std::cout << "[Before reversal] Split tree before applying reversal (" << g_beg << "," << g_end << "]:" << printBlock() << std::endl;
+		// tree.printTree();
+		tree.split(g_beg, t2); // at this point: ``tree`` keeps elements before reversal (x_next <= g_beg); ``t2`` has elements after the start of the reversal (x_next > g_beg).
+
+		// std::cout << "[Before reversal]  (" << g_beg << "," << g_end << "]: T1, (T2 & T3):" << printBlock() << std::endl;
+		// tree.printTree();
+		// t2.printTree();
+
+		t2.split(g_end, t3);   // at this point: ``t2`` has elements inside the reversal (g_beg < x_next <= g_end); ``t3`` has elements after the end of the reversal (x_next > g_end).
+
+		// std::cout << "[Before reversal] Split tree - Resulting trees:" << std::endl;
+		// printAuxTrees(g_beg, g_end);
+	}
+
+	// Update tree after reversal (g_beg, g_end].
+	void mergeTrees(const int g_beg, const int g_end){
+
+		// If T is a tree corresponding to a block outside the reversal, 
+		// flip the ﬂag at the root of T2 , and concatenate T1 , T2 and T3.
+		// This flip will affect the direction *and* orientation of T2.
+
+		// If T is a tree corresponding to a block inside the reversal,
+		// this flip will affect the direction of T2, but the orientation 
+		// of T1 and T3 (the ``reversed`` flag of the block is taken into
+		// account to compute the orientation).
+		if(t2.root != nullptr) {t2.root->reversed = !t2.root->reversed;}
+
+		// std::cout << "[Merge trees] Before join t1 + t2 | Block: " << printBlock() << std::endl;
+		// printAuxTrees(g_beg,g_end);
+
+		// Concatenate t1, t2, t3.
+		// Concatenate - Step 1: t1 = t1 + t2
+		if (tree.root == nullptr) {
+			tree.root = t2.root;
 		} else {
+			// TODO: Depending on tree sizes, get max of one or the min from the other.
+			Node<BlockTree>* max_t1 = tree.getGlobalMax();
+			tree.remove(max_t1);
+			tree.join(max_t1,t2);
+		}
 
-			std::cout << "Split tree at " << g_beg << "= " << printBlock() << std::endl;
-			tree.printTree();
-
-			// Split tree into three trees:
-			// The middle tree will contain all pairs whose ``remote`` element 
-			// is part of the reversal, and the other two trees will contain the 
-			// pairs whose ``remote`` element is out of the reversal.
-			RedBlackTree<BlockTree> t2{}; // TODO: do I need to free this memory?
-			RedBlackTree<BlockTree> t3{};
-			
-			std::cout << "Split (1) START" << std::endl;
-			tree.split(g_beg, t2); // at this point: ``tree`` keeps elements before reversal (x_next <= g_beg); ``t2`` has elements after the start of the reversal (x_next > g_beg)
-
-			tree.printTree();
-			t2.printTree();
-			std::cout << "Split (2) START" << std::endl;
-			t2.split(g_end, t3);   // at this point: ``t2`` has elements inside the reversal (g_beg < x_next <= g_end); ``t3`` has elements after the end of the reversal (x_next > g_end)
-
-			std::cout << "T1 (x <= " << g_beg << ")" << std::endl;
-			tree.printTree();
-			std::cout << "T2 (" << g_beg << " < x <=" << g_end << ")" << std::endl;
-			t2.printTree();
-			std::cout << "T3 (x >" << g_end << ")" << std::endl;
-			t3.printTree();
-
-
-			// If T is a tree corresponding to a block inside the reversal, 
-			// flip the ﬂag at the root of T1 and T3 , and concatenate T1 , T2 and T3.
-			if(status == MUT){
-				if(tree.root != nullptr) {tree.root->reversed = !tree.root->reversed;}
-				if(t3.root != nullptr) {t3.root->reversed = !t3.root->reversed;}
-
-			// If T is a tree corresponding to a block outside the reversal, 
-			// flip the ﬂag at the root of T2 , and concatenate T1 , T2 and T3.
-			} else {
-				if(t2.root != nullptr) {t2.root->reversed = !t2.root->reversed;}
-			}
-
-			std::cout << "Join (1) START" << std::endl;
-
-			// Concatenate t1, t2, t3.
-			// Concatenate - Step 1: t1 = t1 + t2
-			if (tree.root == nullptr) {
-				tree.root = t2.root;
-			} else {
-				// TODO: Depending on tree sizes, get max of one or the min from the other.
-				Node<BlockTree>* max_t1 = tree.root->max;
-				tree.remove(max_t1);
-				tree.join(max_t1,t2);
-			}
-
-			std::cout << "Join (2) START" << std::endl;
-
-			// Concatenate - Step 2: t1 = t1 + t2 + t3
-			if (tree.root == nullptr) {
-				tree.root = t3.root;
-			} else {
-				// TODO: Depending on tree sizes, get max of one or the min from the other.
-				Node<BlockTree>* max_t1 = tree.root->max;
-				tree.remove(max_t1);
-				tree.join(max_t1,t3);
-			}
-
-			std::cout << "FINAL TREE" << std::endl;
-			tree.printTree();	
-			// exit(0);
+		// Concatenate - Step 2: t1 = t1 + t2 + t3
+		if (tree.root == nullptr) {
+			tree.root = t3.root;
+		} else {
+			// TODO: Depending on tree sizes, get max of one or the min from the other.
+			// std::cout << "[Merge trees] join t1 + t2 + t3 | Block: " << printBlock() << std::endl;
+			// std::cout << "T1 (x <= " << g_beg << ")" << std::endl;
+			// tree.printTree();
+			Node<BlockTree>* max_t1 = tree.getGlobalMax();
+			// std::cout << "Max from T1: (" << max_t1->printNode() << ")" << std::endl;
+			tree.remove(max_t1);
+			// std::cout << "T1 (x <= " << g_beg << ") after removing (" << max_t1->printNode() << ")" << std::endl;
+			// tree.printTree();
+			tree.join(max_t1,t3);
 		}
 		status = OK;
+
+		// std::cout << "[Merge trees] Resulting tree | Block: " << printBlock() << std::endl;
+		// tree.printTree();
+		// exit(0);
 	}
 };
 
@@ -164,26 +180,46 @@ private:
 		}
 	}
 	
-	void updateTrees(const int g_beg, const int g_end){
+	// Split the tree from each block into 3 trees t1, t2, t3:
+	// - ``t1`` contains all nodes whose arcs (i, i+1) have the ``remote`` 
+	// element (i+1) before the reversal (g_beg, g_end];
+	// - ``t2`` contains all nodes whose arcs (i, i+1) have the ``remote`` 
+	// element (i+1) inside the reversal (g_beg, g_end];
+	// - ``t3`` contains all nodes whose arcs (i, i+1) have the ``remote`` 
+	// element (i+1) after the reversal (g_beg, g_end];
+	// Blocks that were SPLIT at the start of the reversal will be ignored,
+	// since their trees are made from scratch after the reversal.
+	void updateTreesBeforeReversal(const int g_beg, const int g_end){
+		for(BlockTree &b : genperm.blockList) {
+			if(b.status == OK) {b.splitTree(g_beg, g_end);}
+		}
+	}
+
+	// Merge t1, t2, t3 into a single tree.
+	// The ``reversed`` flag of each tree will depend whether
+	// the respective block is inside the reversal or not.
+	void updateTreesAfterReversal(const int g_beg, const int g_end){
 		for(BlockTree &b : genperm.blockList) {
 			if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
 				b.makeTree(nodes); // Make tree from scratch.
 			} else {
-				b.updateTree(g_beg, g_end);	
+				b.mergeTrees(g_beg, g_end);	
 			}
 		}
 	}
 
-	void updateTrees(){
+	// Update the trees that were affected by balancing blocks operation.
+	// These trees will be made from scratch.	
+	void updateTreesEndReversal(){
 		for(BlockTree &b : genperm.blockList) {
 			if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
 				b.makeTree(nodes); // Make tree from scratch.
 			}
-		}
+		}		
 	}
-
-	void printTrees(){
-		for(BlockTree &b : genperm.blockList) {b.tree.printTree();}
+	
+	void printTrees() {
+		for(BlockTree &b : genperm.blockList) {std::cout << "\nBlock: " << b.printBlock() << std::endl; b.tree.printTree();}
 	}
 	
 public:
@@ -205,19 +241,20 @@ public:
 
 		std::string applyReversal_str = "<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
 		std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
-
+		
 		// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 		genperm.splitBlock(g_beg);
 		genperm.splitBlock(g_end);
 		// (1.1) After splitting blocks, we must reconstruct from scratch the associated trees.
-
 		std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
 		// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
+		updateTreesBeforeReversal(g_beg, g_end);
 		std::list<BlockTree>::iterator reversal_beg  = std::next(genperm.getBlock(g_beg)); // this block is the first reversed block.
 		std::list<BlockTree>::iterator reversal_last = genperm.getBlock(g_end);  // this block is the last reversed block.
 		std::list<BlockTree>::iterator reversal_end  = std::next(reversal_last); // this block will not be reversed.
 		for (std::list<BlockTree>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed); b->status += MUT;}
+		
 
 		// (3) Reverse the order of the blocks between the endpoints of the reversal;
 		const int g_after_beg = reversal_beg->permutationSegment.front().id;
@@ -231,7 +268,7 @@ public:
 		}
 		// (3.2) After reversing the order and ﬂags of the blocks inside the reversal, 
 		// every tree, even those outside the reversal, are processed separately.
-		updateTrees(g_beg, g_end);
+		updateTreesAfterReversal(g_beg, g_end);
 
 		std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
@@ -243,7 +280,10 @@ public:
 		genperm.balanceBlock(g_after_beg);
 		genperm.balanceBlock(g_after_end);
 		// (4.1) After concatenating and splitting blocks, reconstruct from scratch the associated trees.
-		updateTrees();
+		updateTreesEndReversal();
+
+		std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
+		printTrees();
 	}
 
 };
