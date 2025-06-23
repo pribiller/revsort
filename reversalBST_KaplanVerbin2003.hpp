@@ -549,6 +549,11 @@ private:
 		t1.root->clearReversedFlag();
 		node->clearReversedFlag();
 		t2.root->clearReversedFlag();
+
+		bool const reversed_block = node->gene.block->reversed;
+		node->unused_tot = (node->unused) ? 1 : 0;
+		node->unused_oriented_tot = ((node->unused) && (node->oriented != reversed_block)) ? 1 : 0;
+
 		// Update the counts of all nodes from the root until insertion position.
 		const int unused_tot_upd = node->unused_tot + t2.root->unused_tot;
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t2.root->unused_oriented_tot;
@@ -593,7 +598,11 @@ private:
 		t2.root->clearReversedFlag();
 		node->clearReversedFlag();
 		t1.root->clearReversedFlag();
-
+		
+		bool const reversed_block = node->gene.block->reversed;
+		node->unused_tot = (node->unused) ? 1 : 0;
+		node->unused_oriented_tot = ((node->unused) && (node->oriented != reversed_block)) ? 1 : 0;
+		
 		// Update in the counts of all nodes in the way from the root until insertion position.
 		const int unused_tot_upd = node->unused_tot + t1.root->unused_tot;
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t1.root->unused_oriented_tot;
