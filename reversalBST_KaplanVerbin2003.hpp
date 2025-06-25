@@ -13,12 +13,15 @@
  * The BST tree is implemented as a Red-black tree. Thus, in addition to 
  * the properties listed above, the nodes also store a ``color`` attribute 
  * (red or black), and its ``black height``, which is the maximum number 
- * of black nodes on a path from the root node to a leaf node.
+ * of black nodes on a path from the root node to a leaf node. 
+ * Each node also keeps pointers to the nodes holding the minimum and maximum 
+ * values found in the subtree rooted by the node.
  * 
  * The following operations are implemented:
  * (1) Split of a tree given a value k; -> O(log n)
  * (2) Join two trees T1 and T2, such that all values of T1 are smaller than T2; -> O(log n)
  * (3) Insert a node; -> O(log n)
+ * (4) Remove a node; -> O(log n)
  * 
  * All operations are implemented in such way to keep all flags 
  * and counters updated at all points.
@@ -112,7 +115,7 @@ public:
 	// ``true`` if signs of genes (i) and (i+1) are flipped in the 
 	// current permutation; false otherwise.
 	inline bool getOrientation() const {
-		const bool sign_g	  = (gene.reversed != gene.block->reversed);
+		const bool sign_g	   = (gene.reversed != gene.block->reversed);
 		const bool sign_g_next = (gene_next.reversed != gene_next.block->reversed);
 		return (sign_g != sign_g_next);
 	}
@@ -124,6 +127,10 @@ public:
 
 	inline std::string printNode() const {
 		return std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]";
+	}
+
+	inline std::string printNodeDetailed() const {
+		return std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]" + " (" + ((color == RED) ? "RED" : "BLACK") + ";BH=" + std::to_string(blackHeight) + ";UN=" + std::to_string(unused_tot) + ";OR=" + std::to_string(unused_oriented_tot) + ";MIN=" + min->printNode() + ";MAX=" + max->printNode() + ";REV=" + (reversed ? "T" : "F") + ")";
 	}
 
 	// Overload the '<' operator.
@@ -199,16 +206,6 @@ public:
 template <typename BlockT>
 class RedBlackTree {
 private:
-
-	// Return the ``cummulated`` reversed flag from the root until this node.
-	bool getReversedFlag(Node<BlockT>*& node){
-		bool reversed = (node == root) ? root->reversed : false;
-		while (node != root) {
-			reversed = (reversed == node->reversed);
-			node = node->parent;
-		}
-		return reversed;
-	}
 
 	// Utility function: Left Rotation
 	/* After rotateLeft :
@@ -529,8 +526,7 @@ private:
 				std::cout << "L----";
 				indent += "|  ";
 			}
-			std::string sColor = (root->color == RED) ? "RED" : "BLACK";
-			std::cout << root->printNode() << "(" << sColor << ";BH=" << root->blackHeight << ";UN=" << root->unused_tot << ";OR=" << root->unused_oriented_tot << ";MIN=" << root->min->printNode() << ";MAX=" << root->max->printNode() << ";REV=" << ((root->reversed) ? "T" : "F") << ")" << std::endl;
+			std::cout << root->printNodeDetailed() << std::endl;
 			printHelper(root->left, indent, false);
 			printHelper(root->right, indent, true);
 		}
@@ -678,7 +674,7 @@ public:
 	//			Specifically, node pointers will be modified by this function.
 	void join(Node<BlockT>* node, RedBlackTree& another_tree){
 		if (root == nullptr) {
-			// std::cout << "[Join trees] Current tree is empty - middle node id=" << node->gene.id << " "<< std::endl;
+			// std::cout << "[Join trees] Current tree is empty - middle node: " << node->printNodeDetailed() << " " << std::endl;
 			another_tree.insert(node);
 			root = another_tree.root;
 			// std::cout << "[Join trees] Current tree is empty - result" << std::endl;
@@ -969,6 +965,14 @@ public:
 		node->unused_tot  = (node->unused) ? 1 : 0;
 		// It takes into account the ``reversed`` flag of the block.
 		node->unused_oriented_tot = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
+
+		const bool sign_g	  = (node->gene.reversed != node->gene.block->reversed);
+		const bool sign_g_next = (node->gene_next.reversed != node->gene_next.block->reversed);
+		
+		// std::cout << "[Insert] Block g   = " << node->gene.block->printBlock() << std::endl;
+		// std::cout << "[Insert] Block g+1 = " << node->gene_next.block->printBlock() << std::endl;
+		// std::cout << "[Insert] unused=" << node->unused_tot << " oriented=" << node->unused_oriented_tot << " " << node->getOrientation() << " / " << reversed_block << " / " << sign_g << " / " << sign_g_next << std::endl;
+
 		if (parent == nullptr) {
 			root = node;
 		} else if ((*node) > (*parent)) {
@@ -992,9 +996,8 @@ public:
 
 		// Find an oriented unused arc in the tree.
 		int unused_oriented_tot  = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
-		bool curIsUnusedOriented = ((current->unused) && (current->getOrientation() != reversed_block));
+		bool curIsUnusedOriented = ((current->unused) && (current->getOrientation()));
 		while ((current != nullptr) && (!curIsUnusedOriented) && (unused_oriented_tot > 0)) {
-
 			// Compute amount of unused arcs in the right and left child.
 			int unused_oriented_left = 0;			
 			if(current->left != nullptr){
@@ -1004,22 +1007,56 @@ public:
 			if(current->right != nullptr){
 				unused_oriented_right = reversed_block ? (current->right->unused_tot - current->right->unused_oriented_tot) : current->right->unused_oriented_tot;
 			}
-
 			// Move to the child with the highest amount of unused oriented arcs.
 			if(unused_oriented_left > unused_oriented_right){
 				current = current->left;
 			} else {
 				current = current->right;
 			}
-
 			// Update flag and count.
 			current->clearReversedFlag();
 			unused_oriented_tot = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
-			curIsUnusedOriented = ((current->unused) && (current->getOrientation() != reversed_block));
+			curIsUnusedOriented = ((current->unused) && (current->getOrientation()));
 		}
 
 		// Check if current node represents an arc that is unused and oriented.
 		return curIsUnusedOriented ? current : nullptr;
+	}
+
+	// Keep node in the tree, but update its status to ``used``.
+	void setUsed(Node<BlockT>* node){
+
+		if ((node == nullptr) || (!node->unused)){return;}
+
+		// ``reversed`` flag of the block should be taken 
+		// into account in the orientation of a node 
+		// (but **not** on how the tree is traversed).
+		bool const reversed_block = root->gene.block->reversed;
+		const int unused_upd  = 1;
+		const int unused_oriented_upd = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
+
+		// Update node status.
+		node->unused = false;
+		node->unused_tot -= unused_upd;
+		node->unused_oriented_tot -= unused_oriented_upd;
+
+		// Update counts in the path between the root and the node (node's ancestors).
+		// Make sure that all ``reversed`` flags in the path 
+		// between the root and the node are ``off``.
+		Node<BlockT>* current = root;
+		while(current != node){
+			current->clearReversedFlag();
+
+			current->unused_tot -= unused_upd;
+			current->unused_oriented_tot -= unused_oriented_upd;
+
+			// Traverse tree in the correct order (reversed flag=false).
+			if ((*node) < (*current)){
+				current = current->left;
+			} else {
+				current = current->right;
+			}
+		}
 	}
 
 	void printTree() const {

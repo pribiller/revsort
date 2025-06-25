@@ -22,7 +22,7 @@
 #include <numeric>   // iota
 #include <cmath> 
 #include <string>    // convert input args (string to int)
-#include <utility>   // move
+#include <utility>   // move, pair
 #include <algorithm> // find_if, reverse
 #include <cstdlib>   // exit
 #include <deque>
@@ -33,6 +33,20 @@
 // It makes code a bit clear: 
 // instead of std::cout you can type directly cout.
 //using namespace std;
+
+/*******************************************************
+ * Data structures to keep information on 
+ * reversal operation.
+ *******************************************************/
+class Reversal {
+public:
+	int g_beg;  // Gene i.
+	int g_end;  // Ideal gene after gene i.
+	int g_next; // Current gene after gene i.
+	Reversal(const int start, const int next_ideal, const int next_cur):g_beg(start),g_end(next_ideal),g_next(next_cur){
+
+	}
+};
 
 /*******************************************************
  * Data structures to implement balanced 
@@ -67,9 +81,9 @@ public:
 		// std::cout << "Make tree from scratch: " << printBlock() << "\n";
 		tree.cleanTree();
 		for (std::list<Gene<BlockTree>>::iterator gene = permutationSegment.begin(); gene != permutationSegment.end(); ++gene){
-			if(gene->id < nodes.size()){ // The last gene does not have an arc.
-				tree.insert(&nodes[gene->id-1]);
-			}
+			// The last gene does not have an arc.
+			// Node list: from 0 until n-2; Gene ids: from 1 until n (last gene (id=n) is ignored).
+			if(gene->id <= nodes.size()){tree.insert(&nodes[gene->id-1]);}
 		}
 		// tree.printTree();
 		status = OK;
@@ -145,7 +159,7 @@ public:
 			Node<BlockTree>* max_t1 = tree.getGlobalMax();
 			// std::cout << "[Merge trees] Max from T1: (" << max_t1->printNode() << ")" << std::endl;
 			tree.remove(max_t1);
-			// std::cout << "[Merge trees] T1 (x <= " << g_beg << ") after removing (" << max_t1->printNode() << ")" << std::endl;
+			// std::cout << "[Merge trees] T1 (x <= " << g_beg << ") after removing (" << max_t1->printNodeDetailed() << ")" << std::endl;
 			// tree.printTree();
 			tree.join(max_t1,t3);
 		}
@@ -185,8 +199,19 @@ private:
 		for (int g=0; g<(genperm.n-1); g++) {
 			nodes.emplace_back((*genperm.genes[g]), (*genperm.genes[g+1]));
 		}
+		std::cout << "Nodes:" << std::endl;
+		for(Node<BlockTree> &n : nodes) {std::cout << " \t" << n.printNode() << std::endl;}
 	}
 	
+	void printNodesBlockDetails(){
+		std::cout << "Nodes:" << std::endl;
+		for(Node<BlockTree> &n : nodes) {
+			std::cout << " \t" << n.printNodeDetailed() << std::endl;
+			std::cout << " \t Block g (" << n.gene.id << ")   = " << n.gene.block->printBlock() << std::endl;
+			std::cout << " \t Block g+1 (" << n.gene_next.id << ") = " << n.gene_next.block->printBlock() << std::endl;
+		}
+	}
+
 	// Split the tree from each block into 3 trees t1, t2, t3:
 	// - ``t1`` contains all nodes whose arcs (i, i+1) have the ``remote`` 
 	// element (i+1) before the reversal (g_beg, g_end];
@@ -206,6 +231,10 @@ private:
 	// The ``reversed`` flag of each tree will depend whether
 	// the respective block is inside the reversal or not.
 	void updateTreesAfterReversal(const int g_beg, const int g_end){
+
+		std::cout << "After Reversal (" << g_beg << " " << g_end << "]" << std::endl;
+		printNodesBlockDetails();
+
 		for(BlockTree &b : genperm.blockList) {
 			if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
 				b.makeTree(nodes); // Make tree from scratch.
@@ -218,6 +247,10 @@ private:
 	// Update the trees that were affected by balancing blocks operation.
 	// These trees will be made from scratch.	
 	void updateTreesEndReversal(){
+
+		std::cout << "End Reversal " << std::endl;
+		printNodesBlockDetails();
+
 		for(BlockTree &b : genperm.blockList) {
 			if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
 				b.makeTree(nodes); // Make tree from scratch.
@@ -229,6 +262,52 @@ private:
 		for(BlockTree &b : genperm.blockList) {std::cout << "\nBlock: " << b.printBlock() << std::endl; b.tree.printTree();}
 	}
 	
+	bool hasUnused() {
+		for(BlockTree &b : genperm.blockList) {
+			if(b.tree.root->unused_tot > 0){return true;}
+		}
+		return false;
+	}
+
+	Node<BlockTree>* getUnusedOriented() {
+		Node<BlockTree>* node = nullptr;
+		for(BlockTree &b : genperm.blockList) {
+			node = b.tree.getUnusedOriented();
+			if(node != nullptr){break;}
+		}
+		return node;
+	}
+
+	/* Given an arc, there are four cases to consider:
+		Reversal (i, i+1] (normal case). 2 cases:
+			1 2 4 -3 5 -> 1 2 3 -4 5
+			1 -3 4 2 5 -> 1 -3 -2 -4 5
+		Reversal [i, i+1) (positions need to be adjusted). 2 cases:
+			1 -2 4 3 5 -> 1 -4 2 3 5
+			1 3 4 -2 5 -> 1 -4 -3 -2 5
+	*/
+	Reversal getReversal(Node<BlockTree>* node) const {
+		std::cout << "[getReversal] " << node->printNode() << std::endl;
+		const int pos_beg = node->gene.block->genePosAbs(node->gene);
+		const int pos_end = node->gene_next.block->genePosAbs(node->gene_next);
+		std::list<Gene<BlockTree>>::iterator g_beg = (pos_beg < pos_end) ? genperm.genes[node->gene.id-1] : genperm.genes[node->gene_next.id-1];
+		std::list<Gene<BlockTree>>::iterator g_end = (pos_beg < pos_end) ? genperm.genes[node->gene_next.id-1] : genperm.genes[node->gene.id-1];
+		// Check if we have the case that needs adjustment: Reversal [i, i+1)
+		if (((g_beg->id < g_end->id) && (g_beg->block->reversed != g_beg->reversed)) || ((g_beg->id > g_end->id) && (g_beg->block->reversed == g_beg->reversed))) {
+			g_beg = g_beg->block->getPrevGene(g_beg);
+			g_end = g_end->block->getPrevGene(g_end);
+		}
+		std::cout << "[getReversal] " << (g_beg->reversed ? "-" : "+") << g_beg->id << " " << (g_end->reversed ? "-" : "+") << g_end->id << " " << std::endl;
+
+		// Information needed to apply a reversal and also to undo it later if needed.
+		const int g_beg_id  = g_beg->id;
+		const int g_end_id  = g_end->id;
+		std::list<Gene<BlockTree>>::iterator gene_next = g_beg->block->getNextGene(g_beg);
+		const int g_next_id = gene_next->id;
+		std::cout << "[getReversal] " << g_beg_id << " " << g_end_id << " " << g_next_id << " " << std::endl;
+		return Reversal(g_beg_id, g_end_id, g_next_id); // std::pair{g_beg, g_end};
+	}
+
 public:
 	// Parameterized constructor.
 	GenomeSort(const std::vector<int>& perm): genperm(perm){
@@ -237,16 +316,17 @@ public:
 		// Initialize trees.
 		initializeTrees();
 		// Print blocks.
-		std::cout << genperm.printBlocks() << std::endl;
+		// std::cout << genperm.printBlocks() << std::endl;
 		printTrees();
 	}
 
+	// Apply reversal (g_beg, g_end].
 	void applyReversal(int g_beg, int g_end) {
 
 		g_beg = std::abs(g_beg);
 		g_end = std::abs(g_end);
 
-		std::string applyReversal_str = "<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
+		std::string applyReversal_str = "\n<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
 		std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
 		
 		// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
@@ -262,17 +342,25 @@ public:
 		std::list<BlockTree>::iterator reversal_end  = std::next(reversal_last); // this block will not be reversed.
 		for (std::list<BlockTree>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed); b->status += MUT;}
 		
-
 		// (3) Reverse the order of the blocks between the endpoints of the reversal;
 		const int g_after_beg = reversal_beg->permutationSegment.front().id;
 		const int g_after_end = reversal_end->permutationSegment.front().id;
+		
+		std::cout << "Before reverse (" << g_beg << " " << g_end << "] :\n\t" << reversal_beg->printBlock() << "\n\t" << reversal_end->printBlock() << std::endl;
+		printNodesBlockDetails();
+
 		std::reverse(reversal_beg, reversal_end); // Reverses the order of the elements in the range [first, last).
+
+		std::cout << "After reverse order (" << g_beg << " " << g_end << "]" << std::endl;
+		printNodesBlockDetails();
+		
 		// (3.1) Update positions of reversed blocks.
 		int blockPos = genperm.getBlock(g_beg)->pos + genperm.getBlock(g_beg)->permutationSegment.size();
 		for (std::list<BlockTree>::iterator b = genperm.getBlock(g_end); b != std::next(genperm.getBlock(g_after_beg)); ++b) { 
 			b->pos = blockPos;
 			blockPos += b->permutationSegment.size();
 		}
+
 		// (3.2) After reversing the order and ﬂags of the blocks inside the reversal, 
 		// every tree, even those outside the reversal, are processed separately.
 		updateTreesAfterReversal(g_beg, g_end);
@@ -293,59 +381,63 @@ public:
 		printTrees();
 	}
 
-	Node<BlockTree>* getUnusedOriented() {
-		Node<BlockTree>* node = nullptr;
-		for(BlockTree &b : genperm.blockList) {
-			node = b.tree.getUnusedOriented();
-			if(node != nullptr){break;}
-		}
-		return node;
-	}
-
 	/* Sort by reversals.
 	Transform permutation A into B by reversal operations.
 	- Constraint: all components in the overlap graph of the 
 				  permutations A and B must be **oriented**.
+	- Constraint: this method treats **a single component**, so 
+				  each component in the overlap graph should 
+				  be treated separately.
 	*/
 	void sortByReversals(){
-		std::cout << " Sort by reversals: " << genperm.printBlocks("\n\t") << std::endl;
+
+		std::cout << "\n\nSort by reversals: " << genperm.printBlocks("\n\t") << std::endl;
 		printTrees();
 
-		std::deque<std::pair<int,int>> S1{};
-		std::deque<std::pair<int,int>> S2{};
+		std::deque<Reversal> s1{};
+		std::deque<Reversal> s2{};
 
-		Node<BlockTree>* arc_unused_oriented = getUnusedOriented();
-		while(arc_unused_oriented != nullptr){
-			const int pos_beg = arc_unused_oriented->gene.block->genePosAbs(arc_unused_oriented->gene);
-			const int pos_end = arc_unused_oriented->gene_next.block->genePosAbs(arc_unused_oriented->gene_next);
-			const int g_beg = (pos_beg < pos_end) ? arc_unused_oriented->gene.id : arc_unused_oriented->gene_next.id;
-			const int g_end = (pos_beg < pos_end) ? arc_unused_oriented->gene_next.id : arc_unused_oriented->gene.id;
-			applyReversal(g_beg, g_end);
+		Node<BlockTree>* safeReversal = getUnusedOriented();
+		while(safeReversal != nullptr){
+
+			Reversal rev = getReversal(safeReversal);
+			applyReversal(rev.g_beg, rev.g_end);
 
 			// Update status of arc from ``used`` to ``unused``.
-			// s1 <- s1 + [new arc]
+			safeReversal->gene.block->tree.setUsed(safeReversal);
 
-			// Check if s2[0] is oriented.
-			// If not, go one step back.
+			// std::cout << " After mark as used: " << genperm.printBlocks("\n\t") << std::endl;
+			// printTrees();
+
+			// s1 <- s1 + [new arc].
+			s1.push_back(rev);
+
+			// Check if the first element s2 is oriented.
+			// If not oriented, go one step back.
 			// Apparently this case only happens when the algorithm is about to end.
 
-			// If there are still ``unused`` arcs.
-
-			// while current permutation does not have unused oriented arc.
-				// Undo reversal.
-				// s1 <- s1 - [new arc]
-				// s2 <- [new arc] + s2
-			
 			// Get another unused oriented arc.
-			Node<BlockTree>* arc_unused_oriented = getUnusedOriented();
+			safeReversal = getUnusedOriented();
+
+			// If there are still ``unused`` arcs.
+			if(hasUnused()){
+				// while current permutation does not have unused oriented arc.
+				while(safeReversal == nullptr){
+					// Undo reversal.
+					applyReversal(rev.g_beg, rev.g_next);
+					rev = s1.back();
+					s2.push_front(rev); // s2 <- [new arc] + s2
+					s1.pop_back();      // s1 <- s1 - [new arc]
+					safeReversal = getUnusedOriented();
+				}
+			}
+			// break;
 		}
 	}
 };
 
-int main(int argc, char* argv[]) {
 
-	int const n = std::stoi(argv[1]); // input (command line argument): number of genes
-
+void testCase1(int const n) {
 	// Start vector with Identity permutation (for testing).
 	std::vector<int> perm(n);
 	std::iota(perm.begin(), perm.end(), 1);
@@ -360,6 +452,21 @@ int main(int argc, char* argv[]) {
 	genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
 	genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
 	genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
+}
+
+void testCase2() {
+	// Permutation **must** start at 1: [1 2 .. gene]
+	std::vector<int> perm{1, -2, 4, 3, 5}; // {0, -1, 3, 2, 4}
+	GenomeSort genomeSort = GenomeSort(perm);
+	genomeSort.sortByReversals();
+}
+
+int main(int argc, char* argv[]) {
+
+	int const n = std::stoi(argv[1]); // input (command line argument): number of genes
+	
+	//testCase1(n);
+	testCase2();
 
 	std::cout << "Bye bye\n";
 	return 0;

@@ -81,10 +81,43 @@ public:
 		return (reversed ? (pos + permutationSegment.size() - 1 -g.pos) : (pos + g.pos));
 	}
 
+	// Get next gene in the current permutation.
+	typename std::list<Gene<BlockT>>::iterator getNextGene(typename std::list<Gene<BlockT>>::iterator const &g_it) {
+
+		// Check if ``gene`` is the last element of the block.
+		const bool isLastElement = ((reversed  && (g_it == g_it->block->permutationSegment.begin()))
+								|| (!reversed && ((g_it == g_it->block->permutationSegment.end()) || (std::next(g_it) == g_it->block->permutationSegment.end()))));
+
+		// Get the block of the next gene depending if the 
+		// given gene is the last element of the block or not.
+		typename std::list<BlockT>::iterator b_it = isLastElement ? std::next(g_it->block) : g_it->block;
+		if (b_it->reversed) {
+			return (isLastElement ? (--b_it->permutationSegment.end()) : std::prev(g_it));
+		} else {
+			return (isLastElement ? b_it->permutationSegment.begin() : std::next(g_it));
+		}
+	}
+
+	// Get previous gene in the current permutation.
+	typename std::list<Gene<BlockT>>::iterator getPrevGene(typename std::list<Gene<BlockT>>::iterator const &g_it) {
+
+		// Check if ``gene`` is the first element of the block.
+		const bool isFirstElement = ((reversed  && ((g_it == g_it->block->permutationSegment.end()) || (std::next(g_it) == g_it->block->permutationSegment.end()))))
+								 || (!reversed  && (g_it == g_it->block->permutationSegment.begin()));
+
+		// Get the block of the next gene depending if the 
+		// given gene is the last element of the block or not.
+		typename std::list<BlockT>::iterator b_it = isFirstElement ? std::prev(g_it->block) : g_it->block;
+		if (b_it->reversed) {
+			return (isFirstElement ? b_it->permutationSegment.begin() : std::next(g_it));
+		} else {
+			return (isFirstElement ? (--b_it->permutationSegment.end()) : std::prev(g_it));
+		}
+	}
+
 	std::string printBlock() const;
 
 	// TODO: updateBlock method that is called during splitTree?
-
 };
 
 /***********************************************************
@@ -160,7 +193,7 @@ public:
 template <typename BlockT>
 std::string BlockBase<BlockT>::printBlock() const {
 	std::string block_str = "[ ";
-	for(Gene<BlockT> const &g : permutationSegment) {block_str +=  (std::to_string(g.id) + "(" + std::to_string(genePosAbs(g)) + ") ");}
+	for(Gene<BlockT> const &g : permutationSegment) {block_str +=  ((g.reversed ? "-" : "+") + std::to_string(g.id) + "(" + std::to_string(genePosAbs(g)) + ") ");}
 	block_str += ("].rev=" + std::to_string(reversed)) + " (" + status + ")";
 	return block_str;
 }
