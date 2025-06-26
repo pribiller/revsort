@@ -108,8 +108,16 @@ public:
 	int unused_oriented_tot{0};
 
 	Node(const Gene<BlockT>& g, const Gene<BlockT>& g_next):gene(g),gene_next(g_next),min(this),max(this){ 
-		const bool sign_g	  = (g.reversed != g.block->reversed);
+		const bool sign_g	   = (g.reversed != g.block->reversed);
 		const bool sign_g_next = (gene_next.reversed != gene_next.block->reversed);
+	}
+
+	bool isSorted() const {
+		const int pos_g = gene.block->genePosAbs(gene);
+		const int pos_g_next   = gene_next.block->genePosAbs(gene_next);
+		const bool sign_g	   = (gene.reversed != gene.block->reversed);
+		const bool sign_g_next = (gene_next.reversed != gene_next.block->reversed);
+		return ((sign_g == sign_g_next) && (((!sign_g) && ((pos_g_next-pos_g) == 1)) || ((sign_g) && ((pos_g-pos_g_next) == 1))));
 	}
 
 	// ``true`` if signs of genes (i) and (i+1) are flipped in the 
@@ -725,6 +733,8 @@ public:
 	// another_tree (with all elements > val).
 	void split(int val, RedBlackTree& another_tree) {
 		
+		if(root == nullptr){return;} // Nothing to split.
+
 		// Check extreme cases.
 		int const minval = (root->reversed) ? root->max->getPosNext() : root->min->getPosNext();
 		int const maxval = (root->reversed) ? root->min->getPosNext() : root->max->getPosNext();
@@ -986,6 +996,9 @@ public:
 
 	// Returns an unused oriented arc from the tree (if it exists).
 	Node<BlockT>* getUnusedOriented(){
+		
+		if(root == nullptr){return nullptr;}
+		
 		Node<BlockT>* current = root;
 		current->clearReversedFlag();
 
@@ -1033,12 +1046,12 @@ public:
 		// (but **not** on how the tree is traversed).
 		bool const reversed_block = root->gene.block->reversed;
 		const int unused_upd  = 1;
-		const int unused_oriented_upd = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
+		const int unused_oriented_upd = reversed_block ? 0 : 1;
 
 		// Update node status.
 		node->unused = false;
 		node->unused_tot -= unused_upd;
-		node->unused_oriented_tot -= unused_oriented_upd;
+		node->unused_oriented_tot -= ((node->unused_tot == 0) ? node->unused_oriented_tot : unused_oriented_upd);
 
 		// Update counts in the path between the root and the node (node's ancestors).
 		// Make sure that all ``reversed`` flags in the path 

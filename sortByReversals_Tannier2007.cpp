@@ -26,6 +26,7 @@
 #include <algorithm> // find_if, reverse
 #include <cstdlib>   // exit
 #include <deque>
+#include <iterator>  // reverse_iterator
 
 #include "genomePermutation.hpp"
 #include "reversalBST_KaplanVerbin2003.hpp"
@@ -41,9 +42,10 @@
 class Reversal {
 public:
 	int g_beg;  // Gene i.
-	int g_end;  // Ideal gene after gene i.
-	int g_next; // Current gene after gene i.
-	Reversal(const int start, const int next_ideal, const int next_cur):g_beg(start),g_end(next_ideal),g_next(next_cur){
+	int g_end;  // Gene i+1.
+	int g_beg_next; // Current gene after gene i.
+	int g_end_next; // Current gene after gene i+1.
+	Reversal(const int start, const int next_ideal, const int next_cur, const int next_end):g_beg(start),g_end(next_ideal),g_beg_next(next_cur),g_end_next(next_end){
 
 	}
 };
@@ -232,8 +234,8 @@ private:
 	// the respective block is inside the reversal or not.
 	void updateTreesAfterReversal(const int g_beg, const int g_end){
 
-		std::cout << "After Reversal (" << g_beg << " " << g_end << "]" << std::endl;
-		printNodesBlockDetails();
+		// std::cout << "After Reversal (" << g_beg << " " << g_end << "]" << std::endl;
+		// printNodesBlockDetails();
 
 		for(BlockTree &b : genperm.blockList) {
 			if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
@@ -245,17 +247,15 @@ private:
 	}
 
 	// Update the trees that were affected by balancing blocks operation.
-	// These trees will be made from scratch.	
+	// These trees will be made from scratch.
 	void updateTreesEndReversal(){
-
-		std::cout << "End Reversal " << std::endl;
-		printNodesBlockDetails();
-
 		for(BlockTree &b : genperm.blockList) {
 			if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
 				b.makeTree(nodes); // Make tree from scratch.
 			}
-		}		
+		}
+		// std::cout << "End Reversal " << std::endl;
+		// printNodesBlockDetails();
 	}
 	
 	void printTrees() {
@@ -264,7 +264,7 @@ private:
 	
 	bool hasUnused() {
 		for(BlockTree &b : genperm.blockList) {
-			if(b.tree.root->unused_tot > 0){return true;}
+			if((b.tree.root != nullptr) && (b.tree.root->unused_tot > 0)){return true;}
 		}
 		return false;
 	}
@@ -287,25 +287,42 @@ private:
 			1 3 4 -2 5 -> 1 -4 -3 -2 5
 	*/
 	Reversal getReversal(Node<BlockTree>* node) const {
-		std::cout << "[getReversal] " << node->printNode() << std::endl;
 		const int pos_beg = node->gene.block->genePosAbs(node->gene);
 		const int pos_end = node->gene_next.block->genePosAbs(node->gene_next);
 		std::list<Gene<BlockTree>>::iterator g_beg = (pos_beg < pos_end) ? genperm.genes[node->gene.id-1] : genperm.genes[node->gene_next.id-1];
 		std::list<Gene<BlockTree>>::iterator g_end = (pos_beg < pos_end) ? genperm.genes[node->gene_next.id-1] : genperm.genes[node->gene.id-1];
 		// Check if we have the case that needs adjustment: Reversal [i, i+1)
 		if (((g_beg->id < g_end->id) && (g_beg->block->reversed != g_beg->reversed)) || ((g_beg->id > g_end->id) && (g_beg->block->reversed == g_beg->reversed))) {
+			if (genperm.isFirstGene((*g_beg))){
+				std::cout << "ERROR! Reversal " << node->printNode() << " involves the element in the first position of the current permutation. This element is not expected to be involved in any reversal, as it should be in the correct place from the start (the given permutation should be ``expanded`` with the elements 1 and n+2, both never touched by reversals)." << std::endl;
+				exit(0);				
+			}
 			g_beg = g_beg->block->getPrevGene(g_beg);
 			g_end = g_end->block->getPrevGene(g_end);
 		}
-		std::cout << "[getReversal] " << (g_beg->reversed ? "-" : "+") << g_beg->id << " " << (g_end->reversed ? "-" : "+") << g_end->id << " " << std::endl;
-
 		// Information needed to apply a reversal and also to undo it later if needed.
 		const int g_beg_id  = g_beg->id;
 		const int g_end_id  = g_end->id;
 		std::list<Gene<BlockTree>>::iterator gene_next = g_beg->block->getNextGene(g_beg);
-		const int g_next_id = gene_next->id;
-		std::cout << "[getReversal] " << g_beg_id << " " << g_end_id << " " << g_next_id << " " << std::endl;
-		return Reversal(g_beg_id, g_end_id, g_next_id); // std::pair{g_beg, g_end};
+		const int g_beg_next_id = gene_next->id;
+		const bool g_end_isLast = genperm.isLastGene((*g_end));
+		if(!g_end_isLast){gene_next = g_beg->block->getNextGene(g_end);}
+		const int g_end_next_id = (!g_end_isLast) ? gene_next->id : -1;
+		// std::cout << "\n\n[getReversal] " << g_beg_id << " " << g_end_id << " " << g_beg_next_id << " " << g_end_next_id << " " << std::endl;
+		return Reversal(g_beg_id, g_end_id, g_beg_next_id, g_end_next_id); // std::pair{g_beg, g_end};
+	}
+
+	std::vector<Node<BlockTree>*> getNewSolvedAdjacencies(Reversal rev){
+		std::vector<int> candidates = {rev.g_beg, rev.g_end, rev.g_beg_next, rev.g_end_next};
+		std::vector<Node<BlockTree>*> solvedAdj;
+		//solvedAdj.resize(3); // Maximum 2 adjacencies can be solved.
+		for(int const &g_id : candidates) {
+			if ((g_id > 0) && (g_id < genperm.n)){
+				Node<BlockTree>& node = nodes[g_id-1];
+				if((node.unused) && node.isSorted()){solvedAdj.emplace_back(&nodes[g_id-1]);} //&nodes[g_id-1]
+			}
+		}
+		return solvedAdj;
 	}
 
 public:
@@ -346,14 +363,11 @@ public:
 		const int g_after_beg = reversal_beg->permutationSegment.front().id;
 		const int g_after_end = reversal_end->permutationSegment.front().id;
 		
-		std::cout << "Before reverse (" << g_beg << " " << g_end << "] :\n\t" << reversal_beg->printBlock() << "\n\t" << reversal_end->printBlock() << std::endl;
-		printNodesBlockDetails();
+		std::list<BlockTree> temp;
+		temp.splice(temp.begin(), genperm.blockList, reversal_beg, reversal_end);
+		temp.reverse();
+		genperm.blockList.splice(reversal_end, temp);
 
-		std::reverse(reversal_beg, reversal_end); // Reverses the order of the elements in the range [first, last).
-
-		std::cout << "After reverse order (" << g_beg << " " << g_end << "]" << std::endl;
-		printNodesBlockDetails();
-		
 		// (3.1) Update positions of reversed blocks.
 		int blockPos = genperm.getBlock(g_beg)->pos + genperm.getBlock(g_beg)->permutationSegment.size();
 		for (std::list<BlockTree>::iterator b = genperm.getBlock(g_end); b != std::next(genperm.getBlock(g_after_beg)); ++b) { 
@@ -389,7 +403,7 @@ public:
 				  each component in the overlap graph should 
 				  be treated separately.
 	*/
-	void sortByReversals(){
+	std::deque<Reversal> sortByReversals(){
 
 		std::cout << "\n\nSort by reversals: " << genperm.printBlocks("\n\t") << std::endl;
 		printTrees();
@@ -404,10 +418,16 @@ public:
 			applyReversal(rev.g_beg, rev.g_end);
 
 			// Update status of arc from ``used`` to ``unused``.
-			safeReversal->gene.block->tree.setUsed(safeReversal);
-
-			// std::cout << " After mark as used: " << genperm.printBlocks("\n\t") << std::endl;
-			// printTrees();
+			// Check if the other adjacency affected by the reversal was also ``solved``.
+			//safeReversal->gene.block->tree.setUsed(safeReversal);
+			std::cout << "\n\nMark used genes" << std::endl;
+			std::vector<Node<BlockTree>*> solved = getNewSolvedAdjacencies(rev);
+			for (Node<BlockTree>* node : solved) {
+				node->gene.block->tree.setUsed(node);
+				std::cout << "\t> Mark gene " << node->gene.id << "=USED" << std::endl;
+			}
+			std::cout << genperm.printBlocks("\n\t") << std::endl;
+			printTrees();
 
 			// s1 <- s1 + [new arc].
 			s1.push_back(rev);
@@ -424,15 +444,17 @@ public:
 				// while current permutation does not have unused oriented arc.
 				while(safeReversal == nullptr){
 					// Undo reversal.
-					applyReversal(rev.g_beg, rev.g_next);
+					applyReversal(rev.g_beg, rev.g_beg_next);
 					rev = s1.back();
 					s2.push_front(rev); // s2 <- [new arc] + s2
 					s1.pop_back();      // s1 <- s1 - [new arc]
 					safeReversal = getUnusedOriented();
 				}
 			}
-			// break;
 		}
+		// Merge s2 into s1.
+		s1.insert(s1.end(), s2.begin(), s2.end());
+		return s1;
 	}
 };
 
@@ -440,14 +462,7 @@ public:
 void testCase1(int const n) {
 	// Start vector with Identity permutation (for testing).
 	std::vector<int> perm(n);
-	std::iota(perm.begin(), perm.end(), 1);
-
-	std::cout << "Hello World! :-D\nVector with " << n << " elements!" << std::endl;
-	
-	for(int i=0; i<n; i++){
-		std::cout << "\t pos. " << i << " = " << perm[i] << std::endl;
-	}
-	
+	std::iota(perm.begin(), perm.end(), 1);	
 	GenomeSort genomeSort = GenomeSort(perm);
 	genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
 	genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
@@ -458,11 +473,14 @@ void testCase2() {
 	// Permutation **must** start at 1: [1 2 .. gene]
 	std::vector<int> perm{1, -2, 4, 3, 5}; // {0, -1, 3, 2, 4}
 	GenomeSort genomeSort = GenomeSort(perm);
-	genomeSort.sortByReversals();
+	std::deque<Reversal> allrev = genomeSort.sortByReversals();
+	std::cout << "Sorting by reversals---Solution" << std::endl;
+	for(Reversal const &rev : allrev) {
+		std::cout << "(gene " << rev.g_beg << ", gene " << rev.g_end << "]" << std::endl;
+	}
 }
 
 int main(int argc, char* argv[]) {
-
 	int const n = std::stoi(argv[1]); // input (command line argument): number of genes
 	
 	//testCase1(n);

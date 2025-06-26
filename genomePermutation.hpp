@@ -82,8 +82,8 @@ public:
 	}
 
 	// Get next gene in the current permutation.
+	// Behavior is undefined if given gene is last gene.
 	typename std::list<Gene<BlockT>>::iterator getNextGene(typename std::list<Gene<BlockT>>::iterator const &g_it) {
-
 		// Check if ``gene`` is the last element of the block.
 		const bool isLastElement = ((reversed  && (g_it == g_it->block->permutationSegment.begin()))
 								|| (!reversed && ((g_it == g_it->block->permutationSegment.end()) || (std::next(g_it) == g_it->block->permutationSegment.end()))));
@@ -99,8 +99,8 @@ public:
 	}
 
 	// Get previous gene in the current permutation.
+	// Behavior is undefined if given gene is first gene.
 	typename std::list<Gene<BlockT>>::iterator getPrevGene(typename std::list<Gene<BlockT>>::iterator const &g_it) {
-
 		// Check if ``gene`` is the first element of the block.
 		const bool isFirstElement = ((reversed  && ((g_it == g_it->block->permutationSegment.end()) || (std::next(g_it) == g_it->block->permutationSegment.end()))))
 								 || (!reversed  && (g_it == g_it->block->permutationSegment.begin()));
@@ -116,8 +116,6 @@ public:
 	}
 
 	std::string printBlock() const;
-
-	// TODO: updateBlock method that is called during splitTree?
 };
 
 /***********************************************************
@@ -180,6 +178,13 @@ public:
 	lies within the interval [½×√(n×log(n)), 2×√(n×log(n))]. */
 	void balanceBlock(const int gene);
 
+	inline bool isFirstGene(Gene<BlockT> const &gene) const {
+		return (gene.block->genePosAbs(gene) == 1);
+	}
+
+	inline bool isLastGene(Gene<BlockT> const &gene) const {
+		return (gene.block->genePosAbs(gene) == n);
+	}
 };
 
 /*******************************************************/
@@ -192,9 +197,10 @@ public:
 
 template <typename BlockT>
 std::string BlockBase<BlockT>::printBlock() const {
-	std::string block_str = "[ ";
+	std::string block_str  = "[ ";
+	const std::string status_str = ((status == "") ? "" : (" status: " + status));
 	for(Gene<BlockT> const &g : permutationSegment) {block_str +=  ((g.reversed ? "-" : "+") + std::to_string(g.id) + "(" + std::to_string(genePosAbs(g)) + ") ");}
-	block_str += ("].rev=" + std::to_string(reversed)) + " (" + status + ")";
+	block_str += ("].rev=" + std::to_string(reversed)) + status_str;
 	return block_str;
 }
 
@@ -217,9 +223,9 @@ typename std::list<BlockT>::iterator GenomePermutation<BlockT>::createNewBlock(c
 	// This new block will be inserted after the block given in the input.
 	typename std::list<BlockT>::iterator new_block;
 	if (position != blockList.end()) {
-		blockList.emplace(std::next(position), ++maxBlockId, pos, permSegment);
+		new_block = blockList.emplace(std::next(position), ++maxBlockId, pos, permSegment);
 		// Get an iterator to the new block added to the list.
-		new_block = std::next(position);
+		//new_block = std::next(position);
 	} else {
 		blockList.emplace_back(++maxBlockId, pos, permSegment); // It return a reference to the block (Block& b)
 		// Get an iterator to the new block added to the list.
