@@ -36,81 +36,62 @@
 #include <unordered_map>
 #include <vector>
 #include <cstdlib>   // exit
-#include <cmath>     // abs
-#include <memory>    // shared_ptr
+#include <cmath>	 // abs
+#include <memory>	// shared_ptr
 #include <utility>   // move, pair
 
 // Map between the labels used in the input and the labels
 // used internally by the class. The class relabel the genes
 // such that one of the genomes has an ordered sequence 2, 3, .., n+1.
 // Labels 1 and n+2 are reserved to extended caps used later.
-
-template <typename GeneLabelT>
-class GeneLabelMapKey {
-public:
-	GeneLabelT label;
-	bool reversed{false};
-	GeneLabelMapKey(const GeneLabelT& label, const bool reversed):label(label),reversed(reversed){
-	}
-	// Overload the '<' operator.
-	friend bool operator<(const GeneLabelMapKey &a, const GeneLabelMapKey &b){
-		return a.label < b.label;
-	}
-	// Overload the '>' operator.
-	friend bool operator>(const GeneLabelMapKey &a, const GeneLabelMapKey &b){
-		return a.label > b.label;
-	}
-	// Overload the '==' operator.
-	friend bool operator==(const GeneLabelMapKey &a, const GeneLabelMapKey &b){
-		return a.label == b.label;
-	}
-};
-
-// Specialization of std::hash for GeneLabelMapKey.
-template <typename GeneLabelT>
-struct std::hash<GeneLabelMapKey<GeneLabelT>> {
-	std::size_t operator () (const GeneLabelMapKey<GeneLabelT>& key) const {
-		return std::hash<GeneLabelT>{}(key.label); 
-    }
-};
-
 template <typename GeneLabelT>
 class GeneLabelMap {
 public:
-	std::shared_ptr<std::unordered_map<GeneLabelMapKey<GeneLabelT>,int>> labels;
-	std::shared_ptr<std::vector<GeneLabelMapKey<GeneLabelT>>> ids_to_labels;
-	GeneLabelMap(std::unordered_map<GeneLabelMapKey<GeneLabelT>, int>* gene_labels, std::vector<GeneLabelMapKey<GeneLabelT>>* gene_ids_to_labels):labels(gene_labels),ids_to_labels(gene_ids_to_labels){
+	// Given a custom label to a gene (string, int, etc.), it 
+	// returns a signed integer. The integer value denotes the 
+	// gene id used internally. The sign of the integer, if negative (positive),
+	// means that originally the gene had negative (positive) sign.
+	std::shared_ptr<std::unordered_map<GeneLabelT,int>> labels;
+	std::shared_ptr<std::vector<GeneLabelT>> ids_to_labels;
+
+	GeneLabelMap(std::unordered_map<GeneLabelT, int>* gene_labels, std::vector<GeneLabelT>* gene_ids_to_labels):labels(gene_labels),ids_to_labels(gene_ids_to_labels){
 
 	}
-	int add(const GeneLabelT& gene_label, const bool sign){
-		GeneLabelMapKey<GeneLabelT> key = GeneLabelMapKey<GeneLabelT>(gene_label,sign);
-		const int gene_id = ids_to_labels->size()+1;
-		(*labels)[key] = gene_id;
-		(*ids_to_labels).emplace_back(key);
+	int add(const GeneLabelT& gene_label, const bool reversed){
+		const int gene_id = (reversed ? -(ids_to_labels->size()+1) : (ids_to_labels->size()+1));
+		(*labels)[gene_label] = gene_id;
+		(*ids_to_labels).emplace_back(gene_label);
 		return gene_id;
 	}
 	inline bool labelExists(const GeneLabelT& gene_label) const {
-		GeneLabelMapKey<GeneLabelT> key{gene_label, true};
-		return (labels->find(key) != labels->end());
+		return (labels->find(gene_label) != labels->end());
 	}
-	int getId(const GeneLabelT& gene_label, bool const reversed) const {
-		GeneLabelMapKey<GeneLabelT> key{gene_label, reversed};
-		if (labels->find(key) != labels->end()) {
-			int gene_id = (*labels)[key];
+	inline GeneLabelT getLabel(const int gene_id) const {
+		return (*ids_to_labels)[std::abs(gene_id)-1];
+	}
+	inline int getId(const GeneLabelT& gene_label) const {
+		return (*labels)[gene_label];
+	}
+	// Depending on the current orientation of the gene,
+	// check if it corresponds to the ideal orientation.
+	// Even if the gene is reversed, if the original orientation
+	// is also reversed, it returns a positive integer.
+	int getAdjustedId(const GeneLabelT& gene_label, bool const reversed) const {
+		if (labels->find(gene_label) != labels->end()) {
+			int gene_id = getId(gene_label);
 			const bool reversed = (((gene_id < 0) && reversed) || ((gene_id > 0) && !reversed));
 			return (reversed ? -gene_id : gene_id);
 		} else {
 			return 0;
 		}
 	}
-	GeneLabelMapKey<GeneLabelT> getGene(const int gene_id) const {
-		GeneLabelMapKey<GeneLabelT> key = (*ids_to_labels)[std::abs(gene_id)-1];
-		const bool reversed = (((gene_id < 0) && key.reversed) || ((gene_id > 0) && !key.reversed));
-		return GeneLabelMapKey<GeneLabelT>(key.label,reversed);
+	int getAdjustedId(const int gene_id) const {
+		GeneLabelT gene_label = getLabel(gene_id);
+		return getAdjustedId(gene_label, (gene_id < 0));
 	}
-	std::string getLabel(const int gene_id) const {
-		GeneLabelMapKey<GeneLabelT> key = getGene(gene_id);
-		return (key.reversed ? "-" : "+") + std::to_string(key.label);
+	std::string getLabelStr(const int gene_id) const {
+		GeneLabelT gene_label = getLabel(gene_id);
+		return (((getAdjustedId(gene_label, (gene_id < 0)) < 0) ? "-" : "+") + std::to_string(gene_label));
 	}
 };
 
@@ -130,7 +111,7 @@ public:
 	int m{0}; // Number of chromosomes.
 
 	// Create an internal representation of a multichromosomal genome.
-	// A genome with m chromosomes is represented by a vector with
+	// A genome with m chromosomes is represented by a vector containing
 	// m vectors. Each chromosome is a vector.
 	// The orientation of the genes (true if reversed, false otherwise)
 	// is indicated in the vector ``genome_orientation``. 
@@ -138,31 +119,43 @@ public:
 	// can be found in genome_orientation[i][j].
 	// In the internal representation, genes are represented as integers, 
 	// appearing in increasing order: 1, ..., n.
-	GenomeMultichrom(const std::vector<std::vector<GeneLabelT>>& genome_multichrom, const std::vector<std::vector<bool>>& genome_orientation):genome(genome_multichrom.size()),gene_labels_map(new typename std::unordered_map<GeneLabelMapKey<GeneLabelT>, int>,new typename std::vector<GeneLabelMapKey<GeneLabelT>>){
-
+	GenomeMultichrom(const std::vector<std::vector<GeneLabelT>>& genome_multichrom, const std::vector<std::vector<bool>>& genome_orientation):genome(genome_multichrom.size()),gene_labels_map(new typename std::unordered_map<GeneLabelT, int>,new typename std::vector<GeneLabelT>){
 		// Compute the number of genes, and check if inputs make sense.
 		initializeGenome(genome_multichrom, genome_orientation);
 		// Create chromosomes and save mapping between gene labels and internal gene ids.
-		gene_labels_map.ids_to_labels->reserve(n); 
-		int chrom_idx = 0;
-		for(std::vector<int> const &chrom : genome_multichrom) {createChrom(chrom_idx,chrom,genome_orientation[chrom_idx],false);++chrom_idx;}
+		createPermutation(genome_multichrom, genome_orientation, false);
 	}
 
 	// Create genome **without** update mapping between gene labels and internal ids.
-	GenomeMultichrom(const std::vector<std::vector<int>>& genome_multichrom, const std::vector<std::vector<bool>>& genome_orientation, GeneLabelMap<GeneLabelT>& gene_labels_map_):genome(genome_multichrom.size()),gene_labels_map(gene_labels_map_){
+	GenomeMultichrom(const std::vector<std::vector<GeneLabelT>>& genome_multichrom, const std::vector<std::vector<bool>>& genome_orientation, GeneLabelMap<GeneLabelT>& gene_labels_map_):genome(genome_multichrom.size()),gene_labels_map(gene_labels_map_){
 		// Compute the number of genes, and check if inputs make sense.
 		initializeGenome(genome_multichrom, genome_orientation);
 		// Create chromosomes **without** creating a new mapping between gene labels and internal gene ids.
-		int chrom_idx = 0;
-		for(std::vector<int> const &chrom : genome_multichrom) {createChrom(chrom_idx,chrom,genome_orientation[chrom_idx],true);++chrom_idx;}
+		createPermutation(genome_multichrom, genome_orientation, true);
 	}
 
-	// GenomeMultichrom(const std::vector<std::vector<int>>& genome_unichrom){
-	// }
+	// A simpler alternative to constructor if genome is unichromosomal.
+	GenomeMultichrom(const std::vector<GeneLabelT>& genome_unichrom, const std::vector<bool>& genome_orientation_unichrom):genome(1),gene_labels_map(new typename std::unordered_map<GeneLabelT, int>,new typename std::vector<GeneLabelT>){
+		// Make genome ``multichromosomal``.
+		const std::vector<std::vector<GeneLabelT>> genome_multichrom{genome_unichrom};
+		const std::vector<std::vector<bool>> genome_orientation{genome_orientation_unichrom};
+		// Compute the number of genes, and check if inputs make sense.
+		initializeGenome(genome_multichrom, genome_orientation);
+		// Create chromosomes and save mapping between gene labels and internal gene ids.
+		createPermutation(genome_multichrom, genome_orientation, false);
+	}
 
-	// GenomeMultichrom(const std::vector<std::vector<int>>& genome_unichrom, map){
-	// }
-
+	// A simpler alternative to constructor if genome is unichromosomal.
+	GenomeMultichrom(const std::vector<GeneLabelT>& genome_unichrom, const std::vector<bool>& genome_orientation_unichrom, GeneLabelMap<GeneLabelT>& gene_labels_map_):genome(1),gene_labels_map(gene_labels_map_){
+		// Make genome ``multichromosomal``.
+		const std::vector<std::vector<GeneLabelT>> genome_multichrom{genome_unichrom};
+		const std::vector<std::vector<bool>> genome_orientation{genome_orientation_unichrom};
+		// Compute the number of genes, and check if inputs make sense.
+		initializeGenome(genome_multichrom, genome_orientation);
+		// Create chromosomes **without** creating a new mapping between gene labels and internal gene ids.
+		createPermutation(genome_multichrom, genome_orientation, true);
+	}
+	
 	// // Create a random genome with n genes and m chromosomes.
 	// GenomeMultichrom(int n, int m){
 
@@ -191,12 +184,19 @@ public:
 		}
 	}
 	
+	void createPermutation(const std::vector<std::vector<GeneLabelT>>& genome_multichrom, const std::vector<std::vector<bool>>& genome_orientation, const bool labelShouldExist){
+		// Create chromosomes and save mapping between gene labels and internal gene ids.
+		if(!labelShouldExist){gene_labels_map.ids_to_labels->reserve(n);}
+		int chrom_idx = 0;
+		for(std::vector<int> const &chrom : genome_multichrom) {createChrom(chrom_idx,chrom,genome_orientation[chrom_idx],labelShouldExist);++chrom_idx;}
+	}
+
 	int getGeneId(GeneLabelT const &geneLabel, bool const &geneSign){
 		if(!gene_labels_map.labelExists(geneLabel)) {
 			std::cout << "ERROR! The gene with label '" << geneLabel << "' was not found in another genome. For now, all genomes must have the same gene content, and missing genes are not supported. Program is aborting." << std::endl;
 			exit(1);			
 		} 
-		return gene_labels_map.getId(geneLabel, geneSign); // Retrieve ID correspoding to the label.
+		return gene_labels_map.getAdjustedId(geneLabel, geneSign); // Retrieve ID correspoding to the label.
 	}
 	
 	int createGeneId(GeneLabelT const &geneLabel, bool const &geneSign) {
@@ -204,7 +204,7 @@ public:
 			std::cout << "ERROR! The gene with label '" << geneLabel << "' appears more than once in the genome. For now, genomes with duplicated genes are not supported. Program is aborting." << std::endl;
 			exit(1);
 		}
-		return gene_labels_map.add(geneLabel, geneSign); // Create a new map entry.
+		return std::abs(gene_labels_map.add(geneLabel, geneSign)); // Create a new map entry.
 	}
 
 	// Create chromosome and update mapping between gene labels and internal ids.
@@ -212,7 +212,6 @@ public:
 		int gene_idx = 0;
 		for(GeneLabelT const &gene : chrom) {
 			const int gene_id = labelShouldExist ? getGeneId(gene, chrom_orientation[gene_idx]) : createGeneId(gene, chrom_orientation[gene_idx]);
-			std::cout << gene << "=" << gene_id << std::endl;
 			genome[chrom_idx][gene_idx] = gene_id;
 			++gene_idx;
 		}
@@ -234,7 +233,10 @@ public:
 		for(std::vector<int> const &chrom : genome) {
 			std::cout << "> Chrom. " << ++chr_idx << std::endl;
 			for(int const &g_id : chrom) {
-				std::cout << gene_labels_map.getLabel(std::abs(g_id)) << " ";
+				const GeneLabelT gene_label = gene_labels_map.getLabel(std::abs(g_id));
+				const int g_id_ideal = gene_labels_map.getId(gene_label);
+				const bool reversed  = ((g_id_ideal < 0) != (g_id < 0));
+				std::cout << (reversed ? "-" : "+") << gene_label << " ";
 			}
 			std::cout << std::endl;
 		}
@@ -243,23 +245,56 @@ public:
 };
 
 
-int main(int argc, char* argv[]) {
-	//int const n = std::stoi(argv[1]); // input (command line argument): number of genes
-	
-    std::vector<std::vector<int>>  genome_multichrom_A  = {{5, 4, 3, 2, 1}};
-    std::vector<std::vector<bool>> genome_orientation_A = {{false, true, false, true, false}};
+void testCaseMultichrom(){
+	std::vector<std::vector<int>>  genome_multichrom_A  = {{5, 4, 3, 2, 1}};
+	std::vector<std::vector<bool>> genome_orientation_A = {{false, true, false, true, false}};
 
-    std::vector<std::vector<int>>  genome_multichrom_B  = {{1, 3, 5, 2, 4}};
-    std::vector<std::vector<bool>> genome_orientation_B = {{true, true, true, true, true}};
+	std::vector<std::vector<int>>  genome_multichrom_B  = {{1, 3, 5, 2, 4}};
+	std::vector<std::vector<bool>> genome_orientation_B = {{true, true, true, true, true}};
 
 	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
-    genome_A.printGenome();
-    genome_A.printOriginalGenome();
+	std::cout << "\n\nTest: Multichromosomal genome constructor\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+}
 
-    genome_B.printGenome();
-    genome_B.printOriginalGenome();
+void testCaseUnichrom(){
+	std::vector<int>  genome_multichrom_A  = {5, 4, 3, 2, 1};
+	std::vector<bool> genome_orientation_A = {false, true, false, true, false};
+
+	std::vector<int>  genome_multichrom_B  = {1, 3, 5, 2, 4};
+	std::vector<bool> genome_orientation_B = {true, true, true, true, true};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Unichromosomal genome constructor\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+	
+}
+
+int main(int argc, char* argv[]) {
+	//int const n = std::stoi(argv[1]); // input (command line argument): number of genes
+
+	testCaseMultichrom();
+	testCaseUnichrom();
 
 	std::cout << "Bye bye\n";
 	return 0;
