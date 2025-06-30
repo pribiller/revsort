@@ -37,9 +37,59 @@
 #include <vector>
 #include <cstdlib>   // exit
 #include <cmath>	 // abs
-#include <memory>	// shared_ptr
+#include <memory>	 // shared_ptr
 #include <utility>   // move, pair
+#include <random>
+#include <algorithm> // shuffle
 
+/*******************************************************
+ *  Auxiliary functions
+*******************************************************/
+
+// Creates a random permutation of [begElem]..n+[begElem].
+std::vector<int> createRandomPermutation(std::mt19937& rng, const int n, int begElem=1) {
+	// Create a vector with integers from 1 to n
+	std::vector<int> permutation(n,begElem);
+	for (int i = 0; i < n; ++i) {permutation[i] += i;}
+	// Shuffle the vector to create a random permutation.
+	std::shuffle(permutation.begin(), permutation.end(), rng);
+	return permutation;
+}
+
+// Creates a vector of boolean with chance [probRev] of being true and 1-[probRev] of being false.
+std::vector<bool> createRandomSigns(std::mt19937& rng, const int n, const double probRev) {
+	if ((probRev < 0) || (probRev > 1)){
+		std::cout << "ERROR! Probability of a reversed gene must be a value in the range [0, 1]. Value found=" << probRev << "\nProgram is aborting." << std::endl;
+		exit(1);
+	}
+	std::uniform_real_distribution<> distr(0.0, 1.0); // Distribution for probability
+	// Create a vector with integers from 1 to n
+	std::vector<bool> signs(n);
+	for (int i = 0; i < n; ++i) {signs[i] = (distr(rng) < probRev);}
+	return signs;
+}
+
+// Split n into m bins.
+std::vector<int> createRandomPartition(std::mt19937& rng, int n, const int m) {
+	if(n < m) {
+		std::cout << "ERROR! There are more partitions than elements. Values found: elements(n)=" << n << "; partitions(m)=" << m << "\nProgram is aborting." << std::endl;
+		exit(1);
+	}
+	// Every partition has at least one element.
+	std::vector<int> partitions(m, 1);
+	n = n - m;
+	// Distribute remaining elements in a random way.
+	if(n > 0){
+		// Uniform distribution on the closed interval [1,m].
+		std::uniform_int_distribution distr(0, m-1); 
+		for (int i = 0; i < n; ++i) {partitions[distr(rng)] += 1;}
+	}
+	return partitions;
+}
+
+/*******************************************************
+ *  Genome data structure.
+*******************************************************/
 // Map between the labels used in the input and the labels
 // used internally by the class. The class relabel the genes
 // such that one of the genomes has an ordered sequence 2, 3, .., n+1.
@@ -156,11 +206,21 @@ public:
 		createPermutation(genome_multichrom, genome_orientation, true);
 	}
 	
-	// // Create a random genome with n genes and m chromosomes.
-	// GenomeMultichrom(int n, int m){
+	// Create a random genome with n genes and m chromosomes.
+	GenomeMultichrom(std::mt19937& rng, int n, int m, double probRev):n(n),m(m),genome(m),gene_labels_map(new typename std::unordered_map<GeneLabelT, int>,new typename std::vector<GeneLabelT>){
+		// Initialize a random genome.
+		std::pair<std::vector<std::vector<int>>,std::vector<std::vector<bool>>> rdmgen = initializeRandomGenome(rng, n, m, probRev);
+		// Create chromosomes and save mapping between gene labels and internal gene ids.
+		createPermutation(rdmgen.first, rdmgen.second, false);
+	}
 
-	// }
-
+	// Create a random genome with n genes and m chromosomes.
+	GenomeMultichrom(std::mt19937& rng, int n, int m, double probRev, GeneLabelMap<GeneLabelT>& gene_labels_map_):n(n),m(m),genome(m),gene_labels_map(gene_labels_map_){
+		// Initialize a random genome.
+		std::pair<std::vector<std::vector<int>>,std::vector<std::vector<bool>>> rdmgen = initializeRandomGenome(rng, n, m, probRev);
+		// Create chromosomes **without** creating a new mapping between gene labels and internal gene ids.
+		createPermutation(rdmgen.first, rdmgen.second, true);
+	}
 
 	// void getExtendedGenome(){
 
@@ -170,6 +230,21 @@ public:
 
 	// }
 	
+	std::pair<std::vector<std::vector<int>>, std::vector<std::vector<bool>>> initializeRandomGenome(std::mt19937& rng, int n, int m, const double probRev) {
+		// Initialize a random genome.
+		std::vector<std::vector<int>>  genome_multichrom;
+		std::vector<std::vector<bool>> genome_orientation;
+		std::vector<int> chrom_sizes = createRandomPartition(rng, n, m);
+		int begElem=1; m=0;
+		for(int const &chrom_size : chrom_sizes) {
+			(genome[m++]).resize(chrom_size);
+			genome_multichrom.emplace_back(createRandomPermutation(rng, chrom_size, begElem));
+			genome_orientation.emplace_back(createRandomSigns(rng, chrom_size, probRev));
+			begElem += chrom_size;
+		}
+		return std::make_pair(genome_multichrom,genome_orientation);
+	}
+
 	// Compute the number of genes, and check if inputs make sense.
 	void initializeGenome(const std::vector<std::vector<GeneLabelT>>& genome_multichrom, const std::vector<std::vector<bool>>& genome_orientation){
 		m = 0; n = 0;
@@ -222,7 +297,7 @@ public:
 		for(std::vector<int> const &chrom : genome) {
 			std::cout << "> Chrom. " << ++chr_idx << std::endl;
 			for(int const &g_id : chrom) {
-				std::cout << g_id << " ";
+				std::cout << ((g_id < 0) ? "-" : "+") << std::abs(g_id) << " ";
 			}
 			std::cout << std::endl;
 		}
@@ -244,6 +319,21 @@ public:
 
 };
 
+void testRandomPerm(std::mt19937& rng, int n, int m, double probRev=0.3) {
+	GenomeMultichrom<int> genome_A(rng, n, m, probRev);
+	GenomeMultichrom<int> genome_B(rng, n, m, probRev, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Random genome constructor (n=" << n << ";m=" << m  << ";p_rev=" << probRev << ")\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+}
 
 void testCaseMultichrom(){
 	std::vector<std::vector<int>>  genome_multichrom_A  = {{5, 4, 3, 2, 1}};
@@ -291,8 +381,25 @@ void testCaseUnichrom(){
 }
 
 int main(int argc, char* argv[]) {
-	//int const n = std::stoi(argv[1]); // input (command line argument): number of genes
+	
+	if (argc < 2) {
+		std::cout << "ERROR! No extra command line argument passed other than program name. Program is aborting." << std::endl;
+		exit(1);
+	} else if (argc != 5) {
+		std::cout << "ERROR! Wrong number of arguments. Expected: ./program [seed] [#genes] [#chrom] [probRev]. Program is aborting." << std::endl;
+		exit(1);
+	}
 
+	int const seed       = std::stoi(argv[1]); // input (command line argument): seed random number generator.
+	int const nbgenes    = std::stoi(argv[2]); // input (command line argument): number of genes.
+	int const nbchrom    = std::stoi(argv[3]); // input (command line argument): number of chromosomes.
+	double const probRev = std::stod(argv[4]); // input (command line argument): probability of gene w/negative sign.
+
+	// Create a random number generator
+	std::cout << "- Seed to reproduce tests: " << seed << std::endl;
+	std::mt19937 rng(seed); // Seed the generator
+
+	testRandomPerm(rng,nbgenes,nbchrom,probRev);
 	testCaseMultichrom();
 	testCaseUnichrom();
 
