@@ -35,6 +35,8 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
+#include <stack>
+#include <list>
 #include <cstdlib>   // exit
 #include <cmath>	 // abs
 #include <memory>	 // shared_ptr
@@ -45,6 +47,12 @@
 /*******************************************************
  *  Auxiliary functions
 *******************************************************/
+
+// Color of edges in the breakpoint graph.
+enum BgColor {
+	GRAY,   // GRAY is assigned the value 0
+	BLACK   // BLACK is assigned the value 1
+};
 
 // Creates a random permutation of [begElem]..n+[begElem].
 std::vector<int> createRandomPermutation(std::mt19937& rng, const int n, int begElem=1) {
@@ -90,6 +98,7 @@ std::vector<int> createRandomPartition(std::mt19937& rng, int n, const int m) {
 /*******************************************************
  *  Genome data structure.
 *******************************************************/
+
 // Map between the labels used in the input and the labels
 // used internally by the class. The class relabel the genes
 // such that one of the genomes has an ordered sequence 2, 3, .., n+1.
@@ -142,6 +151,18 @@ public:
 	std::string getLabelStr(const int gene_id) const {
 		GeneLabelT gene_label = getLabel(gene_id);
 		return (((getAdjustedId(gene_label, (gene_id < 0)) < 0) ? "-" : "+") + std::to_string(gene_label));
+	}
+};
+
+/* This class store information about a cycle in a breakpoint graph.*/
+class Cycle {
+	int parent{-1};
+	int id;
+	std::list<int>::iterator root; // It keeps a valid iterator if this cycle is a root in the overlap forest.
+	std::vector<int> children;     // It can store genes (indices between 0 and 2n+1) or cycles (index of the cycle + [2n+1]).
+	int min; // Smallest index of an element belonging to the forest rooted by this cycle.
+	int max; // Biggest index of an element belonging to the forest rooted by this cycle.
+	Cycle(const int id, const int min_idx, const int max_idx):id(id),min(min_idx),max(max_idx){
 	}
 };
 
@@ -222,14 +243,124 @@ public:
 		createPermutation(rdmgen.first, rdmgen.second, true);
 	}
 
+	// Creates an extended unsigned permutation, where a gene i (1 <= i <= n)
+	// is represented by its gene extremities i and i+1.
+	// Two additional gene extremities are added: 0 and 2n+1.
+	// Thus, the total set of extremities are {0, 1, 2, ..., 2n, 2n+1}.
+	std::vector<int> getUnsignedExtendedPerm() {
+		std::vector<int> unsignedExtPerm(2*(n+1));
+		// Extended elements.
+		unsignedExtPerm[0]     = 0;
+		unsignedExtPerm[2*n+1] = 2*n+1;
+		// Main elements.
+		int idx_perm = 1;
+		for(std::vector<int> const &chrom : genome) {
+			for(int const &g_id : chrom) {
+				unsignedExtPerm[idx_perm++] = 2*g_id-1;
+				unsignedExtPerm[idx_perm++] = 2*g_id;
+			}
+		}
+		return unsignedExtPerm;
+	}
+
 	// void getExtendedGenome(){
 
 	// }
 
-	// void getUnsignedExtendedPerm(){
+	// TODO: Implement a version for multichromosomal genomes.
+	void getComponents() {
+		std::vector<int> perm = getUnsignedExtendedPerm(); // pos i stores a gene extremity.
+		std::vector<int> idxs(perm.size());      // pos i stores the current position of gene extremity i in the permutation.
+		std::vector<int> cycles(perm.size(),-1); // pos i stores the cycle id that gene extremity i belongs.
 
-	// }
-	
+		std::vector<Cycle> forest; // Store all cycles in the breakpoint graph, one element per cycle.
+		std::list<int> rootList;   // Store all roots in the overlap (forest) graph, one element per root.
+		std::stack<int> stack;     // Store all cycles currently "active", one element per cycle.
+
+		for (int i=0; i<perm.size(); ++i){idxs[perm[i]] = i;}
+		// Find components.
+		int cycle_id = perm.size();
+		for (int i=0; i<perm.size(); i+=2){ // Loops every 2 elements.
+			// Case 1: element i has no cycle. 
+			if(cycles[i] < 0) {
+				// The id of a cycle corresponds to the index of the cycle in the forest, plus perm.size().
+				const int cycle_idx = cycle_id-perm.size();
+
+				// Each node in the overlap forest is a cycle.
+				// The list of roots saves the indices of all 
+				// cycles (in the vector ``forest``) that 
+				// are roots in the forest (i.e. they have no parent).
+				rootList.emplace_back(cycle_idx);
+
+				// Create a new cycle containing i.
+				forest.emplace_back(cycle_id,i,i);
+				Cycle new_cycle = forest[cycle_idx];
+				new_cycle.root  = std::prev(rootList.end());
+
+				BgColor edge_color = GRAY;
+				int current = perm[i];
+				// Finds the cycle by traversing the alternating gray and black edges from the cycle.
+				while ((idxs[current]-i) != 1) {
+
+					// Map element to the new cycle.
+					cycles[idxs[current]] = cycle_idx;
+					new_cycle.children.emplace_back(current);
+
+					// Update maximum index if needed.
+					if(new_cycle.max < idxs[current]) {new_cycle.max = idxs[current];}
+
+					// Case 1.1 : Traversing a gray edge.
+					if(edge_color == GRAY){
+						// A gray edge connecting genes i and i+1 always starts at 
+						// an even value (2*i) and points to an odd value (2*(i+1)-1).
+						// We use the parity to infer at which side of the edge we are now,
+						// and where we should go (if we are at the head, we go to the tail, and vice-versa).
+						current += (((current % 2)==0) ? 1 : -1);
+						edge_color = BLACK;
+					// Case 1.2 : Traversing a black edge.
+					} else {
+						// A black edge points to the consecutive element in the current permutation.
+						// Depending on the orientation of the gene (which can be inferred by the parity
+						// of the index), we move left or right in the current permutation.
+						current = (((idxs[current] % 2)==0) ? perm[idxs[current]+1] : perm[idxs[current]-1]);
+						edge_color = GRAY;
+					}
+				}
+				// Add cycle to the stack.
+				// Do not add only if the max index comes just next the current index.
+				if(new_cycle.min+1 < new_cycle.max){
+					stack.push(cycle_idx);	
+				}
+				++cycle_id;
+
+			// Case 2: Cycle of element i was already created.
+			} else {
+
+				// Find the cycle that is the root of the 
+				// connected component containing element i.
+				int root_idx = cycles[i]; // Index of cycle i in the list ``forest``.
+				while(forest[root_idx].parent > 0){root_idx = forest[root_idx].parent;}
+
+				// Merge cycles that overlap.
+				while(forest[stack.top()].min > forest[root_idx].min){
+					// Update max if needed.
+					if(forest[root_idx].max < forest[stack.top()].max){
+						forest[root_idx].max = forest[stack.top()].max;
+					}
+					// Update roots of the forest.
+					forest[stack.top()].parent = root_idx;
+					forest[root_idx].children.emplace_back(forest[stack.top()].id);
+					// Top of the stack is not a root anymore. Delete root.
+					rootList.erase(forest[stack.top()].root);
+					// Remove top of the stack.
+					stack.pop();
+				}
+				if(i == (forest[root_idx].max-1)){stack.pop();}
+			}
+		}
+
+	}
+
 	std::pair<std::vector<std::vector<int>>, std::vector<std::vector<bool>>> initializeRandomGenome(std::mt19937& rng, int n, int m, const double probRev) {
 		// Initialize a random genome.
 		std::vector<std::vector<int>>  genome_multichrom;
