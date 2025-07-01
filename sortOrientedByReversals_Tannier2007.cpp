@@ -28,7 +28,7 @@
 #include <deque>
 #include <iterator>  // reverse_iterator
 
-#include "genomePermutation.hpp"
+#include "genomePermutation_KaplanVerbin2003.hpp"
 #include "reversalBST_KaplanVerbin2003.hpp"
 
 // It makes code a bit clear: 

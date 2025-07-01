@@ -30,6 +30,14 @@
  * Computing Inversion Distance between Signed Permutations 
  * with an Experimental Study";
  * 
+ * For extra references with slightly modified approaches:
+ * 
+ * Garg et al., 2019: "Sorting by Reversals: A faster Approach 
+ * for Building Overlap Forest";
+ * 
+ * Olivier Gascuel, 2005: "Mathematics of evolution and phylogeny" 
+ * (book's chapter "The inversion distance problem", section 10.5.
+ * 
  *******************************************************/
 
 #include <iostream>
@@ -138,8 +146,8 @@ public:
 	int getAdjustedId(const GeneLabelT& gene_label, bool const reversed) const {
 		if (labels->find(gene_label) != labels->end()) {
 			int gene_id = getId(gene_label);
-			const bool reversed = (((gene_id < 0) && reversed) || ((gene_id > 0) && !reversed));
-			return (reversed ? -gene_id : gene_id);
+			const bool sign = (((gene_id < 0) && !reversed) || ((gene_id > 0) && reversed));
+			return (sign ? -gene_id : gene_id);
 		} else {
 			return 0;
 		}
@@ -156,13 +164,21 @@ public:
 
 /* This class store information about a cycle in a breakpoint graph.*/
 class Cycle {
+public:
 	int parent{-1};
 	int id;
 	std::list<int>::iterator root; // It keeps a valid iterator if this cycle is a root in the overlap forest.
 	std::vector<int> children;     // It can store genes (indices between 0 and 2n+1) or cycles (index of the cycle + [2n+1]).
 	int min; // Smallest index of an element belonging to the forest rooted by this cycle.
 	int max; // Biggest index of an element belonging to the forest rooted by this cycle.
+	bool oriented{false}; // true if the cycle contains two genes with flipped signs; false otherwise.
 	Cycle(const int id, const int min_idx, const int max_idx):id(id),min(min_idx),max(max_idx){
+	}
+	std::string printCycle() const {
+		//std::vector<int> children
+		std::string children_str = "";
+		for(const int& c: children) {children_str += (std::to_string(c) + " ");}
+		return "C_" + std::to_string(id) + ": parent=" + std::to_string(parent) + ";min=" + std::to_string(min) + ";max=" + std::to_string(max) + ";children=" + children_str;
 	}
 };
 
@@ -243,6 +259,10 @@ public:
 		createPermutation(rdmgen.first, rdmgen.second, true);
 	}
 
+	// void getExtendedGenome(){
+
+	// }
+
 	// Creates an extended unsigned permutation, where a gene i (1 <= i <= n)
 	// is represented by its gene extremities i and i+1.
 	// Two additional gene extremities are added: 0 and 2n+1.
@@ -256,22 +276,41 @@ public:
 		int idx_perm = 1;
 		for(std::vector<int> const &chrom : genome) {
 			for(int const &g_id : chrom) {
-				unsignedExtPerm[idx_perm++] = 2*g_id-1;
-				unsignedExtPerm[idx_perm++] = 2*g_id;
+				if(g_id < 0) {
+					unsignedExtPerm[idx_perm++] = 2*std::abs(g_id);
+					unsignedExtPerm[idx_perm++] = 2*std::abs(g_id)-1;
+				} else {
+					unsignedExtPerm[idx_perm++] = 2*std::abs(g_id)-1;
+					unsignedExtPerm[idx_perm++] = 2*std::abs(g_id);
+				}
+
 			}
 		}
 		return unsignedExtPerm;
 	}
 
-	// void getExtendedGenome(){
+	void printComponent(const Cycle& comp, std::string indent, const int& n, const std::vector<Cycle>& forest){
+		const int comp_idx = comp.id-n;
+		std::cout << indent << comp_idx << " = ";
+		for(const int& c: comp.children) {if(c < n){std::cout << c << " ";}}
+		std::cout << " [min=" << comp.min << ";max=" << comp.max << ";oriented=" << (comp.oriented ? "T" : "F") << "]" << std::endl;
+		indent += "   ";
+		for(const int& c: comp.children) {if(c >= n){printComponent(forest[c-n], indent, n, forest);}}
+	}
 
-	// }
-
+	/*
+	Implements algorithm from Bader et al. (2001):
+	"A Linear-Time Algorithm for Computing Inversion Distance between Signed Permutations with an Experimental Study".
+	*/
 	// TODO: Implement a version for multichromosomal genomes.
 	void getComponents() {
 		std::vector<int> perm = getUnsignedExtendedPerm(); // pos i stores a gene extremity.
 		std::vector<int> idxs(perm.size());      // pos i stores the current position of gene extremity i in the permutation.
 		std::vector<int> cycles(perm.size(),-1); // pos i stores the cycle id that gene extremity i belongs.
+
+		std::cout << "Unsigned extended permutation:\n";
+		for (int i=0; i<perm.size(); ++i){std::cout << perm[i] << " ";}
+		std::cout << std::endl;
 
 		std::vector<Cycle> forest; // Store all cycles in the breakpoint graph, one element per cycle.
 		std::list<int> rootList;   // Store all roots in the overlap (forest) graph, one element per root.
@@ -281,6 +320,9 @@ public:
 		// Find components.
 		int cycle_id = perm.size();
 		for (int i=0; i<perm.size(); i+=2){ // Loops every 2 elements.
+			
+			// std::cout << "- Element " << i << ": " << perm[i] << std::endl;
+
 			// Case 1: element i has no cycle. 
 			if(cycles[i] < 0) {
 				// The id of a cycle corresponds to the index of the cycle in the forest, plus perm.size().
@@ -294,14 +336,15 @@ public:
 
 				// Create a new cycle containing i.
 				forest.emplace_back(cycle_id,i,i);
-				Cycle new_cycle = forest[cycle_idx];
-				new_cycle.root  = std::prev(rootList.end());
+				Cycle& new_cycle = forest[cycle_idx];
+				new_cycle.root   = std::prev(rootList.end());
 
 				BgColor edge_color = GRAY;
 				int current = perm[i];
 				// Finds the cycle by traversing the alternating gray and black edges from the cycle.
-				while ((idxs[current]-i) != 1) {
-
+				// std::cout << "\tNew cycle : ";
+				do {
+					// std::cout << " " << current;
 					// Map element to the new cycle.
 					cycles[idxs[current]] = cycle_idx;
 					new_cycle.children.emplace_back(current);
@@ -315,8 +358,14 @@ public:
 						// an even value (2*i) and points to an odd value (2*(i+1)-1).
 						// We use the parity to infer at which side of the edge we are now,
 						// and where we should go (if we are at the head, we go to the tail, and vice-versa).
+						const bool idx_cur_parity  = (idxs[current] % 2);
 						current += (((current % 2)==0) ? 1 : -1);
+						const bool idx_next_parity = (idxs[current] % 2);
+
 						edge_color = BLACK;
+						// Check if gray edge is oriented (i.e. if connects two genes with flipped signs).
+						// An edge is oriented if the index of both of its extremities have the same parity.
+						if(idx_cur_parity == idx_next_parity){new_cycle.oriented = true;}
 					// Case 1.2 : Traversing a black edge.
 					} else {
 						// A black edge points to the consecutive element in the current permutation.
@@ -325,7 +374,9 @@ public:
 						current = (((idxs[current] % 2)==0) ? perm[idxs[current]+1] : perm[idxs[current]-1]);
 						edge_color = GRAY;
 					}
-				}
+					// std::cout << "(next:" << current << ")";
+				} while ((idxs[current]-i) != 0);
+				// std::cout << std::endl;
 				// Add cycle to the stack.
 				// Do not add only if the max index comes just next the current index.
 				if(new_cycle.min+1 < new_cycle.max){
@@ -335,11 +386,13 @@ public:
 
 			// Case 2: Cycle of element i was already created.
 			} else {
+				// std::cout << "\tExistent cycle with element "  << perm[i] << ": ";
 
 				// Find the cycle that is the root of the 
 				// connected component containing element i.
 				int root_idx = cycles[i]; // Index of cycle i in the list ``forest``.
 				while(forest[root_idx].parent > 0){root_idx = forest[root_idx].parent;}
+				// std::cout << " " << forest[root_idx].printCycle() << std::endl;
 
 				// Merge cycles that overlap.
 				while(forest[stack.top()].min > forest[root_idx].min){
@@ -347,6 +400,8 @@ public:
 					if(forest[root_idx].max < forest[stack.top()].max){
 						forest[root_idx].max = forest[stack.top()].max;
 					}
+					// Update parity if needed.
+					if(!forest[root_idx].oriented){forest[root_idx].oriented = forest[stack.top()].oriented;}
 					// Update roots of the forest.
 					forest[stack.top()].parent = root_idx;
 					forest[root_idx].children.emplace_back(forest[stack.top()].id);
@@ -358,7 +413,12 @@ public:
 				if(i == (forest[root_idx].max-1)){stack.pop();}
 			}
 		}
-
+		// Print components.
+		std::cout << "Components:" << std::endl;
+		for (int const& root_idx : rootList) {
+			printComponent(forest[root_idx], "", perm.size(), forest);
+		}
+		std::cout << std::endl;
 	}
 
 	std::pair<std::vector<std::vector<int>>, std::vector<std::vector<bool>>> initializeRandomGenome(std::mt19937& rng, int n, int m, const double probRev) {
@@ -511,6 +571,58 @@ void testCaseUnichrom(){
 	
 }
 
+// Example used in the paper from Garg et al. (2019).
+// {-2,5,4,-1,3,6,9,-7,-8}
+void testCaseGarg2019(){
+	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false};
+
+	std::vector<int>  genome_multichrom_B  = {2, 5, 4, 1, 3, 6, 9, 7, 8};
+	std::vector<bool> genome_orientation_B = {true, false, false, true, false, false, false, true, true};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+
+	genome_B.getComponents();
+}
+
+// Example used in the paper from Bader et al. (2001).
+// (+3, +9, −7, +5, −10, +8, +4, −6, +11, +2, +1)
+void testCaseBader2001(){
+	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false, false, false};
+
+	std::vector<int>  genome_multichrom_B  = {3, 9, 7, 5, 10, 8, 4, 6, 11, 2, 1};
+	std::vector<bool> genome_orientation_B = {false, false, true, false, true, false, false, true, false, false, false};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+
+	genome_B.getComponents();
+}
+
 int main(int argc, char* argv[]) {
 	
 	if (argc < 2) {
@@ -530,9 +642,11 @@ int main(int argc, char* argv[]) {
 	std::cout << "- Seed to reproduce tests: " << seed << std::endl;
 	std::mt19937 rng(seed); // Seed the generator
 
-	testRandomPerm(rng,nbgenes,nbchrom,probRev);
-	testCaseMultichrom();
-	testCaseUnichrom();
+	// testRandomPerm(rng,nbgenes,nbchrom,probRev);
+	// testCaseMultichrom();
+	// testCaseUnichrom();
+	testCaseGarg2019();
+	testCaseBader2001();
 
 	std::cout << "Bye bye\n";
 	return 0;

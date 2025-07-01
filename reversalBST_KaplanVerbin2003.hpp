@@ -49,7 +49,7 @@
 #include <utility>   // move
 #include <algorithm> // find_if, reverse
 
-#include "genomePermutation.hpp"
+#include "genomePermutation_KaplanVerbin2003.hpp"
 
 /*******************************************************
  * Data structures to implement balanced 
