@@ -30,25 +30,7 @@
 
 #include "genomePermutation_KaplanVerbin2003.hpp"
 #include "reversalBST_KaplanVerbin2003.hpp"
-
-// It makes code a bit clear: 
-// instead of std::cout you can type directly cout.
-//using namespace std;
-
-/*******************************************************
- * Data structures to keep information on 
- * reversal operation.
- *******************************************************/
-class Reversal {
-public:
-	int g_beg;  // Gene i.
-	int g_end;  // Gene i+1.
-	int g_beg_next; // Current gene after gene i.
-	int g_end_next; // Current gene after gene i+1.
-	Reversal(const int start, const int next_ideal, const int next_cur, const int next_end):g_beg(start),g_end(next_ideal),g_beg_next(next_cur),g_end_next(next_end){
-
-	}
-};
+#include "reversal.hpp"
 
 /*******************************************************
  * Data structures to implement balanced 
@@ -469,9 +451,11 @@ void testCase1(int const n) {
 	genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
 }
 
-void testCase2() {
+// Example used in the paper from Tannier et al. (2007) (Figure 4).
+// {0, -1, 3, 2, 4}
+void testCaseTannier2007() {
 	// Permutation **must** start at 1: [1 2 .. gene]
-	std::vector<int> perm{1, -2, 4, 3, 5}; // {0, -1, 3, 2, 4}
+	std::vector<int> perm{1, -2, 4, 3, 5};
 	GenomeSort genomeSort = GenomeSort(perm);
 	std::deque<Reversal> allrev = genomeSort.sortByReversals();
 	std::cout << "Sorting by reversals---Solution" << std::endl;
@@ -484,7 +468,7 @@ int main(int argc, char* argv[]) {
 	int const n = std::stoi(argv[1]); // input (command line argument): number of genes
 	
 	//testCase1(n);
-	testCase2();
+	testCaseTannier2007();
 
 	std::cout << "Bye bye\n";
 	return 0;
