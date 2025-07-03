@@ -53,6 +53,7 @@
 #include "genome.hpp"
 #include "findComponents_Bader2001.hpp"
 #include "sortOrientedByReversals_Tannier2007.hpp"
+#include "solveUnoriented_HannenhalliPevzner1999.hpp"
 
 /*******************************************************
  * Some basic tests.
@@ -179,6 +180,10 @@ void testCase_Bader2001(){
 	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
 }
 
+/*******************************************************
+* Tests for sortOrientedByReversals_Tannier2007.hpp
+*******************************************************/
+
 void testCase_SortOrientedComponent(int const n) {
 	// Start vector with Identity permutation (for testing).
 	std::vector<int> perm(n);
@@ -201,6 +206,38 @@ void testCase_Tannier2007() {
 		std::cout << "(gene " << rev.g_beg << ", gene " << rev.g_end << "]" << std::endl;
 	}
 }
+
+/*******************************************************
+* Tests for solveUnoriented_HannenhalliPevzner1999.hpp
+*******************************************************/
+
+// Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(a)).
+// {+5, +7, +6, +8, +1, +3, +2, +4}
+void testCase_Hannehalli1999(){
+	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8};
+	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false};
+
+	std::vector<int>  genome_multichrom_B  = {5, 7, 6, 8, 1, 3, 2, 4};
+	std::vector<bool> genome_orientation_B = {false, false, false, false, false, false, false, false};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999)\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+
+	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
+	clearUnorientedComponents(comps);
+}
+
 
 int main(int argc, char* argv[]) {
 	
@@ -226,9 +263,10 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeUnichromGenome();
 	// testCase_Garg2019();
 	// testCase_Bader2001();
+	testCase_Hannehalli1999();
 
 	// testCase_SortOrientedComponent(20);
-	testCase_Tannier2007();
+	// testCase_Tannier2007();
 
 	std::cout << "Bye bye\n";
 	return 0;

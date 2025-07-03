@@ -84,7 +84,6 @@ public:
 */
 class ConnectedComponents {
 protected:
-	void printComponent(const Cycle& comp, std::string indent, const int& n, const std::vector<Cycle>& forest) const;
 	void findConnectedComponents(); // TODO: Implement a version for multichromosomal genomes.
 	
 public:
@@ -101,6 +100,8 @@ public:
 		findConnectedComponents();
 		printComponents();
 	}
+
+	void printComponent(const Cycle& comp, std::string indent, const int& n, const std::vector<Cycle>& forest) const;
 
 	void printUnsignedExtPerm() const;
 	void printComponents() const;
