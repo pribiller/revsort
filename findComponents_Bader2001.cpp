@@ -87,7 +87,7 @@ void ConnectedComponents::findConnectedComponents() {
 			Cycle& new_cycle = forest[cycle_idx];
 			new_cycle.root   = std::prev(rootList.end());
 
-			BgColor edge_color = GRAY;
+			BgColor edge_color = BgColor::GRAY;
 			int current = perm[i];
 			// Finds the cycle by traversing the alternating gray and black edges from the cycle.
 			// std::cout << "\tNew cycle : ";
@@ -101,7 +101,7 @@ void ConnectedComponents::findConnectedComponents() {
 				if(new_cycle.max < idxs[current]) {new_cycle.max = idxs[current];}
 
 				// Case 1.1 : Traversing a gray edge.
-				if(edge_color == GRAY){
+				if(edge_color == BgColor::GRAY){
 					// A gray edge connecting genes i and i+1 always starts at 
 					// an even value (2*i) and points to an odd value (2*(i+1)-1).
 					// We use the parity to infer at which side of the edge we are now,
@@ -110,7 +110,7 @@ void ConnectedComponents::findConnectedComponents() {
 					current += (((current % 2)==0) ? 1 : -1);
 					const bool idx_next_parity = (idxs[current] % 2);
 
-					edge_color = BLACK;
+					edge_color = BgColor::BLACK;
 					// Check if gray edge is oriented (i.e. if connects two genes with flipped signs).
 					// An edge is oriented if the index of both of its extremities have the same parity.
 					if(idx_cur_parity == idx_next_parity){new_cycle.oriented = true;}
@@ -120,7 +120,7 @@ void ConnectedComponents::findConnectedComponents() {
 					// Depending on the orientation of the gene (which can be inferred by the parity
 					// of the index), we move left or right in the current permutation.
 					current = (((idxs[current] % 2)==0) ? perm[idxs[current]+1] : perm[idxs[current]-1]);
-					edge_color = GRAY;
+					edge_color = BgColor::GRAY;
 				}
 				// std::cout << "(next:" << current << ")";
 			} while ((idxs[current]-i) != 0);

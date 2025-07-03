@@ -49,8 +49,8 @@
  *  Auxiliary structures
 *******************************************************/
 
-// Color of edges in the breakpoint graph.
-enum BgColor {
+// Color of edges in the Breakpoint Graph (BG).
+enum class BgColor {
 	GRAY,   // GRAY is assigned the value 0
 	BLACK   // BLACK is assigned the value 1
 };

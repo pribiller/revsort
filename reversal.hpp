@@ -43,7 +43,7 @@ public:
 
 // Apply reversal (g_beg, g_end].
 template <typename BlockT>
-void applyReversal(GenomePermutation<BlockTree>& genperm, int g_beg, int g_end) {
+void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 
 	g_beg = std::abs(g_beg);
 	g_end = std::abs(g_end);
@@ -58,23 +58,23 @@ void applyReversal(GenomePermutation<BlockTree>& genperm, int g_beg, int g_end) 
 	std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
 	// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
-	std::list<BlockTree>::iterator reversal_beg  = std::next(genperm.getBlock(g_beg)); // this block is the first reversed block.
-	std::list<BlockTree>::iterator reversal_last = genperm.getBlock(g_end);  // this block is the last reversed block.
-	std::list<BlockTree>::iterator reversal_end  = std::next(reversal_last); // this block will not be reversed.
-	for (std::list<BlockTree>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed); b->status += MUT;}
+	typename std::list<BlockT>::iterator reversal_beg  = std::next(genperm.getBlock(g_beg)); // this block is the first reversed block.
+	typename std::list<BlockT>::iterator reversal_last = genperm.getBlock(g_end);  // this block is the last reversed block.
+	typename std::list<BlockT>::iterator reversal_end  = std::next(reversal_last); // this block will not be reversed.
+	for (typename std::list<BlockT>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed); b->status += MUT;}
 	
 	// (3) Reverse the order of the blocks between the endpoints of the reversal;
 	const int g_after_beg = reversal_beg->permutationSegment.front().id;
 	const int g_after_end = reversal_end->permutationSegment.front().id;
 	
-	std::list<BlockTree> temp;
+	std::list<BlockT> temp;
 	temp.splice(temp.begin(), genperm.blockList, reversal_beg, reversal_end);
 	temp.reverse();
 	genperm.blockList.splice(reversal_end, temp);
 
 	// (3.1) Update positions of reversed blocks.
 	int blockPos = genperm.getBlock(g_beg)->pos + genperm.getBlock(g_beg)->permutationSegment.size();
-	for (std::list<BlockTree>::iterator b = genperm.getBlock(g_end); b != std::next(genperm.getBlock(g_after_beg)); ++b) { 
+	for (typename std::list<BlockT>::iterator b = genperm.getBlock(g_end); b != std::next(genperm.getBlock(g_after_beg)); ++b) { 
 		b->pos = blockPos;
 		blockPos += b->permutationSegment.size();
 	}

@@ -56,7 +56,8 @@
  * binary trees for blocks.
  *******************************************************/
 
-enum Color {
+// Colors of the nodes in the Red Black Tree (RB).
+enum class RbColor {
 	RED,   // RED is assigned the value 0
 	BLACK  // BLACK is assigned the value 1
 };
@@ -74,7 +75,7 @@ public:
 	/* Red-black tree properties. */
 
 	// Color: black; red;
-	Color color{RED};  // Initially RED so number of black nodes in the tree is unchanged.
+	RbColor color{RbColor::RED};  // Initially RED so number of black nodes in the tree is unchanged.
 	// maximum number of black nodes on a path from the root node to a leaf node.
 	// Here ``black height`` takes into account the own node's color, i.e.,
 	// if the node itself is black, then its blackHeight is >= 1.
@@ -138,7 +139,7 @@ public:
 	}
 
 	inline std::string printNodeDetailed() const {
-		return std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]" + " (" + ((color == RED) ? "RED" : "BLACK") + ";BH=" + std::to_string(blackHeight) + ";UN=" + std::to_string(unused_tot) + ";OR=" + std::to_string(unused_oriented_tot) + ";MIN=" + min->printNode() + ";MAX=" + max->printNode() + ";REV=" + (reversed ? "T" : "F") + ")";
+		return std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]" + " (" + ((color == RbColor::RED) ? "RED" : "BLACK") + ";BH=" + std::to_string(blackHeight) + ";UN=" + std::to_string(unused_tot) + ";OR=" + std::to_string(unused_oriented_tot) + ";MIN=" + min->printNode() + ";MAX=" + max->printNode() + ";REV=" + (reversed ? "T" : "F") + ")";
 	}
 
 	// Overload the '<' operator.
@@ -164,7 +165,7 @@ public:
 		min    = this;
 		max    = this;
 
-		color  = RED;
+		color  = RbColor::RED;
 		blackHeight = 0;
 
 		unused_tot  = 0;
@@ -325,15 +326,15 @@ private:
 	void fixInsert(Node<BlockT>* node) {
 		Node<BlockT>* parent	  = nullptr;
 		Node<BlockT>* grandparent = nullptr;
-		while ((node != root) && (node->color == RED) && (node->parent->color == RED)) {
+		while ((node != root) && (node->color == RbColor::RED) && (node->parent->color == RbColor::RED)) {
 			parent	  = node->parent;
 			grandparent = parent->parent;
 			if (parent == grandparent->left) {
 				Node<BlockT>* uncle = grandparent->right;
-				if ((uncle != nullptr) && (uncle->color == RED)) {
-					grandparent->color = RED;
-					parent->color = BLACK;
-					uncle->color  = BLACK;
+				if ((uncle != nullptr) && (uncle->color == RbColor::RED)) {
+					grandparent->color = RbColor::RED;
+					parent->color = RbColor::BLACK;
+					uncle->color  = RbColor::BLACK;
 					// Update the ``blackHeight`` of parent and uncle nodes.
 					parent->blackHeight += 1;
 					uncle->blackHeight  += 1;
@@ -356,10 +357,10 @@ private:
 			// Symmetrical case (parent == grandparent->right).
 			} else {
 				Node<BlockT>* uncle = grandparent->left;
-				if ((uncle != nullptr) && (uncle->color == RED)) {
-					grandparent->color = RED;
-					parent->color = BLACK;
-					uncle->color  = BLACK;
+				if ((uncle != nullptr) && (uncle->color == RbColor::RED)) {
+					grandparent->color = RbColor::RED;
+					parent->color = RbColor::BLACK;
+					uncle->color  = RbColor::BLACK;
 					// Update the ``blackHeight`` of parent and uncle nodes.
 					parent->blackHeight += 1;
 					uncle->blackHeight  += 1;
@@ -382,20 +383,20 @@ private:
 			}
 		}
 		// Check if the root is BLACK. Root must always be black (following Cormen's defition).
-		if(root->color == RED){
-			root->color = BLACK;
+		if(root->color == RbColor::RED){
+			root->color = RbColor::BLACK;
 			root->blackHeight += 1;
 		}
 	}
 
 	// Utility function: Fixing Deletion Violation
 	void fixDelete(Node<BlockT>* node, Node<BlockT>* parent) {
-		while ((node != root) && ((node == nullptr) || (node->color == BLACK))) {
+		while ((node != root) && ((node == nullptr) || (node->color == RbColor::BLACK))) {
 			if (node == parent->left) {
 				Node<BlockT>* sibling = parent->right;
-				if (sibling->color == RED) {
-					sibling->color = BLACK;
-					parent->color  = RED;
+				if (sibling->color == RbColor::RED) {
+					sibling->color = RbColor::BLACK;
+					parent->color  = RbColor::RED;
 					// Update the ``blackHeight`` of parent and sibling nodes.
 					sibling->blackHeight += 1;
 					parent->blackHeight -= 1;
@@ -403,28 +404,28 @@ private:
 					sibling = parent->right;
 				}
 				// Sibling can be either BLACK or RED (both its children are BLACK).
-				if (((sibling->left  == nullptr) || (sibling->left->color  == BLACK))
-				&&  ((sibling->right == nullptr) || (sibling->right->color == BLACK))) {
+				if (((sibling->left  == nullptr) || (sibling->left->color  == RbColor::BLACK))
+				&&  ((sibling->right == nullptr) || (sibling->right->color == RbColor::BLACK))) {
 					// Update ``blackHeight`` if needed.
-					if (sibling->color == BLACK) {sibling->blackHeight -= 1;}
-					sibling->color = RED;
+					if (sibling->color == RbColor::BLACK) {sibling->blackHeight -= 1;}
+					sibling->color = RbColor::RED;
 					node   = parent;
 					parent = node->parent;
 				// Sibling is BLACK (at least one of its children is RED).
 				} else {
 					// Right is BLACK. Left is RED.
-					if ((sibling->right == nullptr) || (sibling->right->color == BLACK)) {
+					if ((sibling->right == nullptr) || (sibling->right->color == RbColor::BLACK)) {
 						if (sibling->left != nullptr){
 							sibling->left->blackHeight += 1;
-							sibling->left->color = BLACK;
+							sibling->left->color = RbColor::BLACK;
 						}
 						sibling->blackHeight -= 1;
-						sibling->color = RED;
+						sibling->color = RbColor::RED;
 						rotateRight(sibling);
 						sibling = parent->right;
 					}
 					// Update ``blackHeight`` of parent and sibling.
-					if(parent->color == RED){
+					if(parent->color == RbColor::RED){
 						parent->blackHeight += 1;
 						if(sibling->color != parent->color){
 							sibling->blackHeight -= 1;
@@ -435,19 +436,19 @@ private:
 						}
 					}
 					sibling->color = parent->color;
-					parent->color  = BLACK;
+					parent->color  = RbColor::BLACK;
 					if (sibling->right != nullptr){
-						if(sibling->right->color == RED){sibling->right->blackHeight += 1;}
-						sibling->right->color = BLACK;
+						if(sibling->right->color == RbColor::RED){sibling->right->blackHeight += 1;}
+						sibling->right->color = RbColor::BLACK;
 					}
 					rotateLeft(parent);
 					node = root;
 				}
 			} else {
 				Node<BlockT>* sibling = parent->left;
-				if (sibling->color == RED) {
-					sibling->color = BLACK;
-					parent->color  = RED;
+				if (sibling->color == RbColor::RED) {
+					sibling->color = RbColor::BLACK;
+					parent->color  = RbColor::RED;
 					// Update the ``blackHeight`` of parent and sibling nodes.
 					sibling->blackHeight += 1;
 					parent->blackHeight  -= 1;
@@ -455,28 +456,28 @@ private:
 					sibling = parent->left;
 				} 
 				// Sibling can be either BLACK or RED (both its children are BLACK).
-				if ( ((sibling->left  == nullptr) || (sibling->left->color  == BLACK))
-				  && ((sibling->right == nullptr) || (sibling->right->color == BLACK))) {
+				if ( ((sibling->left  == nullptr) || (sibling->left->color  == RbColor::BLACK))
+				  && ((sibling->right == nullptr) || (sibling->right->color == RbColor::BLACK))) {
 					// Update ``blackHeight`` if needed.
-					if (sibling->color == BLACK) {sibling->blackHeight -= 1;}
-					sibling->color = RED;
+					if (sibling->color == RbColor::BLACK) {sibling->blackHeight -= 1;}
+					sibling->color = RbColor::RED;
 					node   = parent;
 					parent = node->parent;
 				// Sibling is BLACK (at least one of its children is RED).
 				} else {
 					// Left is BLACK. Right is RED.
-					if ((sibling->left == nullptr) || (sibling->left->color == BLACK)) {
+					if ((sibling->left == nullptr) || (sibling->left->color == RbColor::BLACK)) {
 						if (sibling->right != nullptr){
 							sibling->right->blackHeight += 1;
-							sibling->right->color = BLACK;
+							sibling->right->color = RbColor::BLACK;
 						}
 						sibling->blackHeight -= 1;
-						sibling->color = RED;
+						sibling->color = RbColor::RED;
 						rotateLeft(sibling);
 						sibling = parent->left;
 					}
 					// Update ``blackHeight`` of parent and sibling.
-					if(parent->color == RED){
+					if(parent->color == RbColor::RED){
 						parent->blackHeight += 1;
 						if(sibling->color != parent->color){
 							sibling->blackHeight -= 1;
@@ -487,17 +488,17 @@ private:
 						}
 					}
 					sibling->color = parent->color;
-					parent->color  = BLACK;
+					parent->color  = RbColor::BLACK;
 					if (sibling->left != nullptr){
-						if(sibling->left->color == RED){sibling->left->blackHeight += 1;}
-						sibling->left->color = BLACK;
+						if(sibling->left->color == RbColor::RED){sibling->left->blackHeight += 1;}
+						sibling->left->color = RbColor::BLACK;
 					}
 					rotateRight(parent);
 					node = root;
 				}
 			}
 		}
-		if(node != nullptr){node->color = BLACK;}
+		if(node != nullptr){node->color = RbColor::BLACK;}
 	}
 
 	// Utility function: Transplant nodes in Red-Black Tree
@@ -558,7 +559,7 @@ private:
 		const int unused_tot_upd = node->unused_tot + t2.root->unused_tot;
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t2.root->unused_oriented_tot;
 		Node<BlockT>* current = t1.root;
-		while((current->blackHeight != t2.root->blackHeight) || (current->color != BLACK)){
+		while((current->blackHeight != t2.root->blackHeight) || (current->color != RbColor::BLACK)){
 			// Update counts.
 			current->unused_tot += unused_tot_upd;
 			current->unused_oriented_tot += unused_oriented_tot_upd;
@@ -607,7 +608,7 @@ private:
 		const int unused_tot_upd = node->unused_tot + t1.root->unused_tot;
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t1.root->unused_oriented_tot;
 		Node<BlockT>* current = t2.root;
-		while((current->blackHeight != t1.root->blackHeight) || (current->color != BLACK)){
+		while((current->blackHeight != t1.root->blackHeight) || (current->color != RbColor::BLACK)){
 			// Update counts.
 			current->unused_tot += unused_tot_upd;
 			current->unused_oriented_tot += unused_oriented_tot_upd;
@@ -669,7 +670,7 @@ public:
 				}
 				root->parent = nullptr;
 			}
-			root->color = BLACK;
+			root->color = RbColor::BLACK;
 			root->blackHeight += 1;
 			root->clearReversedFlag();
 		}
@@ -890,7 +891,7 @@ public:
 		}
 
 		y = z;
-		Color yOriginalColor = y->color;
+		RbColor yOriginalColor = y->color;
 		if (z->left == nullptr) {
 			x = z->right;
 			transplant(z, z->right);
@@ -913,7 +914,7 @@ public:
 			y->left->parent = y;
 			y->color = z->color;
 		}
-		if (yOriginalColor == BLACK) {
+		if (yOriginalColor == RbColor::BLACK) {
 			// Check if tree became empty.
 			if ((x == root) && (x == nullptr)){
 				cleanTree();

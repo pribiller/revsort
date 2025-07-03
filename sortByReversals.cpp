@@ -52,6 +52,7 @@
 
 #include "genome.hpp"
 #include "findComponents_Bader2001.hpp"
+#include "sortOrientedByReversals_Tannier2007.hpp"
 
 /*******************************************************
  * Some basic tests.
@@ -178,6 +179,29 @@ void testCase_Bader2001(){
 	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
 }
 
+void testCase_SortOrientedComponent(int const n) {
+	// Start vector with Identity permutation (for testing).
+	std::vector<int> perm(n);
+	std::iota(perm.begin(), perm.end(), 1);	
+	GenomeSort genomeSort = GenomeSort(perm);
+	genomeSort.applyReversal(2, 9);   // after rev: 1 2 -9 -8 -7 -6   -5 -4 -3 10 11 .. 20
+	genomeSort.applyReversal(-6, -5); // after rev: 1 2 -9 -8 -7 -6    5 -4 -3 10 11 .. 20
+	genomeSort.applyReversal(-6, 10); // after rev: 1 2 -9 -8 -7 -6  -10  3  4 -5 11 .. 20
+}
+
+// Example used in the paper from Tannier et al. (2007) (Figure 4).
+// {0, -1, 3, 2, 4}
+void testCase_Tannier2007() {
+	// Permutation **must** start at 1: [1 2 .. gene]
+	std::vector<int> perm{1, -2, 4, 3, 5};
+	GenomeSort genomeSort = GenomeSort(perm);
+	std::deque<Reversal> allrev = genomeSort.sortByReversals();
+	std::cout << "Sorting by reversals---Solution" << std::endl;
+	for(Reversal const &rev : allrev) {
+		std::cout << "(gene " << rev.g_beg << ", gene " << rev.g_end << "]" << std::endl;
+	}
+}
+
 int main(int argc, char* argv[]) {
 	
 	if (argc < 2) {
@@ -200,8 +224,11 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeRandomPerm(rng,nbgenes,nbchrom,probRev);
 	// testCase_MakeMultichromGenome();
 	// testCase_MakeUnichromGenome();
-	testCase_Garg2019();
-	testCase_Bader2001();
+	// testCase_Garg2019();
+	// testCase_Bader2001();
+
+	// testCase_SortOrientedComponent(20);
+	testCase_Tannier2007();
 
 	std::cout << "Bye bye\n";
 	return 0;
