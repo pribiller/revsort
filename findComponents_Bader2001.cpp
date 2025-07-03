@@ -96,6 +96,7 @@ void ConnectedComponents::findConnectedComponents() {
 				// Map element to the new cycle.
 				cycles[idxs[current]] = cycle_idx;
 				new_cycle.children.emplace_back(current);
+				new_cycle.genes.emplace_back(current);
 
 				// Update maximum index if needed.
 				if(new_cycle.max < idxs[current]) {new_cycle.max = idxs[current];}
@@ -153,6 +154,8 @@ void ConnectedComponents::findConnectedComponents() {
 				// Update roots of the forest.
 				forest[stack.top()].parent = root_idx;
 				forest[root_idx].children.emplace_back(forest[stack.top()].id);
+				forest[root_idx].genes.insert(forest[root_idx].genes.end(), forest[stack.top()].genes.begin(), forest[stack.top()].genes.end());
+
 				// Top of the stack is not a root anymore. Delete root.
 				rootList.erase(forest[stack.top()].root);
 				// Remove top of the stack.
@@ -176,4 +179,25 @@ void ConnectedComponents::printComponents() const {
 		printComponent(forest[root_idx], "", perm.size(), forest);
 	}
 	std::cout << std::endl;
+}
+
+int ConnectedComponents::getBlackEdge(const int gene_ext, const bool beg_ext) const {
+	int idx = idxs[gene_ext];
+	// A black edge points to the consecutive element in the current permutation.
+	// A black edge always starts at an even index (e.g. 0) and points to an odd index.
+	if (beg_ext) { // start of a black edge : even index
+		if((idx % 2)==1){ // current index is odd.
+			idx -= 1;
+		}
+	} else { // end of a black edge : odd index
+		if((idx % 2)==0){ // current index is even.
+			idx += 1;
+		}
+	}
+	return perm[idx];
+}
+
+int ConnectedComponents::getRandomBlackEdge(const Cycle& comp, std::mt19937& rng, const bool beg_ext) const {
+	std::uniform_int_distribution distr(0, static_cast<int>(comp.genes.size()-1));
+	return getBlackEdge(comp.genes[distr(rng)], beg_ext);
 }

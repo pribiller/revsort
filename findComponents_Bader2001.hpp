@@ -44,6 +44,7 @@
 #include <cmath>	 // abs
 #include <memory>	 // shared_ptr
 #include <utility>   // move, pair
+#include <random>
 
 /*******************************************************
  *  Auxiliary structures
@@ -62,6 +63,7 @@ public:
 	int id;
 	std::list<int>::iterator root; // It keeps a valid iterator if this cycle is a root in the overlap forest.
 	std::vector<int> children;     // It can store genes (indices between 0 and 2n+1) or cycles (index of the cycle + [2n+1]).
+	std::vector<int> genes;        // It store all genes (indices between 0 and 2n+1).
 	int min; // Smallest index of an element belonging to the forest rooted by this cycle.
 	int max; // Biggest index of an element belonging to the forest rooted by this cycle.
 	bool oriented{false}; // true if the cycle contains two genes with flipped signs; false otherwise.
@@ -88,14 +90,14 @@ protected:
 	
 public:
 	
-	std::vector<int>& perm;  // pos i stores a gene extremity.
+	std::vector<int> perm;   // pos i stores a gene extremity.
 	std::vector<int> idxs;   // pos i stores the current position of gene extremity i in the permutation.
 	std::vector<int> cycles; // pos i stores the cycle id that gene extremity i belongs.
 
 	std::vector<Cycle> forest; // Store all cycles in the breakpoint graph, one element per cycle.
 	std::list<int> rootList;   // Store all roots in the overlap (forest) graph, one element per root.
 
-	ConnectedComponents(std::vector<int> unsignedExtPerm):perm(unsignedExtPerm),idxs(perm.size()),cycles(perm.size(),-1){
+	ConnectedComponents(const std::vector<int> unsignedExtPerm):perm(unsignedExtPerm),idxs(perm.size()),cycles(perm.size(),-1){
 		printUnsignedExtPerm();
 		findConnectedComponents();
 		printComponents();
@@ -105,4 +107,9 @@ public:
 
 	void printUnsignedExtPerm() const;
 	void printComponents() const;
+
+	int getBlackEdge(const int gene_ext, const bool beg_ext) const;
+	int getRandomBlackEdge(const Cycle& comp, std::mt19937& rng, const bool beg_ext) const;
+
+	inline int getGene(const int gene_ext) const {return (int)(std::ceil(gene_ext/2.0)+1);}
 };

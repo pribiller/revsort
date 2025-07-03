@@ -217,9 +217,24 @@ public:
 		createPermutation(rdmgen.first, rdmgen.second, true);
 	}
 
-	// void getExtendedGenome(){
 
-	// }
+	// Creates an extended signed permutation, where two 
+	// additional gene extremities are added: 1 and n+2.
+	// The label of gene i becomes i+1.
+	std::vector<int> getExtendedGenome(){
+		std::vector<int> extendedPerm(n+2);
+		// Extended elements.
+		extendedPerm[0]   = 1;
+		extendedPerm[n+1] = n+2;
+		// Main elements.
+		int idx_perm = 1;
+		for(std::vector<int> const &chrom : genome) {
+			for(int const &g_id : chrom) {
+				extendedPerm[idx_perm++] = (g_id < 0) ? (g_id-1) : (g_id+1);
+			}
+		}
+		return extendedPerm;
+	}
 
 	// Creates an extended unsigned permutation, where a gene i (1 <= i <= n)
 	// is represented by its gene extremities i and i+1.

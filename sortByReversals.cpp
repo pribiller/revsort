@@ -213,7 +213,7 @@ void testCase_Tannier2007() {
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(a)).
 // {+5, +7, +6, +8, +1, +3, +2, +4}
-void testCase_Hannehalli1999(){
+void testCase_Hannehalli1999(std::mt19937& rng){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false};
 
@@ -235,7 +235,7 @@ void testCase_Hannehalli1999(){
 	genome_B.printGenome();
 
 	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
-	clearUnorientedComponents(comps);
+	clearUnorientedComponents(genome_B.getExtendedGenome(), comps, rng);
 }
 
 
@@ -263,7 +263,7 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeUnichromGenome();
 	// testCase_Garg2019();
 	// testCase_Bader2001();
-	testCase_Hannehalli1999();
+	testCase_Hannehalli1999(rng);
 
 	// testCase_SortOrientedComponent(20);
 	// testCase_Tannier2007();
