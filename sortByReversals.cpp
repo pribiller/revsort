@@ -213,7 +213,7 @@ void testCase_Tannier2007() {
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(a)).
 // {+5, +7, +6, +8, +1, +3, +2, +4}
-void testCase_Hannehalli1999(std::mt19937& rng){
+void testCase_Hannehalli1999_Fig4a(std::mt19937& rng){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false};
 
@@ -223,7 +223,7 @@ void testCase_Hannehalli1999(std::mt19937& rng){
 	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
-	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999)\n";
+	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(a)\n";
 	std::cout << "Genome A -- Original:\n";
 	genome_A.printOriginalGenome();
 	std::cout << "Genome A -- Internal representation:\n";
@@ -234,10 +234,75 @@ void testCase_Hannehalli1999(std::mt19937& rng){
 	std::cout << "Genome B -- Internal representation:\n";
 	genome_B.printGenome();
 
+	// Find connected components.
 	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
-	clearUnorientedComponents(genome_B.getExtendedGenome(), comps, rng);
+
+	// Transform unoriented components into oriented components using the minimum number of reversals.
+	UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
+	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
 }
 
+// Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
+// {+2, +4, +3, +5, +7, +6, +8, +1}
+void testCase_Hannehalli1999_Fig4b(std::mt19937& rng){
+	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8};
+	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false};
+
+	std::vector<int>  genome_multichrom_B  = {2, 4, 3, 5, 7, 6, 8, 1};
+	std::vector<bool> genome_orientation_B = {false, false, false, false, false, false, false, false};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(b)\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+
+	// Find connected components.
+	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
+
+	// Transform unoriented components into oriented components using the minimum number of reversals.
+	UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
+	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+}
+
+// Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
+// {0, 2, 1, 3, 5, 7, 6, 8, 9, 4, 10}
+void testCase_Bergeron2005(std::mt19937& rng){
+	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false};
+
+	std::vector<int>  genome_multichrom_B  = {2, 1, 3, 5, 7, 6, 8, 9, 4};
+	std::vector<bool> genome_orientation_B = {false, false, false, false, false, false, false, false, false};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005)\n";
+	std::cout << "Genome A -- Original:\n";
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:\n";
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:\n";
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:\n";
+	genome_B.printGenome();
+
+	// Find connected components.
+	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
+
+	// Transform unoriented components into oriented components using the minimum number of reversals.
+	UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
+	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+}
 
 int main(int argc, char* argv[]) {
 	
@@ -263,7 +328,9 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeUnichromGenome();
 	// testCase_Garg2019();
 	// testCase_Bader2001();
-	testCase_Hannehalli1999(rng);
+	// testCase_Hannehalli1999_Fig4a(rng);
+	// testCase_Hannehalli1999_Fig4b(rng);
+	testCase_Bergeron2005(rng);
 
 	// testCase_SortOrientedComponent(20);
 	// testCase_Tannier2007();
