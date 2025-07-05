@@ -68,9 +68,7 @@ void ConnectedComponents::findConnectedComponents() {
 	// Find components.
 	int cycle_id = perm.size();
 	for (int i=0; i<perm.size(); i+=2){ // Loops every 2 elements.
-		
 		// std::cout << "- Element " << i << ": " << perm[i] << std::endl;
-
 		// Case 1: element i has no cycle. 
 		if(cycles[i] < 0) {
 			// The id of a cycle corresponds to the index of the cycle in the forest, plus perm.size().
@@ -136,7 +134,6 @@ void ConnectedComponents::findConnectedComponents() {
 		// Case 2: Cycle of element i was already created.
 		} else {
 			// std::cout << "\tExistent cycle with element "  << perm[i] << ": ";
-
 			// Find the cycle that is the root of the 
 			// connected component containing element i.
 			int root_idx = cycles[i]; // Index of cycle i in the list ``forest``.
@@ -144,7 +141,8 @@ void ConnectedComponents::findConnectedComponents() {
 			// std::cout << " " << forest[root_idx].printCycle() << std::endl;
 
 			// Merge cycles that overlap.
-			while(forest[stack.top()].min > forest[root_idx].min){
+			// std::cout << "\tStack size = " << stack.size() << std::endl;
+			while((stack.size() > 0) && (forest[stack.top()].min > forest[root_idx].min)){
 				// Update max if needed.
 				if(forest[root_idx].max < forest[stack.top()].max){
 					forest[root_idx].max = forest[stack.top()].max;
@@ -161,7 +159,7 @@ void ConnectedComponents::findConnectedComponents() {
 				// Remove top of the stack.
 				stack.pop();
 			}
-			if(i == (forest[root_idx].max-1)){stack.pop();}
+			if((i == (forest[root_idx].max-1)) && (stack.size() > 0)){stack.pop();}
 		}
 	}
 }

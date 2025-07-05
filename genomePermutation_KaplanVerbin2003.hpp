@@ -172,6 +172,10 @@ public:
 
 	std::string printBlocks(const std::string& sep=" ") const;
 
+	std::vector<int> getExtendedPerm() const;
+	std::vector<int> getUnextendedPerm() const;
+	std::vector<int> getUnsignedExtendedPerm() const;
+
 	inline typename std::list<BlockT>::iterator& getBlock(const int gene){return genes[gene-1]->block;} 
 
 	/* Makes sure that the size of the block where gene g belongs
@@ -212,6 +216,71 @@ std::string GenomePermutation<BlockT>::printBlocks(const std::string& sep) const
 	std::string blockList_str;
 	for(auto &b : blockList) {blockList_str += (sep + b.printBlock());}
 	return blockList_str;
+}
+
+template <typename BlockT>
+std::vector<int> GenomePermutation<BlockT>::getExtendedPerm() const {
+	std::vector<int> perm(n);
+	for(auto &gene : genes) {
+		const int pos = gene->block->genePosAbs((*gene))-1;
+		perm[pos] = gene->id;
+		if (gene->reversed != gene->block->reversed){perm[pos] = -perm[pos];}
+	}
+	return perm;
+}
+
+template <typename BlockT>
+std::vector<int> GenomePermutation<BlockT>::getUnextendedPerm() const {
+	// Removes the extended elements ``1`` and ``n``.
+	std::vector<int> perm(n-2); 
+	// Check if extended elements (``1`` and ``n``) are in their positions.
+	typename std::list<Gene<BlockT>>::iterator first = genes[0];
+	typename std::list<Gene<BlockT>>::iterator last  = genes[genes.size()-1];
+	if ((first->block->genePosAbs((*first)) != 1) || (last->block->genePosAbs((*last)) != n)){
+		std::cout << "ERROR! Extended elements were moved:\n- Position of 1 (should be 1): " << first->block->genePosAbs((*first)) << "\n- Position of n (should be " << n << "): " << last->block->genePosAbs((*last)) << std::endl;
+		return perm;
+	}
+	for(auto &gene : genes) {
+		const int pos = gene->block->genePosAbs((*gene))-2;
+		if((pos >= 0) && (pos < perm.size())){
+			perm[pos] = gene->id-1;
+			if (gene->reversed != gene->block->reversed){perm[pos] = -perm[pos];}
+		}
+	}
+	return perm;
+}
+
+// Creates an extended unsigned permutation, where a gene i (1 <= i <= n)
+// is represented by its gene extremities i and i+1.
+// Two additional gene extremities are added: 0 and 2n+1.
+// Thus, the total set of extremities are {0, 1, 2, ..., 2n, 2n+1}.
+template <typename BlockT>
+std::vector<int> GenomePermutation<BlockT>::getUnsignedExtendedPerm() const {
+	std::vector<int> unsignedExtPerm(2*n-2);
+	// Extended elements.
+	unsignedExtPerm[0]     = 0;
+	unsignedExtPerm[2*n-3] = 2*n-3;
+	// Main elements.
+	int idx_perm = 1;
+	for(auto &gene : genes) {
+		// Skip ``extended`` elements (1 and n).
+		if((gene->id > 1) && (gene->id < n)){
+			const int pos_2 = 2*(gene->block->genePosAbs((*gene))-1);
+			const int pos_1 = pos_2-1;
+			const int ext_2 = (gene->id-1)*2;
+			const int ext_1 = ext_2-1;
+			// Gene sign is "+"
+			if (gene->reversed == gene->block->reversed){
+				unsignedExtPerm[pos_1] = ext_1;
+				unsignedExtPerm[pos_2] = ext_2;
+			// Gene sign is "-"
+			} else {
+				unsignedExtPerm[pos_2] = ext_1;
+				unsignedExtPerm[pos_1] = ext_2;
+			}
+		}
+	}
+	return unsignedExtPerm;
 }
 
 /* Adds a new block after the specified position. 

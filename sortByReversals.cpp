@@ -240,6 +240,32 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng){
 	// Transform unoriented components into oriented components using the minimum number of reversals.
 	UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
 	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+
+	std::cout << "Genome B -- Oriented unextended:\n";
+	std::vector<int> perm = comps_unoriented.genperm.getUnextendedPerm();
+	for (int const& gene : perm) {
+		std::cout << gene << " ";
+	}
+	std::cout << std::endl;
+
+	std::cout << "Genome B -- Oriented extended:\n";
+	perm = comps_unoriented.genperm.getExtendedPerm(); 
+	for (int const& gene : perm) {
+		std::cout << gene << " ";
+	}
+	std::cout << std::endl;
+
+	std::cout << "Genome B -- Unsigned extended:\n";
+	perm = comps_unoriented.genperm.getUnsignedExtendedPerm();
+	for (int const& gene : perm) {
+		std::cout << gene << " ";
+	}
+	std::cout << std::endl;
+
+	// Find connected components again (they should be all oriented now).
+	comps = ConnectedComponents(comps_unoriented.genperm.getUnsignedExtendedPerm());
+
+	// Sort each connected component separately
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
@@ -328,9 +354,9 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeUnichromGenome();
 	// testCase_Garg2019();
 	// testCase_Bader2001();
-	// testCase_Hannehalli1999_Fig4a(rng);
+	testCase_Hannehalli1999_Fig4a(rng);
 	// testCase_Hannehalli1999_Fig4b(rng);
-	testCase_Bergeron2005(rng);
+	// testCase_Bergeron2005(rng);
 
 	// testCase_SortOrientedComponent(20);
 	// testCase_Tannier2007();

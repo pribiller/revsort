@@ -71,9 +71,6 @@ Reversal UnorientedComponents::getReversal(int gen_ext_beg, int gen_ext_end) {
 	return Reversal(gen_beg, gen_end, gen_beg_next, gen_end_next);
 }
 
-
-
-
 /* A hurdle is an unoriented component whose elements 
 appear contiguous in a sequence considering only elements
 from unoriented components. 
@@ -182,15 +179,16 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 		int gen_ext_beg = comps.getRandomBlackEdge(comps.forest[hurdles[comp_1]], rng, true);
 		int gen_ext_end = comps.getRandomBlackEdge(comps.forest[hurdles[comp_1+comp_2]], rng, true);
 
-		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
-		reversals.emplace_back(rev);
-
 		// Merge two non-consecutive unoriented components with one reversal.
+		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
 		std::cout << " [Merge components] Reversal: (" << rev.g_beg << " " << rev.g_end << "]" << std::endl;
-
 		applyReversal(genperm, rev.g_beg, rev.g_end);
 		genperm.printBlocks();
 
+		// Add reversal to the list but adjusting gene labels so they match 
+		// the gene labels originally passed (before permutation was extended).
+		rev.g_beg -= 1; rev.g_end -= 1; rev.g_beg_next -= 1; rev.g_end_next -= 1;
+		reversals.emplace_back(rev);
 	}
 
 	// Check if there is an odd number of components.
@@ -211,15 +209,16 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 		while(gen_ext_end == gen_ext_beg){
 			gen_ext_end = comps.getRandomBlackEdge(comps.forest[hurdles[idx_last]], rng,  true);
 		}
-		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
-		reversals.emplace_back(rev);
-
 		// Merge two non-consecutive unoriented components with one reversal.
+		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
 		std::cout << " [Split last component] Reversal: (" << rev.g_beg << " " << rev.g_end << "]" << std::endl;
-
 		applyReversal(genperm, rev.g_beg, rev.g_end);
 		genperm.printBlocks();
+
+		// Add reversal to the list but adjusting gene labels so they match 
+		// the gene labels originally passed (before permutation was extended).
+		rev.g_beg -= 1; rev.g_end -= 1; rev.g_beg_next -= 1; rev.g_end_next -= 1;
+		reversals.emplace_back(rev);
 	}
 	return reversals;
 }
-
