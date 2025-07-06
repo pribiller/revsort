@@ -21,6 +21,7 @@
 #include <iostream>
 #include <list>
 #include <vector>
+#include <unordered_map>
 #include <numeric>   // iota
 #include <cmath> 
 #include <string>    // convert input args (string to int)
@@ -149,6 +150,12 @@ protected:
 	to initialize list of blocks. */
 	void initializeBlocks(const std::vector<int>& perm);
 
+	/* Auxiliary method for ``getExtendedPerm``. 
+	It sorts gene extremities by their position in the permutation.
+	This function affects the vector passed as input.
+	It returns a mapping between the gene extremity and its position in the sorted vector. */
+	std::unordered_map<int, int> sortGeneExtremities(std::vector<int>& gene_extremities);
+
 public:
 	int n; // number of genes
 	
@@ -173,6 +180,7 @@ public:
 	std::string printBlocks(const std::string& sep=" ") const;
 
 	std::vector<int> getExtendedPerm() const;
+	std::vector<int> getExtendedPerm(std::vector<int>& gene_extremities);
 	std::vector<int> getUnextendedPerm() const;
 	std::vector<int> getUnsignedExtendedPerm() const;
 
@@ -226,6 +234,78 @@ std::vector<int> GenomePermutation<BlockT>::getExtendedPerm() const {
 		perm[pos] = gene->id;
 		if (gene->reversed != gene->block->reversed){perm[pos] = -perm[pos];}
 	}
+	return perm;
+}
+
+template <typename BlockT>
+std::unordered_map<int, int> GenomePermutation<BlockT>::sortGeneExtremities(std::vector<int>& gene_extremities) {
+	// Find positions of gene extremities in the current permutation.
+	// - Labels in the current permutation: 1, 2, .., n (1 and n are extended);
+	// - Labels in the ``gene extremities`` representation: 0, 1, 2, 3, 4, .., 2*n, 2*n+1 (0 and 2n+1 are extended).
+	std::unordered_map<int, int> gene_to_pos_map;
+	for(const int &g_ext : gene_extremities) {
+		const int gene_id  = (int)std::trunc((g_ext+1)/2.0)+1;
+		Gene<BlockT>& gene = (*genes[gene_id-1]);
+		const int gene_pos = gene.block->genePosAbs(gene);
+		int g_ext_pos;
+		// Gene sign is ``+``, order of gene extremities: 2i-1, 2i
+		if (gene.reversed == gene.block->reversed) {
+			g_ext_pos = (((g_ext % 2) == 0) ? (2*gene_pos) : 2*gene_pos-1);
+		// Gene sign is ``-``, order of gene extremities: 2i, 2i-1
+		} else {
+			g_ext_pos = (((g_ext % 2) == 0) ? (2*gene_pos-1) : 2*gene_pos);
+		}
+		gene_to_pos_map[g_ext] = g_ext_pos;
+	}
+	// Sort gene extremities by their position in the current permutation.
+	auto comparePos = [&gene_to_pos_map](int a, int b) {return gene_to_pos_map[a] < gene_to_pos_map[b];};
+	std::sort(gene_extremities.begin(), gene_extremities.end(), comparePos);
+	// Update the map between gene extremities and their positions.
+	int cur_idx = 0;
+	for(const int g_ext: gene_extremities) {gene_to_pos_map[g_ext] = cur_idx++;}
+	return gene_to_pos_map;
+}
+
+// It creates an extended signed ``sub-permutation``, composed 
+// only of gene extremities specified in the input.
+template <typename BlockT>
+std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& gene_extremities) {
+	std::vector<int> perm(gene_extremities.size()/2+1);
+	// Sort gene extremities by their position in the current permutation.
+	std::unordered_map<int,int> gene_to_pos_map = sortGeneExtremities(gene_extremities);
+
+	std::cout << "Sorted gene extremities: " << std::endl;
+	for(const int& g: gene_extremities){std::cout << g << " ";}
+	std::cout << std::endl;
+	
+	// Re-label gene extremities.
+	int g_ext = gene_extremities[0];
+	int g_ext_pos = 0;
+	int g_label = 1; // New label for gene.
+	int g_pos   = 0;
+	for (int i=0; i<perm.size()-1; i++) {
+		perm[g_pos] = g_label;
+		// std::cout << "i=" << i << ": g_pos=" << g_pos << " / g_label=" << g_label << std::endl;
+		// Move through a gray edge.
+		// A gray edge has its start in an even value and its end in an odd value.	
+		// std::cout << "i=" << i << ": Moves through gray edge: " << g_ext << "[" << g_ext_pos << "]";
+		g_ext     = (((g_ext % 2) == 0) ? (g_ext+1) : (g_ext-1));
+		g_ext_pos = gene_to_pos_map[g_ext];
+		// std::cout << " -> " << g_ext << "[" << g_ext_pos << "]" << std::endl;
+		// Update new gene label.
+		g_label = std::abs(g_label)+1;
+		if((g_ext_pos % 2) == 0){g_label=-g_label;}
+		// Update gene extremity.
+		const bool lastGeneExt = ((g_ext_pos == gene_extremities.size()-1) && ((g_ext_pos % 2) == 1));
+		if (!lastGeneExt) {
+			g_ext = ((g_ext_pos % 2) == 0) ? gene_extremities[g_ext_pos-1] : gene_extremities[g_ext_pos+1];
+			g_ext_pos = gene_to_pos_map[g_ext];
+		}
+		// Update new gene position.
+		g_pos = (int)std::trunc((g_ext_pos+1)/2.0);
+	}
+	// Re-label last gene.
+	perm[g_pos] = g_label;
 	return perm;
 }
 

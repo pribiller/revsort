@@ -234,38 +234,53 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng){
 	std::cout << "Genome B -- Internal representation:\n";
 	genome_B.printGenome();
 
+	//////////////////////////////////////////
+	// Part I: Unoriented components -> oriented components.
+	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
 	// Find connected components.
-	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
-
+	ConnectedComponents comps = ConnectedComponents(genperm.getUnsignedExtendedPerm());
 	// Transform unoriented components into oriented components using the minimum number of reversals.
-	UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
+	UnorientedComponents comps_unoriented = UnorientedComponents(genperm, comps);
 	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
 
+	//////////////////////////////////////////
+
 	std::cout << "Genome B -- Oriented unextended:\n";
-	std::vector<int> perm = comps_unoriented.genperm.getUnextendedPerm();
+	std::vector<int> perm = genperm.getUnextendedPerm();
 	for (int const& gene : perm) {
 		std::cout << gene << " ";
 	}
 	std::cout << std::endl;
 
 	std::cout << "Genome B -- Oriented extended:\n";
-	perm = comps_unoriented.genperm.getExtendedPerm(); 
+	perm = genperm.getExtendedPerm(); 
 	for (int const& gene : perm) {
 		std::cout << gene << " ";
 	}
 	std::cout << std::endl;
 
 	std::cout << "Genome B -- Unsigned extended:\n";
-	perm = comps_unoriented.genperm.getUnsignedExtendedPerm();
+	perm = genperm.getUnsignedExtendedPerm();
 	for (int const& gene : perm) {
 		std::cout << gene << " ";
 	}
 	std::cout << std::endl;
 
+	/////////////////////////////////////////////
+	// Part II: Sort oriented components.
 	// Find connected components again (they should be all oriented now).
-	comps = ConnectedComponents(comps_unoriented.genperm.getUnsignedExtendedPerm());
-
-	// Sort each connected component separately
+	comps = ConnectedComponents(genperm.getUnsignedExtendedPerm());
+	// Sort each connected component separately.
+	std::cout << "\nSort connected components by reversals" << std::endl;
+	for(const int& root_idx: comps.rootList){
+		comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
+		perm = genperm.getExtendedPerm(comps.forest[root_idx].genes);
+		std::cout << "Extended permutation: " << std::endl;
+		for(const int& g: perm){std::cout << g << " ";}
+		std::cout << std::endl;
+		// Sort component.
+		// Apply reversals to the permutation.
+	}
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
@@ -292,11 +307,11 @@ void testCase_Hannehalli1999_Fig4b(std::mt19937& rng){
 	genome_B.printGenome();
 
 	// Find connected components.
-	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
+	// ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
 
 	// Transform unoriented components into oriented components using the minimum number of reversals.
-	UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
-	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+	// UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
+	// std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
@@ -323,11 +338,11 @@ void testCase_Bergeron2005(std::mt19937& rng){
 	genome_B.printGenome();
 
 	// Find connected components.
-	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
+	// ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
 
 	// Transform unoriented components into oriented components using the minimum number of reversals.
-	UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
-	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+	// UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
+	// std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
 }
 
 int main(int argc, char* argv[]) {

@@ -36,7 +36,6 @@
 #pragma once // It avoids class redefinition.
 
 #include <iostream>
-#include <unordered_map>
 #include <vector>
 #include <stack>
 #include <list>
@@ -107,6 +106,8 @@ public:
 
 	void printUnsignedExtPerm() const;
 	void printComponents() const;
+
+	std::vector<int> getExtendedPerm(const Cycle& comp) const;
 
 	int getBlackEdge(const int gene_ext, const bool beg_ext) const;
 	int getRandomBlackEdge(const Cycle& comp, std::mt19937& rng, const bool beg_ext) const;

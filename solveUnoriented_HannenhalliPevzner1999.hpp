@@ -28,7 +28,6 @@
 #pragma once // It avoids class redefinition.
 
 #include <iostream>
-#include <unordered_map>
 #include <vector>
 #include <list>
 #include <cstdlib>   // exit
@@ -53,14 +52,14 @@ protected:
 	components, sorted by their indices in the permutation. For more details,
 	see the definition of ``CR`` in Kaplan, Shamir, and Tarjan (1997). */
 	std::vector<std::pair<int,int>> getSortedUnorientedElements();
-	
+
 	Reversal getReversal(int gen_ext_beg, int gen_ext_end);
 
 public:
 	ConnectedComponents& comps;
-	GenomePermutation<BlockSimple> genperm;
+	GenomePermutation<BlockSimple>& genperm;
 
-	UnorientedComponents(std::vector<int> extendedPerm, ConnectedComponents& comps):genperm(extendedPerm),comps(comps){
+	UnorientedComponents(GenomePermutation<BlockSimple>& genperm, ConnectedComponents& comps):genperm(genperm),comps(comps){
 
 	}
 

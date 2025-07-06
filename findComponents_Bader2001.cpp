@@ -34,7 +34,6 @@
  *******************************************************/
 
 #include <iostream>
-#include <unordered_map>
 #include <vector>
 #include <stack>
 #include <list>
@@ -43,7 +42,7 @@
 #include <memory>	 // shared_ptr
 #include <utility>   // move, pair
 #include <random>
-#include <algorithm> // shuffle
+#include <algorithm> // sort, shuffle
 
 #include "findComponents_Bader2001.hpp"
 

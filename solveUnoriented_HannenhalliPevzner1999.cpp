@@ -26,7 +26,6 @@
  *******************************************************/
 
 #include <iostream>
-#include <unordered_map>
 #include <vector>
 #include <list>
 #include <cstdlib>   // exit
