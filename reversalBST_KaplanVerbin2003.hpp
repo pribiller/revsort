@@ -391,6 +391,12 @@ private:
 
 	// Utility function: Fixing Deletion Violation
 	void fixDelete(Node<BlockT>* node, Node<BlockT>* parent) {
+		// Extreme case: Deleted node is the root of the tree and 
+		// a red node becomes the new root of the tree.
+		if((node == root) && (node != nullptr) && (node->color == RbColor::RED)){
+			node->blackHeight = 1;
+			node->color = RbColor::BLACK;
+		}
 		while ((node != root) && ((node == nullptr) || (node->color == RbColor::BLACK))) {
 			if (node == parent->left) {
 				Node<BlockT>* sibling = parent->right;
@@ -513,12 +519,13 @@ private:
 		// TODO: Update any counts? (blackHeight, total unused, etc.?)
 
 		// Transplant: ``v`` takes the place of ``u``.
-		if (u->parent == nullptr)
+		if (u->parent == nullptr){
 			root = v;
-		else if (u == u->parent->left)
+		} else if (u == u->parent->left) {
 			u->parent->left = v;
-		else
+		} else {
 			u->parent->right = v;
+		}
 		if (v != nullptr)
 			v->parent = u->parent;
 	}
@@ -670,8 +677,10 @@ public:
 				}
 				root->parent = nullptr;
 			}
-			root->color = RbColor::BLACK;
-			root->blackHeight += 1;
+			if (root->color == RbColor::RED) {
+				root->color = RbColor::BLACK;
+				root->blackHeight += 1;
+			}
 			root->clearReversedFlag();
 		}
 	}
@@ -730,28 +739,25 @@ public:
 	}
 
 	// Split the current tree into two subtrees: 
-	// current tree (with all elements <= val); 
-	// another_tree (with all elements > val).
-	void split(int val, RedBlackTree& another_tree) {
+	// current tree (with all elements <= key); 
+	// another_tree (with all elements > key).
+	void split(int key, RedBlackTree& another_tree) {
 		
 		if(root == nullptr){return;} // Nothing to split.
 
 		// Check extreme cases.
-		int const minval = (root->reversed) ? root->max->getPosNext() : root->min->getPosNext();
-		int const maxval = (root->reversed) ? root->min->getPosNext() : root->max->getPosNext();
-		if(minval > val){
+		int const min_key = (root->reversed) ? root->max->getPosNext() : root->min->getPosNext();
+		int const max_key = (root->reversed) ? root->min->getPosNext() : root->max->getPosNext();
+		if(min_key > key){
+			// std::cout << "[split] Min is bigger than key : min_key:" << min_key << " < key:" << key << std::endl;
 			another_tree.reroot(root);
 			cleanTree();
 			return;
-		} else if(maxval <= val){
+		} else if(max_key <= key){
+			// std::cout << "[split] Max is smaller than key : min_key" << max_key << " <= key:" << key << std::endl;
 			return;
 		}
-
-		// TODO: This is just a ``trick`` to deal with the case where val == node.
-		// In this case, both node->right and node->left 
-		// would need to be joined, but node can be used 
-		// only in one of the join operations.
-		double key = val;
+		// std::cout << "[split] No extreme cases" << std::endl;
 
 		Node<BlockT>* current = root;
 		Node<BlockT>* parent  = nullptr;
@@ -768,7 +774,7 @@ public:
 				parent  = current;
 				current = current->left;
 				// All nodes in the right subtree (+ the current node) 
-				// are bigger than val, but smaller than all values 
+				// are bigger than key, but smaller than all values 
 				// inserted in another_tree so far.
 				tmp_t.reroot(parent->right);
 				another_tree.join(parent, tmp_t);
@@ -778,17 +784,16 @@ public:
 				current = current->right;
 
 				// All nodes in the left subtree (+ the current node) 
-				// are smaller than val, but bigger than all values 
+				// are smaller than key, but bigger than all values 
 				// inserted in another_tree so far.
 				tmp_t.reroot(parent->left);
 				join(parent, tmp_t);
 
-			// val == current.
+			// key == current.
 			// ``Shortcut case``: loop does not need to go until a leaf.
 			} else {
-				
 				// All nodes in the left subtree (+ the current node) 
-				// are smaller or equal than val, but bigger than all 
+				// are smaller or equal than key, but bigger than all 
 				// values inserted in another_tree so far.
 				parent  = current;
 				current = current->right;
@@ -796,14 +801,13 @@ public:
 				tmp_t.reroot(parent->left);
 				join(parent, tmp_t);
 
-				// All nodes in the right subtree (+ the current node) 
-				// are bigger than val, but smaller than all values 
-				// inserted in another_tree so far.
+				// All nodes in the right subtree are bigger than key,
+				// but smaller than all values inserted in another_tree so far.
 				if(current != nullptr){
 					tmp_t.reroot(current);
 					// Extract the minimum or maximum node from the right tree.
 					// Both trees have ``reversed`` flag false.
-					Node<BlockT>* k = ((another_tree.root != nullptr) || (*(another_tree.root->min)) > (*(tmp_t.root->max))) ? tmp_t.root->max : tmp_t.root->min;
+					Node<BlockT>* k = ((another_tree.root == nullptr) || (*(another_tree.root->min)) > (*(tmp_t.root->max))) ? tmp_t.root->max : tmp_t.root->min;
 					tmp_t.remove(k);
 					another_tree.join(k, tmp_t);
 				}
@@ -813,6 +817,7 @@ public:
 				// Alternative implementation of this case.
 				// Here, ``key`` value is adjusted to force
 				// the loop go until one of the leaves.
+				// WARNING: key needs to be declared as a double.
 
 				// parent  = current;
 				// current = current->right;
@@ -833,10 +838,8 @@ public:
 		Node<BlockT>* z = node;
 		Node<BlockT>* x = nullptr;
 		Node<BlockT>* y = nullptr;
-
 		if (z == nullptr) {return;}
 		z->clearReversedFlag();
-
 		// Check if the deleted node is the min or max of its parent.
 		// In this scenario, the node has at most one child.
 		Node<BlockT>* new_min = nullptr;
@@ -844,6 +847,7 @@ public:
 		if((z->parent != nullptr) && ((z == z->parent->min) || (z == z->parent->max))){
 			Node<BlockT>* child = (z->left != nullptr) ? z->left : z->right;
 			// Make sure the ``reversed`` flags are off so comparison is valid.
+			z->parent->clearReversedFlag();
 			if (child != nullptr) {child->clearReversedFlag();}
 			// Finds new min/max.
 			if(z == z->parent->min){
@@ -861,7 +865,6 @@ public:
 				}
 			}
 		}
-
 		// Update min/max and other counts in the path between the root and the deleted node.
 		// Make sure that all ``reversed`` flags in the path 
 		// between the root and the deleted node are ``off``.
@@ -871,15 +874,13 @@ public:
 		const int unused_oriented_upd = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
 		while(current != node){
 			current->clearReversedFlag();
-			if(current->max == node) {
-				current->max = new_max;
-			}
-			if(current->min == node) {
-				current->min = new_min;
-			}
+			if(current->max == node) {current->max = new_max;}
+			if(current->min == node) {current->min = new_min;}
 
 			current->unused_tot -= unused_upd;
 			current->unused_oriented_tot -= unused_oriented_upd;
+
+			//std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]" + " (" + ((color == RbColor::RED) ? "RED" : "BLACK") + ";BH=" + std::to_string(blackHeight) + ";UN=" + std::to_string(unused_tot) + ";OR=" + std::to_string(unused_oriented_tot) + ";MIN=" + min->printNode() + ";MAX=" + max->printNode() + ";REV=" + (reversed ? "T" : "F") + ")"
 
 			// Traverse tree in the correct order (reversed flag=false).
 			if ((*node) < (*current)){
@@ -887,9 +888,7 @@ public:
 			} else {
 				current = current->right;
 			}
-
 		}
-
 		y = z;
 		RbColor yOriginalColor = y->color;
 		if (z->left == nullptr) {
@@ -1047,7 +1046,7 @@ public:
 		// (but **not** on how the tree is traversed).
 		bool const reversed_block = root->gene.block->reversed;
 		const int unused_upd  = 1;
-		const int unused_oriented_upd = reversed_block ? 0 : 1;
+		const int unused_oriented_upd = reversed_block ? 1 : 0; // The current status of the node is ``unoriented``. Thus, if the block is reversed, the node is being counted as ``oriented``.
 
 		// Update node status.
 		node->unused = false;

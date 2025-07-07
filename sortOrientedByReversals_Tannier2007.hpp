@@ -83,19 +83,19 @@ public:
 	// The middle tree (t2) will contain all pairs whose ``remote`` element 
 	// is part of the reversal, and the other two trees (tree and t3) will 
 	// contain the pairs whose ``remote`` element is out of the reversal.
-	void splitTree(const int g_beg, const int g_end) {
+	void splitTree(const int g_beg, const int g_end, const int g_beg_pos, const int g_end_pos) {
 		t2.cleanTree();
 		t3.cleanTree();
 
-		// std::cout << "[Before reversal] Split tree before applying reversal (" << g_beg << "," << g_end << "]:" << printBlock() << std::endl;
+		// std::cout << "[Before reversal] Split tree before applying reversal (" << g_beg  << "{" << g_beg_pos << "}, " << g_end << "{" << g_end_pos << "}] : " << printBlock() << std::endl;
 		// tree.printTree();
-		tree.split(g_beg, t2); // at this point: ``tree`` keeps elements before reversal (x_next <= g_beg); ``t2`` has elements after the start of the reversal (x_next > g_beg).
+		tree.split(g_beg_pos, t2); // at this point: ``tree`` keeps elements before reversal (x_next <= g_beg); ``t2`` has elements after the start of the reversal (x_next > g_beg).
 
-		// std::cout << "[Before reversal]  (" << g_beg << "," << g_end << "]: T1, (T2 & T3):" << printBlock() << std::endl;
+		// std::cout << "[Before reversal]  (" << g_beg  << "{" << g_beg_pos << "}, " << g_end << "{" << g_end_pos << "}] : T1, (T2 & T3):" << printBlock() << std::endl;
 		// tree.printTree();
 		// t2.printTree();
 
-		t2.split(g_end, t3);   // at this point: ``t2`` has elements inside the reversal (g_beg < x_next <= g_end); ``t3`` has elements after the end of the reversal (x_next > g_end).
+		t2.split(g_end_pos, t3);   // at this point: ``t2`` has elements inside the reversal (g_beg < x_next <= g_end); ``t3`` has elements after the end of the reversal (x_next > g_end).
 
 		// std::cout << "[Before reversal] Split tree - Resulting trees:" << std::endl;
 		// printAuxTrees(g_beg, g_end);
@@ -121,7 +121,7 @@ public:
 		// Concatenate - Step 1: t1 = t1 + t2
 		if (tree.root == nullptr) {
 			tree.root = t2.root;
-		} else {
+		} else if (t2.root != nullptr) {
 			// TODO: Depending on tree sizes, get max of one or the min from the other.
 			Node<BlockTree>* max_t1 = tree.getGlobalMax();
 			// std::cout << "[Merge trees] Max from T1: (" << max_t1->printNode() << ")" << std::endl;
@@ -137,7 +137,7 @@ public:
 		// Concatenate - Step 2: t1 = t1 + t2 + t3
 		if (tree.root == nullptr) {
 			tree.root = t3.root;
-		} else {
+		} else if (t3.root != nullptr) {
 			// TODO: Depending on tree sizes, get max of one or the min from the other.
 			// std::cout << "[Merge trees] join t1 + t2 + t3 | Block: " << printBlock() << std::endl;
 			// std::cout << "T1 (x <= " << g_beg << ")" << std::endl;

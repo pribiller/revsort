@@ -279,7 +279,14 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng){
 		for(const int& g: perm){std::cout << g << " ";}
 		std::cout << std::endl;
 		// Sort component.
+		std::cout << "Sort permutation: " << std::endl;
+		GenomeSort genomeSort = GenomeSort(perm);
+		std::deque<Reversal> allrev = genomeSort.sortByReversals();
 		// Apply reversals to the permutation.
+		std::cout << "\nSorting by reversals---Solution" << std::endl;
+		for(Reversal const &rev : allrev) {
+			std::cout << "(gene " << rev.g_beg << ", gene " << rev.g_end << "]" << std::endl;
+		}
 	}
 }
 
