@@ -150,13 +150,16 @@ protected:
 	to initialize list of blocks. */
 	void initializeBlocks(const std::vector<int>& perm);
 
-	/* Auxiliary method for ``getExtendedPerm``. 
+	/* Auxiliary methods for ``getExtendedPerm``. 
 	It sorts gene extremities by their position in the permutation.
 	This function affects the vector passed as input.
 	It returns a mapping between the gene extremity and its position in the sorted vector. */
 	std::unordered_map<int, int> sortGeneExtremities(std::vector<int>& gene_extremities);
+	std::pair<int,int> getGeneExtremities(const int g_label, const int g_pos, const std::vector<int>& gene_extremities) const;
 
 public:
+	bool debug{false}; // if ``true``, details of the computation will be printed.
+
 	int n; // number of genes
 	
 	std::list<BlockT> blockList;
@@ -178,9 +181,10 @@ public:
 	void splitBlock(const int gene);
 
 	std::string printBlocks(const std::string& sep=" ") const;
+	void clearBlockStatus();
 
 	std::vector<int> getExtendedPerm() const;
-	std::vector<int> getExtendedPerm(std::vector<int>& gene_extremities);
+	std::vector<int> getExtendedPerm(std::vector<int>& gene_extremities, std::unordered_map<int,std::pair<int,int>>& newlabels_map);
 	std::vector<int> getUnextendedPerm() const;
 	std::vector<int> getUnsignedExtendedPerm() const;
 
@@ -227,6 +231,11 @@ std::string GenomePermutation<BlockT>::printBlocks(const std::string& sep) const
 }
 
 template <typename BlockT>
+void GenomePermutation<BlockT>::clearBlockStatus(){
+	for(auto &b : blockList) {b.status = OK;}
+}
+
+template <typename BlockT>
 std::vector<int> GenomePermutation<BlockT>::getExtendedPerm() const {
 	std::vector<int> perm(n);
 	for(auto &gene : genes) {
@@ -266,17 +275,31 @@ std::unordered_map<int, int> GenomePermutation<BlockT>::sortGeneExtremities(std:
 	return gene_to_pos_map;
 }
 
+template <typename BlockT>
+std::pair<int,int> GenomePermutation<BlockT>::getGeneExtremities(const int g_label, const int g_pos, const std::vector<int>& gene_extremities) const {
+	// Create map between new gene label and given gene extremities.
+	int g_ext_beg = -1;
+	if(std::abs(g_label) > 1){
+		g_ext_beg = (g_label > 0) ? gene_extremities[2*g_pos-1] : gene_extremities[2*g_pos];
+	}
+	int g_ext_end = -1;
+	if(std::abs(g_label) < (gene_extremities.size()/2+1)){
+		g_ext_end = (g_label > 0) ? gene_extremities[2*g_pos] : gene_extremities[2*g_pos-1];
+	}
+	return std::make_pair(g_ext_beg,g_ext_end);
+}
+
 // It creates an extended signed ``sub-permutation``, composed 
 // only of gene extremities specified in the input.
 template <typename BlockT>
-std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& gene_extremities) {
+std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& gene_extremities, std::unordered_map<int,std::pair<int,int>>& newlabels_map) {
 	std::vector<int> perm(gene_extremities.size()/2+1);
 	// Sort gene extremities by their position in the current permutation.
 	std::unordered_map<int,int> gene_to_pos_map = sortGeneExtremities(gene_extremities);
 
-	std::cout << "Sorted gene extremities: " << std::endl;
-	for(const int& g: gene_extremities){std::cout << g << " ";}
-	std::cout << std::endl;
+	if(debug) std::cout << "Sorted gene extremities: " << std::endl;
+	if(debug) for(const int& g: gene_extremities){std::cout << g << " ";}
+	if(debug) std::cout << std::endl;
 	
 	// Re-label gene extremities.
 	int g_ext = gene_extremities[0];
@@ -285,6 +308,10 @@ std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& ge
 	int g_pos   = 0;
 	for (int i=0; i<perm.size()-1; i++) {
 		perm[g_pos] = g_label;
+		
+		// Create map between new gene label and given gene extremities.
+		newlabels_map[std::abs(g_label)] = getGeneExtremities(g_label, g_pos, gene_extremities);
+
 		// std::cout << "i=" << i << ": g_pos=" << g_pos << " / g_label=" << g_label << std::endl;
 		// Move through a gray edge.
 		// A gray edge has its start in an even value and its end in an odd value.	
@@ -306,6 +333,8 @@ std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& ge
 	}
 	// Re-label last gene.
 	perm[g_pos] = g_label;
+	newlabels_map[std::abs(g_label)] = getGeneExtremities(g_label, g_pos, gene_extremities);
+
 	return perm;
 }
 
@@ -532,7 +561,7 @@ void GenomePermutation<BlockT>::balanceBlock(const int gene){
 	// If the block is too small, then concatenate the block with a neighboring block.
 	while(b->permutationSegment.size() < minBlockSize){
 
-		std::cout << "\t [balanceBlock] Block needs to increase in size: cur.size=" <<  b->permutationSegment.size() << " / minBlockSize=" << minBlockSize << " / " << b->printBlock() << std::endl;
+		if(debug) std::cout << "\t [balanceBlock] Block needs to increase in size: cur.size=" <<  b->permutationSegment.size() << " / minBlockSize=" << minBlockSize << " / " << b->printBlock() << std::endl;
 
 		typename std::list<BlockT>::iterator b_prev = std::prev(b);
 		typename std::list<BlockT>::iterator b_next = std::next(b);
@@ -540,19 +569,19 @@ void GenomePermutation<BlockT>::balanceBlock(const int gene){
 		const int b_next_size = (b_next != blockList.end()) ? b_next->permutationSegment.size() : (n+1);
 		// Concatenate blocks.
 		if(b_prev_size < b_next_size){
-			std::cout << "\t [balanceBlock] Concatenate blocks: " << b_prev->printBlock() << " and " << b->printBlock() << std::endl;
+			if(debug) std::cout << "\t [balanceBlock] Concatenate blocks: " << b_prev->printBlock() << " and " << b->printBlock() << std::endl;
 			concatenateBlocks(b_prev, b);
 			b = b_prev; // b was erased; update reference.
 		} else {
-			std::cout << "\t [balanceBlock] Concatenate blocks: " << b->printBlock() << " and " << b_next->printBlock() << std::endl;
+			if(debug) std::cout << "\t [balanceBlock] Concatenate blocks: " << b->printBlock() << " and " << b_next->printBlock() << std::endl;
 			concatenateBlocks(b, b_next);
 		}
-		std::cout << "\t [balanceBlock] After concatenation: " << printBlocks() << std::endl;
+		if(debug) std::cout << "\t [balanceBlock] After concatenation: " << printBlocks() << std::endl;
 	}
 	
 	// If the block is too big, then split the block into two blocks.
 	if(b->permutationSegment.size() > maxBlockSize) {
-		std::cout << "\t [balanceBlock] Block needs to reduce in size: cur.size=" <<  b->permutationSegment.size() << " / maxBlockSize=" << maxBlockSize << " / " << b->printBlock() << std::endl;
+		if(debug) std::cout << "\t [balanceBlock] Block needs to reduce in size: cur.size=" <<  b->permutationSegment.size() << " / maxBlockSize=" << maxBlockSize << " / " << b->printBlock() << std::endl;
 
 		typename std::list<Gene<BlockT>>::iterator g_mid_it = b->permutationSegment.begin();
 		std::advance(g_mid_it, std::floor(b->permutationSegment.size()/2));

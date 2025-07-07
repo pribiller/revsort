@@ -50,8 +50,8 @@ void GenomeSort::initializeNodes(){
 	for (int g=0; g<(genperm.n-1); g++) {
 		nodes.emplace_back((*genperm.genes[g]), (*genperm.genes[g+1]));
 	}
-	std::cout << "Nodes:" << std::endl;
-	for(Node<BlockTree> &n : nodes) {std::cout << " \t" << n.printNode() << std::endl;}
+	if (debug) {std::cout << "Nodes:" << std::endl;}
+	if (debug) {for(Node<BlockTree> &n : nodes) {std::cout << " \t" << n.printNode() << std::endl;}}
 }
 	
 void GenomeSort::printNodesBlockDetails(){
@@ -149,20 +149,21 @@ Reversal GenomeSort::getReversal(Node<BlockTree>* node) const {
 		g_beg = g_beg->block->getPrevGene(g_beg);
 		g_end = g_end->block->getPrevGene(g_end);
 	}
+	
 	// Information needed to apply a reversal and also to undo it later if needed.
-	const int g_beg_id  = g_beg->id;
-	const int g_end_id  = g_end->id;
+	const int g_beg_id  = (g_beg->block->reversed == g_beg->reversed) ? g_beg->id : -g_beg->id;
+	const int g_end_id  = (g_end->block->reversed == g_end->reversed) ? g_end->id : -g_end->id;
 	std::list<Gene<BlockTree>>::iterator gene_next = g_beg->block->getNextGene(g_beg);
-	const int g_beg_next_id = gene_next->id;
+	const int g_beg_next_id = (gene_next->block->reversed == gene_next->reversed) ? gene_next->id : -gene_next->id;
 	const bool g_end_isLast = genperm.isLastGene((*g_end));
 	if(!g_end_isLast){gene_next = g_end->block->getNextGene(g_end);}
-	const int g_end_next_id = (!g_end_isLast) ? gene_next->id : -1;
+	const int g_end_next_id = (!g_end_isLast) ? ((gene_next->block->reversed == gene_next->reversed) ? gene_next->id : -gene_next->id) : -1;
 	// std::cout << "\n\n[getReversal] " << g_beg_id << " " << g_end_id << " " << g_beg_next_id << " " << g_end_next_id << " " << std::endl;
 	return Reversal(g_beg_id, g_end_id, g_beg_next_id, g_end_next_id); // std::pair{g_beg, g_end};
 }
 
 std::vector<Node<BlockTree>*> GenomeSort::getNewSolvedAdjacencies(Reversal rev){
-	std::vector<int> candidates = {rev.g_beg, rev.g_end, rev.g_beg_next, rev.g_end_next};
+	std::vector<int> candidates = {std::abs(rev.g_beg), std::abs(rev.g_end), std::abs(rev.g_beg_next), std::abs(rev.g_end_next)};
 	std::vector<Node<BlockTree>*> solvedAdj;
 	for(int const &g_id : candidates) {
 		// std::cout << "\t[getNewSolvedAdjacencies] Candidate : " << g_id << std::endl;
@@ -182,13 +183,13 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	g_end = std::abs(g_end);
 
 	std::string applyReversal_str = "\n<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
-	std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if (debug) {std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;}
 	
 	// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 	genperm.splitBlock(g_beg);
 	genperm.splitBlock(g_end);
 	// (1.1) After splitting blocks, we must reconstruct from scratch the associated trees.
-	std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if (debug) {std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;}
 
 	// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
 	updateTreesBeforeReversal(g_beg, g_end);
@@ -217,7 +218,7 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	// every tree, even those outside the reversal, are processed separately.
 	updateTreesAfterReversal(g_beg, g_end);
 
-	std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if (debug) {std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;}
 
 	// (4) Concatenate and split blocks in such a way that the size of each block 
 	// lies within the interval [½×√(n×log(n)), 2×√(n×log(n))].
@@ -229,8 +230,10 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	// (4.1) After concatenating and splitting blocks, reconstruct from scratch the associated trees.
 	updateTreesEndReversal();
 
-	std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
-	printTrees();
+	if (debug) {
+		std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
+		printTrees();
+	}
 }
 
 /* Sort by reversals.
@@ -243,8 +246,10 @@ Transform permutation A into B by reversal operations.
 */
 std::deque<Reversal> GenomeSort::sortByReversals(){
 
-	std::cout << "\n\nSort by reversals: " << genperm.printBlocks("\n\t") << std::endl;
-	printTrees();
+	if (debug) {
+		std::cout << "\n\nSort by reversals: " << genperm.printBlocks("\n\t") << std::endl;
+		printTrees();
+	}
 
 	std::deque<Reversal> s1{};
 	std::deque<Reversal> s2{};
@@ -258,14 +263,14 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 		// Update status of arc from ``used`` to ``unused``.
 		// Check if the other adjacency affected by the reversal was also ``solved``.
 		//safeReversal->gene.block->tree.setUsed(safeReversal);
-		std::cout << "\n\nMark used genes" << std::endl;
+		if (debug) {std::cout << "\n\nMark used genes" << std::endl;}
 		std::vector<Node<BlockTree>*> solved = getNewSolvedAdjacencies(rev);
 		for (Node<BlockTree>* node : solved) {
 			node->gene.block->tree.setUsed(node);
-			std::cout << "\t> Mark gene " << node->gene.id << "=USED" << std::endl;
+			if (debug) {std::cout << "\t> Mark gene " << node->gene.id << "=USED" << std::endl;}
 		}
-		std::cout << genperm.printBlocks("\n\t") << std::endl;
-		printTrees();
+		if (debug) {std::cout << genperm.printBlocks("\n\t") << std::endl;}
+		if (debug) {printTrees();}
 
 		// s1 <- s1 + [new arc].
 		s1.push_back(rev);

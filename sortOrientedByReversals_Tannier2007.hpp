@@ -221,15 +221,17 @@ private:
 	std::vector<Node<BlockTree>*> getNewSolvedAdjacencies(Reversal rev);
 
 public:
+	bool debug{false};
+
 	// Parameterized constructor.
-	GenomeSort(const std::vector<int>& perm): genperm(perm){
+	GenomeSort(const std::vector<int>& perm, bool debug=false): genperm(perm){
 		// Initialize map of arcs.
 		initializeNodes();
 		// Initialize trees.
 		initializeTrees();
 		// Print blocks.
 		// std::cout << genperm.printBlocks() << std::endl;
-		printTrees();
+		if(debug){printTrees();}
 	}
 
 	// Apply reversal (g_beg, g_end].

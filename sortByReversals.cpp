@@ -51,9 +51,30 @@
 #include <memory>	 // shared_ptr
 
 #include "genome.hpp"
+#include "reversal.hpp"
 #include "findComponents_Bader2001.hpp"
 #include "sortOrientedByReversals_Tannier2007.hpp"
 #include "solveUnoriented_HannenhalliPevzner1999.hpp"
+
+
+/*******************************************************
+ * Auxiliary functions.
+*******************************************************/
+
+inline int convertLabel(const int g_label, std::unordered_map<int,std::pair<int,int>>& labels_map, const bool rightmost){
+	return (rightmost == (g_label > 0)) ? (int)(std::trunc((labels_map[std::abs(g_label)].second+1)/2)+1) : (int)(std::trunc((labels_map[std::abs(g_label)].first+1)/2)+1);
+}
+
+inline Reversal transformLabels(Reversal rev, std::unordered_map<int,std::pair<int,int>>& labels_map){
+	return Reversal(convertLabel(rev.g_beg,labels_map,true), convertLabel(rev.g_end,labels_map,true), convertLabel(rev.g_beg_next,labels_map,false), convertLabel(rev.g_end_next,labels_map,false));
+}
+
+void printGenome(std::vector<int> perm){
+	for (int const& gene : perm) {
+		std::cout << gene << " ";
+	}
+	std::cout << std::endl;
+}
 
 /*******************************************************
  * Some basic tests.
@@ -246,25 +267,13 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng){
 	//////////////////////////////////////////
 
 	std::cout << "Genome B -- Oriented unextended:\n";
-	std::vector<int> perm = genperm.getUnextendedPerm();
-	for (int const& gene : perm) {
-		std::cout << gene << " ";
-	}
-	std::cout << std::endl;
+	printGenome(genperm.getUnextendedPerm());
 
 	std::cout << "Genome B -- Oriented extended:\n";
-	perm = genperm.getExtendedPerm(); 
-	for (int const& gene : perm) {
-		std::cout << gene << " ";
-	}
-	std::cout << std::endl;
+	printGenome(genperm.getExtendedPerm());
 
 	std::cout << "Genome B -- Unsigned extended:\n";
-	perm = genperm.getUnsignedExtendedPerm();
-	for (int const& gene : perm) {
-		std::cout << gene << " ";
-	}
-	std::cout << std::endl;
+	printGenome(genperm.getUnsignedExtendedPerm());
 
 	/////////////////////////////////////////////
 	// Part II: Sort oriented components.
@@ -274,19 +283,35 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng){
 	std::cout << "\nSort connected components by reversals" << std::endl;
 	for(const int& root_idx: comps.rootList){
 		comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
-		perm = genperm.getExtendedPerm(comps.forest[root_idx].genes);
+		std::unordered_map<int,std::pair<int,int>> newlabels_map;
+		std::vector<int> perm = genperm.getExtendedPerm(comps.forest[root_idx].genes,newlabels_map);
 		std::cout << "Extended permutation: " << std::endl;
-		for(const int& g: perm){std::cout << g << " ";}
+		for(const int& g: perm){std::cout << g << "[" << newlabels_map[std::abs(g)].first << "," << newlabels_map[std::abs(g)].second << "] ";}
 		std::cout << std::endl;
 		// Sort component.
-		std::cout << "Sort permutation: " << std::endl;
+		std::cout << "Sort permutation..." << std::endl;
 		GenomeSort genomeSort = GenomeSort(perm);
-		std::deque<Reversal> allrev = genomeSort.sortByReversals();
+		std::deque<Reversal> reversalsPerComp = genomeSort.sortByReversals();
 		// Apply reversals to the permutation.
-		std::cout << "\nSorting by reversals---Solution" << std::endl;
-		for(Reversal const &rev : allrev) {
-			std::cout << "(gene " << rev.g_beg << ", gene " << rev.g_end << "]" << std::endl;
+		std::cout << "Save reversals..." << std::endl;	
+		// printGenome(genperm.getExtendedPerm());
+		for(Reversal const &rev : reversalsPerComp) {
+			Reversal rev_ = transformLabels(rev, newlabels_map);
+			std::cout << "(" << rev.g_beg << "{" << rev_.g_beg << "}, " << rev.g_end << "{" << rev_.g_end << "}]" << std::endl;
+			applyReversal(genperm, rev_.g_beg, rev_.g_end);
+			reversals.emplace_back(rev_);
+			// printGenome(genperm.getExtendedPerm());
 		}
+		genperm.clearBlockStatus();
+	}
+
+	std::cout << "\nSorting by reversals - Solution" << std::endl;
+	GenomePermutation<BlockSimple> genperm_final(genome_B.getExtendedGenome());
+	printGenome(genperm_final.getExtendedPerm());
+	for(Reversal const &rev : reversals) {
+		std::cout << "(" << rev.g_beg << "," << rev.g_end << "]" << std::endl;
+		applyReversal(genperm_final, rev.g_beg, rev.g_end);
+		printGenome(genperm_final.getExtendedPerm());
 	}
 }
 

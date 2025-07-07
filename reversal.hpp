@@ -44,18 +44,20 @@ public:
 // Apply reversal (g_beg, g_end].
 template <typename BlockT>
 void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
-
+	
+	const bool debug = genperm.debug;
+	
 	g_beg = std::abs(g_beg);
 	g_end = std::abs(g_end);
-
+	
 	std::string applyReversal_str = "\n<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
-	std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug) std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
 	
 	// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 	genperm.splitBlock(g_beg);
 	genperm.splitBlock(g_end);
 
-	std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug) std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
 	// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
 	typename std::list<BlockT>::iterator reversal_beg  = std::next(genperm.getBlock(g_beg)); // this block is the first reversed block.
@@ -79,7 +81,7 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 		blockPos += b->permutationSegment.size();
 	}
 
-	std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug) std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
 	// (4) Concatenate and split blocks in such a way that the size of each block 
 	// lies within the interval [½×√(n×log(n)), 2×√(n×log(n))].
@@ -89,5 +91,5 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 	genperm.balanceBlock(g_after_beg);
 	genperm.balanceBlock(g_after_end);
 	
-	std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug) std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
 }

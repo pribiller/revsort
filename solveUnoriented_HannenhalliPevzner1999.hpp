@@ -58,6 +58,7 @@ protected:
 public:
 	ConnectedComponents& comps;
 	GenomePermutation<BlockSimple>& genperm;
+	bool debug{false};
 
 	UnorientedComponents(GenomePermutation<BlockSimple>& genperm, ConnectedComponents& comps):genperm(genperm),comps(comps){
 
