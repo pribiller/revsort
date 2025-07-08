@@ -65,7 +65,7 @@ inline int convertLabel(const int g_label, std::unordered_map<int,std::pair<int,
 	return (rightmost == (g_label > 0)) ? (int)(std::trunc((labels_map[std::abs(g_label)].second+1)/2)+1) : (int)(std::trunc((labels_map[std::abs(g_label)].first+1)/2)+1);
 }
 
-inline Reversal transformLabels(Reversal rev, std::unordered_map<int,std::pair<int,int>>& labels_map){
+inline Reversal convertLabels(Reversal rev, std::unordered_map<int,std::pair<int,int>>& labels_map){
 	return Reversal(convertLabel(rev.g_beg,labels_map,true), convertLabel(rev.g_end,labels_map,true), convertLabel(rev.g_beg_next,labels_map,false), convertLabel(rev.g_end_next,labels_map,false));
 }
 
@@ -76,9 +76,89 @@ void printGenome(std::vector<int> perm){
 	std::cout << std::endl;
 }
 
+void printInputGenomes(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B){
+	std::cout << "Genome A -- Original:" << std::endl;
+	genome_A.printOriginalGenome();
+	std::cout << "Genome A -- Internal representation:" << std::endl;
+	genome_A.printGenome();
+	
+	std::cout << "Genome B -- Original:" << std::endl;
+	genome_B.printOriginalGenome();
+	std::cout << "Genome B -- Internal representation:" << std::endl;
+	genome_B.printGenome();
+}
+
 /*******************************************************
  * Some basic tests.
 *******************************************************/
+
+/*******************************************************
+* Tests for the overall algorithm (find components, 
+* clear hurdles, sort connected components, etc.).
+*******************************************************/
+
+void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng){
+	// Input genomes.
+	printInputGenomes(genome_A,genome_B);
+
+	// Part I: Unoriented components -> oriented components.
+	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
+	// Find connected components.
+	std::cout << "Find connected components..." << std::endl << std::endl;
+	ConnectedComponents comps = ConnectedComponents(genperm.getUnsignedExtendedPerm());
+	// Transform unoriented components into oriented components using the minimum number of reversals.
+	std::cout << "Transform unoriented components into oriented components..." << std::endl;
+	UnorientedComponents comps_unoriented = UnorientedComponents(genperm, comps);
+	comps_unoriented.debug = true;
+	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+
+	// For debugging.
+	std::cout << "Genome B -- Oriented unextended:\n";
+	printGenome(genperm.getUnextendedPerm());
+	std::cout << "Genome B -- Oriented extended:\n";
+	printGenome(genperm.getExtendedPerm());
+	std::cout << "Genome B -- Unsigned extended:\n";
+	printGenome(genperm.getUnsignedExtendedPerm());
+
+	// Part II: Sort oriented components.
+	// Find connected components again (they should be all oriented now).
+	comps = ConnectedComponents(genperm.getUnsignedExtendedPerm());
+	// Sort each connected component separately.
+	std::cout << "Sort connected components by reversals" << std::endl;
+	for(const int& root_idx: comps.rootList){
+		comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
+		std::unordered_map<int,std::pair<int,int>> newlabels_map;
+		std::vector<int> perm = genperm.getExtendedPerm(comps.forest[root_idx].genes,newlabels_map);
+		std::cout << "Extended permutation: " << std::endl;
+		for(const int& g: perm){std::cout << g << "[" << newlabels_map[std::abs(g)].first << "," << newlabels_map[std::abs(g)].second << "] ";}
+		std::cout << std::endl;
+		// Sort component.
+		std::cout << "Sort permutation..." << std::endl;
+		GenomeSort genomeSort = GenomeSort(perm);
+		// genomeSort.debug = true;
+		std::deque<Reversal> reversalsPerComp = genomeSort.sortByReversals();
+		// Apply reversals to the permutation.
+		std::cout << "Save reversals..." << std::endl;	
+		// printGenome(genperm.getExtendedPerm());
+		for(Reversal const &rev : reversalsPerComp) {
+			Reversal rev_ = convertLabels(rev, newlabels_map);
+			// std::cout << "(" << rev.g_beg << "{" << rev_.g_beg << "}, " << rev.g_end << "{" << rev_.g_end << "}]" << std::endl;
+			applyReversal(genperm, rev_.g_beg, rev_.g_end);
+			reversals.emplace_back(rev_);
+			// printGenome(genperm.getExtendedPerm());
+		}
+		genperm.clearBlockStatus();
+	}
+
+	std::cout << "\nSorting by reversals - Solution" << std::endl;
+	GenomePermutation<BlockSimple> genperm_final(genome_B.getExtendedGenome());
+	printGenome(genperm_final.getExtendedPerm());
+	for(Reversal const &rev : reversals) {
+		std::cout << "(" << rev.g_beg << "," << rev.g_end << "]" << std::endl;
+		applyReversal(genperm_final, rev.g_beg, rev.g_end);
+		printGenome(genperm_final.getExtendedPerm());
+	}
+}
 
 /*******************************************************
  * Tests for genome.hpp
@@ -89,15 +169,7 @@ void testCase_MakeRandomPerm(std::mt19937& rng, int n, int m, double probRev=0.3
 	GenomeMultichrom<int> genome_B(rng, n, m, probRev, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Random genome constructor (n=" << n << ";m=" << m  << ";p_rev=" << probRev << ")\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
+	printInputGenomes(genome_A,genome_B);
 }
 
 void testCase_MakeMultichromGenome(){
@@ -111,15 +183,7 @@ void testCase_MakeMultichromGenome(){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Multichromosomal genome constructor\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
+	printInputGenomes(genome_A,genome_B);
 }
 
 void testCase_MakeUnichromGenome(){
@@ -133,16 +197,7 @@ void testCase_MakeUnichromGenome(){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Unichromosomal genome constructor\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
-	
+	printInputGenomes(genome_A,genome_B);
 }
 
 /*******************************************************
@@ -162,15 +217,7 @@ void testCase_Garg2019(){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
+	printInputGenomes(genome_A,genome_B);
 
 	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
 }
@@ -187,16 +234,8 @@ void testCase_Bader2001(){
 	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
-	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
+	std::cout << "\n\nTest: Example from Bader et al.(2001)\n";
+	printInputGenomes(genome_A,genome_B);
 
 	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
 }
@@ -224,7 +263,7 @@ void testCase_Tannier2007() {
 	std::deque<Reversal> allrev = genomeSort.sortByReversals();
 	std::cout << "Sorting by reversals---Solution" << std::endl;
 	for(Reversal const &rev : allrev) {
-		std::cout << "(gene " << rev.g_beg << ", gene " << rev.g_end << "]" << std::endl;
+		std::cout << "(" << rev.g_beg << ", " << rev.g_end << "]" << std::endl;
 	}
 }
 
@@ -245,74 +284,7 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(a)\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
-
-	//////////////////////////////////////////
-	// Part I: Unoriented components -> oriented components.
-	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
-	// Find connected components.
-	ConnectedComponents comps = ConnectedComponents(genperm.getUnsignedExtendedPerm());
-	// Transform unoriented components into oriented components using the minimum number of reversals.
-	UnorientedComponents comps_unoriented = UnorientedComponents(genperm, comps);
-	std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
-
-	//////////////////////////////////////////
-
-	std::cout << "Genome B -- Oriented unextended:\n";
-	printGenome(genperm.getUnextendedPerm());
-
-	std::cout << "Genome B -- Oriented extended:\n";
-	printGenome(genperm.getExtendedPerm());
-
-	std::cout << "Genome B -- Unsigned extended:\n";
-	printGenome(genperm.getUnsignedExtendedPerm());
-
-	/////////////////////////////////////////////
-	// Part II: Sort oriented components.
-	// Find connected components again (they should be all oriented now).
-	comps = ConnectedComponents(genperm.getUnsignedExtendedPerm());
-	// Sort each connected component separately.
-	std::cout << "\nSort connected components by reversals" << std::endl;
-	for(const int& root_idx: comps.rootList){
-		comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
-		std::unordered_map<int,std::pair<int,int>> newlabels_map;
-		std::vector<int> perm = genperm.getExtendedPerm(comps.forest[root_idx].genes,newlabels_map);
-		std::cout << "Extended permutation: " << std::endl;
-		for(const int& g: perm){std::cout << g << "[" << newlabels_map[std::abs(g)].first << "," << newlabels_map[std::abs(g)].second << "] ";}
-		std::cout << std::endl;
-		// Sort component.
-		std::cout << "Sort permutation..." << std::endl;
-		GenomeSort genomeSort = GenomeSort(perm);
-		std::deque<Reversal> reversalsPerComp = genomeSort.sortByReversals();
-		// Apply reversals to the permutation.
-		std::cout << "Save reversals..." << std::endl;	
-		// printGenome(genperm.getExtendedPerm());
-		for(Reversal const &rev : reversalsPerComp) {
-			Reversal rev_ = transformLabels(rev, newlabels_map);
-			std::cout << "(" << rev.g_beg << "{" << rev_.g_beg << "}, " << rev.g_end << "{" << rev_.g_end << "}]" << std::endl;
-			applyReversal(genperm, rev_.g_beg, rev_.g_end);
-			reversals.emplace_back(rev_);
-			// printGenome(genperm.getExtendedPerm());
-		}
-		genperm.clearBlockStatus();
-	}
-
-	std::cout << "\nSorting by reversals - Solution" << std::endl;
-	GenomePermutation<BlockSimple> genperm_final(genome_B.getExtendedGenome());
-	printGenome(genperm_final.getExtendedPerm());
-	for(Reversal const &rev : reversals) {
-		std::cout << "(" << rev.g_beg << "," << rev.g_end << "]" << std::endl;
-		applyReversal(genperm_final, rev.g_beg, rev.g_end);
-		printGenome(genperm_final.getExtendedPerm());
-	}
+	testCase_generalSort(genome_A, genome_B, rng);
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
@@ -328,22 +300,7 @@ void testCase_Hannehalli1999_Fig4b(std::mt19937& rng){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(b)\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
-
-	// Find connected components.
-	// ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
-
-	// Transform unoriented components into oriented components using the minimum number of reversals.
-	// UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
-	// std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+	testCase_generalSort(genome_A, genome_B, rng);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
@@ -401,8 +358,8 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeUnichromGenome();
 	// testCase_Garg2019();
 	// testCase_Bader2001();
-	testCase_Hannehalli1999_Fig4a(rng);
-	// testCase_Hannehalli1999_Fig4b(rng);
+	// testCase_Hannehalli1999_Fig4a(rng); // --> work: OK
+	testCase_Hannehalli1999_Fig4b(rng); // --> work: OK
 	// testCase_Bergeron2005(rng);
 
 	// testCase_SortOrientedComponent(20);

@@ -211,13 +211,10 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 		}
 		// Merge two non-consecutive unoriented components with one reversal.
 		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
-		if(debug) std::cout << " [Split last component] Reversal: (" << rev.g_beg << " " << rev.g_end << "]" << std::endl;
+		if(debug) std::cout << "[Split last component] Reversal: (" << rev.g_beg << " " << rev.g_end << "]" << std::endl;
 		applyReversal(genperm, rev.g_beg, rev.g_end);
 		genperm.printBlocks();
-
-		// Add reversal to the list but adjusting gene labels so they match 
-		// the gene labels originally passed (before permutation was extended).
-		rev.g_beg -= 1; rev.g_end -= 1; rev.g_beg_next -= 1; rev.g_end_next -= 1;
+		// Labels correspond to extended signed permutation.
 		reversals.emplace_back(rev);
 	}
 	return reversals;

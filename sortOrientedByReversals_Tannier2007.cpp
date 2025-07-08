@@ -20,6 +20,7 @@
 #include <list>
 #include <vector>
 #include <numeric>   // iota
+#include <unordered_set>
 #include <cmath> 
 #include <string>    // convert input args (string to int)
 #include <utility>   // move, pair
@@ -148,8 +149,7 @@ Reversal GenomeSort::getReversal(Node<BlockTree>* node) const {
 		}
 		g_beg = g_beg->block->getPrevGene(g_beg);
 		g_end = g_end->block->getPrevGene(g_end);
-	}
-	
+	}	
 	// Information needed to apply a reversal and also to undo it later if needed.
 	const int g_beg_id  = (g_beg->block->reversed == g_beg->reversed) ? g_beg->id : -g_beg->id;
 	const int g_end_id  = (g_end->block->reversed == g_end->reversed) ? g_end->id : -g_end->id;
@@ -159,11 +159,11 @@ Reversal GenomeSort::getReversal(Node<BlockTree>* node) const {
 	if(!g_end_isLast){gene_next = g_end->block->getNextGene(g_end);}
 	const int g_end_next_id = (!g_end_isLast) ? ((gene_next->block->reversed == gene_next->reversed) ? gene_next->id : -gene_next->id) : -1;
 	// std::cout << "\n\n[getReversal] " << g_beg_id << " " << g_end_id << " " << g_beg_next_id << " " << g_end_next_id << " " << std::endl;
-	return Reversal(g_beg_id, g_end_id, g_beg_next_id, g_end_next_id); // std::pair{g_beg, g_end};
+	return Reversal(node->gene.id,g_beg_id, g_end_id, g_beg_next_id, g_end_next_id); // std::pair{g_beg, g_end};
 }
 
 std::vector<Node<BlockTree>*> GenomeSort::getNewSolvedAdjacencies(Reversal rev){
-	std::vector<int> candidates = {std::abs(rev.g_beg), std::abs(rev.g_end), std::abs(rev.g_beg_next), std::abs(rev.g_end_next)};
+	std::unordered_set<int> candidates = {std::abs(rev.g_beg), std::abs(rev.g_end), std::abs(rev.g_beg_next), std::abs(rev.g_end_next)};
 	std::vector<Node<BlockTree>*> solvedAdj;
 	for(int const &g_id : candidates) {
 		// std::cout << "\t[getNewSolvedAdjacencies] Candidate : " << g_id << std::endl;
@@ -274,11 +274,7 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 
 		// s1 <- s1 + [new arc].
 		s1.push_back(rev);
-
-		// Check if the first element s2 is oriented.
-		// If not oriented, go one step back.
-		// Apparently this case only happens when the algorithm is about to end.
-
+				
 		// Get another unused oriented arc.
 		safeReversal = getUnusedOriented();
 
@@ -286,12 +282,26 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 		if(hasUnused()){
 			// while current permutation does not have unused oriented arc.
 			while(safeReversal == nullptr){
+				if (debug) {std::cout << "Undoing reversal (no safe reversals)..." << std::endl;}
 				// Undo reversal.
 				applyReversal(rev.g_beg, rev.g_beg_next);
 				rev = s1.back();
 				s2.push_front(rev); // s2 <- [new arc] + s2
 				s1.pop_back();      // s1 <- s1 - [new arc]
 				safeReversal = getUnusedOriented();
+			}
+		} else {
+			// Check if the first element of s2 is oriented.
+			// If not oriented, go one step back.
+			// Apparently this case only happens when the algorithm is about to end.
+			// Check if first node of s2 is oriented.
+			if ((!s2.empty()) && (!nodes[s2.front().g_arc-1].getOrientation())){
+				if (debug) {std::cout << "Undoing reversal (end of method)..." << std::endl;}
+				// Either the last element of s1 should be popped 
+				// or the first element of s2 (it makes no difference).
+				// Undo reversal.
+				applyReversal(rev.g_beg, rev.g_beg_next);
+				s1.pop_back(); // s1 <- s1 - [new arc]
 			}
 		}
 	}

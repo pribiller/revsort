@@ -32,11 +32,15 @@
  *******************************************************/
 class Reversal {
 public:
+	int g_arc{-1};  // It indicates which of the four saved genes was supposed to be sorted after the reversal.
 	int g_beg;  // Gene i.
 	int g_end;  // Gene i+1.
 	int g_beg_next; // Current gene after gene i.
 	int g_end_next; // Current gene after gene i+1.
-	Reversal(const int start, const int next_ideal, const int next_cur, const int next_end):g_beg(start),g_end(next_ideal),g_beg_next(next_cur),g_end_next(next_end){
+	Reversal(const int g_beg, const int g_end, const int g_beg_next, const int g_end_next):g_beg(g_beg),g_end(g_end),g_beg_next(g_beg_next),g_end_next(g_end_next){
+
+	}
+	Reversal(const int g_arc, const int g_beg, const int g_end, const int g_beg_next, const int g_end_next):g_arc(g_arc),g_beg(g_beg),g_end(g_end),g_beg_next(g_beg_next),g_end_next(g_end_next){
 
 	}
 };
