@@ -89,6 +89,8 @@ protected:
 	
 public:
 	
+	bool debug{false};
+
 	std::vector<int> perm;   // pos i stores a gene extremity.
 	std::vector<int> idxs;   // pos i stores the current position of gene extremity i in the permutation.
 	std::vector<int> cycles; // pos i stores the cycle id that gene extremity i belongs.
@@ -96,10 +98,10 @@ public:
 	std::vector<Cycle> forest; // Store all cycles in the breakpoint graph, one element per cycle.
 	std::list<int> rootList;   // Store all roots in the overlap (forest) graph, one element per root.
 
-	ConnectedComponents(const std::vector<int> unsignedExtPerm):perm(unsignedExtPerm),idxs(perm.size()),cycles(perm.size(),-1){
-		printUnsignedExtPerm();
+	ConnectedComponents(const std::vector<int> unsignedExtPerm, bool debug=false):perm(unsignedExtPerm),idxs(perm.size()),cycles(perm.size(),-1),debug(debug){
+		if(debug){printUnsignedExtPerm();}
 		findConnectedComponents();
-		printComponents();
+		if(debug){printComponents();}
 	}
 
 	void printComponent(const Cycle& comp, std::string indent, const int& n, const std::vector<Cycle>& forest) const;

@@ -34,8 +34,6 @@
 #include <utility>   // move, pair
 #include <algorithm> // sort, swap
 
-#include "findComponents_Bader2001.hpp"
-#include "reversal.hpp"
 #include "solveUnoriented_HannenhalliPevzner1999.hpp"
 
 /* It returns a sequence of elements that appear in unoriented 

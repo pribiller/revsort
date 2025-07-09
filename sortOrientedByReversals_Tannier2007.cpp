@@ -29,9 +29,6 @@
 #include <deque>
 #include <iterator>  // reverse_iterator
 
-#include "genomePermutation_KaplanVerbin2003.hpp"
-#include "reversalBST_KaplanVerbin2003.hpp"
-#include "reversal.hpp"
 #include "sortOrientedByReversals_Tannier2007.hpp"
 
 /*******************************************************

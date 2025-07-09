@@ -41,45 +41,13 @@
 *******************************************************/
 
 // Creates a random permutation of [begElem]..n+[begElem].
-std::vector<int> createRandomPermutation(std::mt19937& rng, const int n, int begElem=1) {
-	// Create a vector with integers from 1 to n
-	std::vector<int> permutation(n,begElem);
-	for (int i = 0; i < n; ++i) {permutation[i] += i;}
-	// Shuffle the vector to create a random permutation.
-	std::shuffle(permutation.begin(), permutation.end(), rng);
-	return permutation;
-}
+std::vector<int> createRandomPermutation(std::mt19937& rng, const int n, int begElem=1);
 
 // Creates a vector of boolean with chance [probRev] of being true and 1-[probRev] of being false.
-std::vector<bool> createRandomSigns(std::mt19937& rng, const int n, const double probRev) {
-	if ((probRev < 0) || (probRev > 1)){
-		std::cout << "ERROR! Probability of a reversed gene must be a value in the range [0, 1]. Value found=" << probRev << "\nProgram is aborting." << std::endl;
-		exit(1);
-	}
-	std::uniform_real_distribution<> distr(0.0, 1.0); // Distribution for probability
-	// Create a vector with integers from 1 to n
-	std::vector<bool> signs(n);
-	for (int i = 0; i < n; ++i) {signs[i] = (distr(rng) < probRev);}
-	return signs;
-}
+std::vector<bool> createRandomSigns(std::mt19937& rng, const int n, const double probRev);
 
 // Split n into m bins.
-std::vector<int> createRandomPartition(std::mt19937& rng, int n, const int m) {
-	if(n < m) {
-		std::cout << "ERROR! There are more partitions than elements. Values found: elements(n)=" << n << "; partitions(m)=" << m << "\nProgram is aborting." << std::endl;
-		exit(1);
-	}
-	// Every partition has at least one element.
-	std::vector<int> partitions(m, 1);
-	n = n - m;
-	// Distribute remaining elements in a random way.
-	if(n > 0){
-		// Uniform distribution on the closed interval [1,m].
-		std::uniform_int_distribution distr(0, m-1); 
-		for (int i = 0; i < n; ++i) {partitions[distr(rng)] += 1;}
-	}
-	return partitions;
-}
+std::vector<int> createRandomPartition(std::mt19937& rng, int n, const int m);
 
 /*******************************************************
  *  Genome data structure.
