@@ -135,7 +135,7 @@ void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>
 		// Sort component.
 		std::cout << "Sort permutation..." << std::endl;
 		GenomeSort genomeSort = GenomeSort(perm);
-		// genomeSort.debug = true;
+		genomeSort.debug = true;
 		std::deque<Reversal> reversalsPerComp = genomeSort.sortByReversals();
 		// Apply reversals to the permutation.
 		std::cout << "Save reversals..." << std::endl;	
@@ -316,22 +316,7 @@ void testCase_Bergeron2005(std::mt19937& rng){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005)\n";
-	std::cout << "Genome A -- Original:\n";
-	genome_A.printOriginalGenome();
-	std::cout << "Genome A -- Internal representation:\n";
-	genome_A.printGenome();
-	
-	std::cout << "Genome B -- Original:\n";
-	genome_B.printOriginalGenome();
-	std::cout << "Genome B -- Internal representation:\n";
-	genome_B.printGenome();
-
-	// Find connected components.
-	// ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
-
-	// Transform unoriented components into oriented components using the minimum number of reversals.
-	// UnorientedComponents comps_unoriented = UnorientedComponents(genome_B.getExtendedGenome(), comps);
-	// std::vector<Reversal> reversals = comps_unoriented.clearUnorientedComponents(rng);
+	testCase_generalSort(genome_A, genome_B, rng);
 }
 
 int main(int argc, char* argv[]) {
@@ -359,8 +344,8 @@ int main(int argc, char* argv[]) {
 	// testCase_Garg2019();
 	// testCase_Bader2001();
 	// testCase_Hannehalli1999_Fig4a(rng); // --> work: OK
-	testCase_Hannehalli1999_Fig4b(rng); // --> work: OK
-	// testCase_Bergeron2005(rng);
+	// testCase_Hannehalli1999_Fig4b(rng); // --> work: OK
+	testCase_Bergeron2005(rng); // --> work: OK
 
 	// testCase_SortOrientedComponent(20);
 	// testCase_Tannier2007();
