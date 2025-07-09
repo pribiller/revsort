@@ -90,14 +90,18 @@ std::vector<int> UnorientedComponents::findHurdles() {
 	std::vector<std::pair<int,int>> sortedUnorientedElems = getSortedUnorientedElements();
 	// Print sorted unoriented elements .
 	if(debug){
-		std::cout << "\nUnoriented elements = " << sortedUnorientedElems.size() << std::endl;
+		std::cout << std::endl << "Unoriented elements = " << sortedUnorientedElems.size() << std::endl;
 		for (std::pair<int, int> const& elem : sortedUnorientedElems) {
 			std::cout << elem.first << "[" << elem.second << "] ";
 		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 	// Find hurdles.
 	std::vector<int> hurdles;
+	if (sortedUnorientedElems.size() == 0) {
+		if(debug){std::cout << std::endl << "Hurdles = 0 (no unoriented components)" << std::endl;}
+		return hurdles;
+	} 
 	int current_idx =  0;
 	int count_last  = -1;
 	const int root_idx_last = sortedUnorientedElems[sortedUnorientedElems.size()-1].second;
@@ -155,7 +159,7 @@ std::vector<int> UnorientedComponents::findHurdles() {
 	}
 	// Print hurdles sorted by rightmost element.
 	if(debug){
-		std::cout << "\nHurdles = " << hurdles.size() << std::endl;
+		std::cout << std::endl << "Hurdles = " << hurdles.size() << std::endl;
 		for (int const& root_idx : hurdles) {
 			std::cout << ">Component max=" << comps.forest[root_idx].max << std::endl;
 			comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
@@ -172,6 +176,7 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 	// List of reversals to transform *all* unoriented components into oriented ones.
 	std::vector<Reversal> reversals;
 	std::vector<int> hurdles = findHurdles();
+	if(hurdles.size() == 0){return reversals;}
 	
 	// Apply minimum number of reversals to transform unoriented 
 	// components into oriented components.

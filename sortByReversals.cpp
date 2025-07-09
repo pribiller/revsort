@@ -128,6 +128,7 @@ void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>
 	for(const int& root_idx: comps.rootList){
 		comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
 		std::unordered_map<int,std::pair<int,int>> newlabels_map;
+		// Permutation **must** start at 1: [1 2 .. gene]
 		std::vector<int> perm = genperm.getExtendedPerm(comps.forest[root_idx].genes,newlabels_map);
 		std::cout << "\n\nExtended permutation: " << std::endl;
 		for(const int& g: perm){std::cout << g << "[" << newlabels_map[std::abs(g)].first << "," << newlabels_map[std::abs(g)].second << "] ";}
@@ -206,7 +207,9 @@ void testCase_MakeUnichromGenome(){
 
 // Example used in the paper from Garg et al. (2019).
 // {-2,5,4,-1,3,6,9,-7,-8}
-void testCase_Garg2019(){
+// Reversal distance = 5 reversals. 
+// Details for Reversal distance (d) computation: 10 breakpoints (b); 5 cycles(c); 0 hurdles(h): d = b-c+h (+1 if fortress).
+void testCase_Garg2019(std::mt19937& rng){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false};
 
@@ -217,9 +220,7 @@ void testCase_Garg2019(){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
-	printInputGenomes(genome_A,genome_B);
-
-	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
+	testCase_generalSort(genome_A, genome_B, rng);
 }
 
 // Example used in the paper from Bader et al. (2001).
@@ -254,15 +255,18 @@ void testCase_SortOrientedComponent(int const n) {
 
 // Example used in the paper from Tannier et al. (2007) (Figure 4).
 // {0, -1, 3, 2, 4}
-void testCase_Tannier2007() {
-	// Permutation **must** start at 1: [1 2 .. gene]
-	std::vector<int> perm{1, -2, 4, 3, 5};
-	GenomeSort genomeSort = GenomeSort(perm);
-	std::deque<Reversal> allrev = genomeSort.sortByReversals();
-	std::cout << "Sorting by reversals---Solution" << std::endl;
-	for(Reversal const &rev : allrev) {
-		std::cout << "(" << rev.g_beg << ", " << rev.g_end << "]" << std::endl;
-	}
+void testCase_Tannier2007_Figure4(std::mt19937& rng){
+	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5};
+	std::vector<bool> genome_orientation_A = {false, false, false, false, false};
+
+	std::vector<int>  genome_multichrom_B  = {1, 2, 4, 3, 5};
+	std::vector<bool> genome_orientation_B = {false, true, false, false, false};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Example from Tannier et al. (2007) (Figure 4)\n";
+	testCase_generalSort(genome_A, genome_B, rng);
 }
 
 /*******************************************************
@@ -356,16 +360,17 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeRandomPerm(rng,nbgenes,nbchrom,probRev);
 	// testCase_MakeMultichromGenome();
 	// testCase_MakeUnichromGenome();
-	// testCase_Garg2019();
+
+	// testCase_Garg2019(rng);  // --> work: OK
 	// testCase_Bader2001(rng); // --> work: OK
 	// testCase_Hannehalli1999_Fig4a(rng);   // --> work: OK
 	// testCase_Hannehalli1999_Fig4b(rng);   // --> work: OK
 	// testCase_Bergeron2005_Sec10_4_2(rng); // --> work: OK
 	// testCase_Bergeron2005_Fig10_6(rng);   // --> work: OK
+	testCase_Tannier2007_Figure4(rng);
 
 	// testCase_SortOrientedComponent(20);
-	// testCase_Tannier2007();
-
+	
 	std::cout << "Bye bye\n";
 	return 0;
 }
