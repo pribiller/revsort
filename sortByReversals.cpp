@@ -129,7 +129,7 @@ void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>
 		comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
 		std::unordered_map<int,std::pair<int,int>> newlabels_map;
 		std::vector<int> perm = genperm.getExtendedPerm(comps.forest[root_idx].genes,newlabels_map);
-		std::cout << "Extended permutation: " << std::endl;
+		std::cout << "\n\nExtended permutation: " << std::endl;
 		for(const int& g: perm){std::cout << g << "[" << newlabels_map[std::abs(g)].first << "," << newlabels_map[std::abs(g)].second << "] ";}
 		std::cout << std::endl;
 		// Sort component.
@@ -224,7 +224,7 @@ void testCase_Garg2019(){
 
 // Example used in the paper from Bader et al. (2001).
 // (+3, +9, −7, +5, −10, +8, +4, −6, +11, +2, +1)
-void testCase_Bader2001(){
+void testCase_Bader2001(std::mt19937& rng){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false, false, false};
 
@@ -235,9 +235,7 @@ void testCase_Bader2001(){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Bader et al.(2001)\n";
-	printInputGenomes(genome_A,genome_B);
-
-	ConnectedComponents comps = ConnectedComponents(genome_B.getUnsignedExtendedPerm());
+	testCase_generalSort(genome_A, genome_B, rng);
 }
 
 /*******************************************************
@@ -305,7 +303,7 @@ void testCase_Hannehalli1999_Fig4b(std::mt19937& rng){
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
 // {0, 2, 1, 3, 5, 7, 6, 8, 9, 4, 10}
-void testCase_Bergeron2005(std::mt19937& rng){
+void testCase_Bergeron2005_Sec10_4_2(std::mt19937& rng){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false};
 
@@ -315,7 +313,24 @@ void testCase_Bergeron2005(std::mt19937& rng){
 	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
-	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005)\n";
+	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (Section 10.4.2)\n";
+	testCase_generalSort(genome_A, genome_B, rng);
+}
+
+// Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Figure 10.6).
+// P_2 = {0, -3, 1, 2, 4, 6, 5, 7, -15, -13, -14, -12, -10, -11, -9, 8, 16}
+// d(P_2) = 13.
+void testCase_Bergeron2005_Fig10_6(std::mt19937& rng){
+	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+
+	std::vector<int>  genome_multichrom_B  = {3, 1, 2, 4, 6, 5, 7, 15, 13, 14, 12, 10, 11, 9, 8};
+	std::vector<bool> genome_orientation_B = {true, false, false, false, false, false, false, true, true, true, true, true, true, true, false};
+
+	GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);
+	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
+
+	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (permutation P_2, Figure 10.6)\n";
 	testCase_generalSort(genome_A, genome_B, rng);
 }
 
@@ -342,10 +357,11 @@ int main(int argc, char* argv[]) {
 	// testCase_MakeMultichromGenome();
 	// testCase_MakeUnichromGenome();
 	// testCase_Garg2019();
-	// testCase_Bader2001();
-	// testCase_Hannehalli1999_Fig4a(rng); // --> work: OK
-	// testCase_Hannehalli1999_Fig4b(rng); // --> work: OK
-	testCase_Bergeron2005(rng); // --> work: OK
+	// testCase_Bader2001(rng); // --> work: OK
+	// testCase_Hannehalli1999_Fig4a(rng);   // --> work: OK
+	// testCase_Hannehalli1999_Fig4b(rng);   // --> work: OK
+	// testCase_Bergeron2005_Sec10_4_2(rng); // --> work: OK
+	// testCase_Bergeron2005_Fig10_6(rng);   // --> work: OK
 
 	// testCase_SortOrientedComponent(20);
 	// testCase_Tannier2007();

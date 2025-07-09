@@ -284,33 +284,6 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 			s2.pop_front();
 		}
 
-		// Check if the first element of s2 is oriented.
-		// If not oriented, either the last element of s1 should be popped 
-		// or the first element of s2 (supposedly, it makes no difference).
-		// I tried to first implement by popping the last element of s1,
-		// but in some cases the algorithm does not work properly (i.e, it reaches
-		// the initial state where s1 is empty but there are no unused oriented 
-		// arcs available and the genome is not sorted).
-		// This case can happen at any point of the run, not only in the end:
-		// - in testCase_Bergeron2005 this case occurs before the end;
-		// - in testCase_Hannehalli1999_Fig4b this case occurs in the end.
-		// while((!s2.empty()) && (!nodes[s2.front().g_arc-1].getOrientation())){
-		// 	if (debug) {std::cout << "\nRemoving reversal from s2 (reversal is equivalente to last reversal applied)..." << std::endl;}
-		// 	// s2 <- -[new arc] +s2 
-		// 	s2.pop_front();
-		// }
-
-		// WARNING: This implementation does not work for the case testCase_Bergeron2005.
-		// if ((!s2.empty()) && (!nodes[s2.front().g_arc-1].getOrientation())){
-		// 	if (debug) {std::cout << "Undoing reversal (reversal is equivalente to another reversal)..." << std::endl;}
-		// 	// Either the last element of s1 should be popped 
-		// 	// or the first element of s2 (it makes no difference).
-		// 	// Undo reversal.
-		// 	applyReversal(rev.g_beg, rev.g_beg_next);
-		// 	s1.pop_back(); // s1 <- s1 - [new arc]
-		// 	rev = s1.back();
-		// }
-
 		// Get another unused oriented arc.
 		safeReversal = getUnusedOriented();
 
@@ -318,10 +291,10 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 		if(hasUnused()){
 			// while current permutation does not have unused oriented arc.
 			while(safeReversal == nullptr){
-				if (debug) {std::cout << "Undoing reversal (no safe reversals)..." << std::endl;}
+				if (debug) {std::cout << std::endl << "Undoing reversal (no safe reversals)... " << rev.printReversal() << std::endl;}
 				// Undo reversal.
-				applyReversal(rev.g_beg, rev.g_beg_next);
 				rev = s1.back();
+				applyReversal(rev.g_beg, rev.g_beg_next);
 				s2.push_front(rev); // s2 <- [new arc] + s2
 				s1.pop_back();      // s1 <- s1 - [new arc]
 				safeReversal = getUnusedOriented();

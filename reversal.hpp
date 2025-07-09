@@ -43,6 +43,9 @@ public:
 	Reversal(const int g_arc, const int g_beg, const int g_end, const int g_beg_next, const int g_end_next):g_arc(g_arc),g_beg(g_beg),g_end(g_end),g_beg_next(g_beg_next),g_end_next(g_end_next){
 
 	}
+	inline std::string printReversal() const {
+		return "arc: " + std::to_string(g_arc) + " (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] ; Undo: " + " (" + std::to_string(g_beg) + ", " + std::to_string(g_beg_next) + "]";
+	}
 };
 
 // Apply reversal (g_beg, g_end].
