@@ -71,18 +71,33 @@ void SortByReversals::printInputGenomes(){
 	genome_B.printGenome();
 }
 
-void SortByReversals::printSolution(){
-	std::cout << "\nSorting by reversals - Solution" << std::endl;
-	GenomePermutation<BlockSimple> genperm_final(genome_B.getExtendedGenome());
-	printGenome(genperm_final.getExtendedPerm());
-	for(Reversal const &rev : reversals) {
-		std::cout << "(" << rev.g_beg << "," << rev.g_end << "]" << std::endl;
-		applyReversal(genperm_final, rev.g_beg, rev.g_end);
-		printGenome(genperm_final.getExtendedPerm());
-	}
+bool SortByReversals::printSolution(){
+	bool debug_prev = debug;
+	debug = true;
+	bool is_correct = checkSolution();
+	debug = debug_prev;
+	return is_correct;
 }
 
-std::vector<Reversal> SortByReversals::sort(std::mt19937& rng){
+// Check if final permutation is equal to the identity permutation.
+bool SortByReversals::checkSolution(){
+	if(debug){std::cout << "\nSorting by reversals - Solution" << std::endl;}
+	GenomePermutation<BlockSimple> genperm_final(genome_B.getExtendedGenome());
+	if(debug){printGenome(genperm_final.getExtendedPerm());}
+	for(Reversal const &rev : reversals) {
+		if(debug){std::cout << "(" << rev.g_beg << "," << rev.g_end << "]" << std::endl;}
+		applyReversal(genperm_final, rev.g_beg, rev.g_end);
+		if(debug){printGenome(genperm_final.getExtendedPerm());}
+	}
+	return (genperm_final.getBreakpoints() == 0);
+}
+
+/* Sort a unichromosomal genome by reversals.
+   It returns ``true`` if the input permutation is 
+   properly sorted in the end, and ``false`` if 
+   something went wrong.
+*/
+void SortByReversals::sort(std::mt19937& rng){
 	// Part I: Unoriented components -> oriented components.
 	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
 	// Find connected components.
@@ -93,7 +108,6 @@ std::vector<Reversal> SortByReversals::sort(std::mt19937& rng){
 	UnorientedComponents comps_unoriented = UnorientedComponents(genperm, comps);
 	comps_unoriented.debug = debug;
 	reversals = comps_unoriented.clearUnorientedComponents(rng);
-
 	// For debugging.
 	if(debug){
 		std::cout << "Genome B -- Oriented unextended:\n";
@@ -103,7 +117,6 @@ std::vector<Reversal> SortByReversals::sort(std::mt19937& rng){
 		std::cout << "Genome B -- Unsigned extended:\n";
 		printGenome(genperm.getUnsignedExtendedPerm());
 	}
-
 	// Part II: Sort oriented components.
 	// Find connected components again (they should be all oriented now).
 	comps = ConnectedComponents(genperm.getUnsignedExtendedPerm(),debug);
@@ -136,7 +149,4 @@ std::vector<Reversal> SortByReversals::sort(std::mt19937& rng){
 		}
 		genperm.clearBlockStatus();
 	}
-
-	if(debug){printSolution();}
-	return reversals;
 }

@@ -32,7 +32,11 @@
 void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
 	SortByReversals sortGenome(genome_A,genome_B,debug);
 	sortGenome.sort(rng);
-	if(!debug){sortGenome.printSolution();}
+	bool correctSolution = sortGenome.printSolution();
+	if(!correctSolution){
+		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
+		exit(1);
+	}
 }
 
 /*******************************************************

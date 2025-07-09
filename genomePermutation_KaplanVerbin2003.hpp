@@ -188,6 +188,8 @@ public:
 	std::vector<int> getUnextendedPerm() const;
 	std::vector<int> getUnsignedExtendedPerm() const;
 
+	int getBreakpoints() const;
+
 	inline typename std::list<BlockT>::iterator& getBlock(const int gene){return genes[gene-1]->block;} 
 
 	/* Makes sure that the size of the block where gene g belongs
@@ -390,6 +392,14 @@ std::vector<int> GenomePermutation<BlockT>::getUnsignedExtendedPerm() const {
 		}
 	}
 	return unsignedExtPerm;
+}
+
+template <typename BlockT>
+int GenomePermutation<BlockT>::getBreakpoints() const{
+	int breakpoints = 0; 
+	std::vector<int> perm = getExtendedPerm();
+	for(int i=0;i<perm.size()-1;++i){if((perm[i+1]-perm[i])!=1){++breakpoints;}}
+	return breakpoints;
 }
 
 /* Adds a new block after the specified position. 

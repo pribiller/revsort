@@ -74,7 +74,7 @@ public:
 	GenomeMultichrom<int>& genome_A;
 	GenomeMultichrom<int>& genome_B;
 
-	std::vector<Reversal> reversals;
+	std::vector<Reversal> reversals; // It saves all reversals in the solution.
 
 	bool debug{false};
 
@@ -84,8 +84,14 @@ public:
 
 	void printGenome(std::vector<int> perm);
 	void printInputGenomes();
-	void printSolution();
+	bool printSolution();
 
-	std::vector<Reversal> sort(std::mt19937& rng);
+	// It ``replays`` the sorting scenario, starting with the input 
+	// permutation and applying each reversal from the list ``reversals``.
+	// If the final permutation is equal to the identity permutation,
+	// it returns true; otherwise false.
+	bool checkSolution();
+
+	void sort(std::mt19937& rng);
 
 };
