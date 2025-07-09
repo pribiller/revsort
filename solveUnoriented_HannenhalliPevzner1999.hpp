@@ -60,6 +60,8 @@ public:
 	GenomePermutation<BlockSimple>& genperm;
 	bool debug{false};
 
+	int nb_hurdles{0};
+
 	UnorientedComponents(GenomePermutation<BlockSimple>& genperm, ConnectedComponents& comps):genperm(genperm),comps(comps){
 
 	}

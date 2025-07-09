@@ -78,6 +78,15 @@ public:
 
 	bool debug{false};
 
+	// Some stats.
+	int nb_breakpoints{0};
+	int nb_cycles{0};
+	int nb_cycles_nontrivial{0};
+	int nb_components{0};
+	int nb_components_oriented{0};
+	int nb_components_unoriented{0};
+	int nb_hurdles{0};
+
 	SortByReversals(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, bool debug=false):genome_A(genome_A),genome_B(genome_B),debug(debug){
 		if(debug){printInputGenomes();}
 	}
@@ -85,6 +94,7 @@ public:
 	void printGenome(std::vector<int> perm);
 	void printInputGenomes();
 	bool printSolution();
+	bool printStats();
 
 	// It ``replays`` the sorting scenario, starting with the input 
 	// permutation and applying each reversal from the list ``reversals``.

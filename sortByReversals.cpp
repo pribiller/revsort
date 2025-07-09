@@ -79,9 +79,24 @@ bool SortByReversals::printSolution(){
 	return is_correct;
 }
 
+bool SortByReversals::printStats(){
+	std::cout << std::endl << "Some stats: " << std::endl;
+	std::cout << "- Breakpoints (b) = " << nb_breakpoints << std::endl;
+	std::cout << "- Non-trivial cycles (c) = " << nb_cycles_nontrivial << "; total (including trivial cycles): " << nb_cycles << std::endl;
+	std::cout << "- Hurdles (h) = " << nb_hurdles << std::endl;
+	std::cout << "- Components = total: " << nb_components << "; oriented: " << nb_components_oriented << "; unoriented: " << nb_components_unoriented << "." << std::endl;
+
+	int const exp_distance = nb_breakpoints - nb_cycles_nontrivial + nb_hurdles;
+	int const obs_distance = reversals.size();
+	
+	std::cout << "- Reversal distance (d) = expected: " << exp_distance << " reversals (or " << (exp_distance+1) << " if there is a fortress); found: " << obs_distance << " reversals." << std::endl;
+	const bool is_correct = ((obs_distance-exp_distance) < 2);
+	return is_correct;
+}
+
 // Check if final permutation is equal to the identity permutation.
 bool SortByReversals::checkSolution(){
-	if(debug){std::cout << "\nSorting by reversals - Solution" << std::endl;}
+	if(debug){std::cout << "\nSorting by reversals - Solution (" << reversals.size() << " reversals)" << std::endl;}
 	GenomePermutation<BlockSimple> genperm_final(genome_B.getExtendedGenome());
 	if(debug){printGenome(genperm_final.getExtendedPerm());}
 	for(Reversal const &rev : reversals) {
@@ -100,14 +115,30 @@ bool SortByReversals::checkSolution(){
 void SortByReversals::sort(std::mt19937& rng){
 	// Part I: Unoriented components -> oriented components.
 	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
+	nb_breakpoints = genperm.getBreakpoints();
 	// Find connected components.
 	if(debug){std::cout << "Find connected components..." << std::endl << std::endl;}
 	ConnectedComponents comps = ConnectedComponents(genperm.getUnsignedExtendedPerm(),debug);
+	nb_components=comps.rootList.size();
+	nb_cycles=comps.forest.size();
+	// Stats on components.
+	nb_cycles_nontrivial     = nb_cycles;
+	nb_components_oriented   = 0;
+	nb_components_unoriented = 0;
+	for (int const& root_idx : comps.rootList) {
+		if(comps.forest[root_idx].oriented){
+			++nb_components_oriented;
+		} else {
+			++nb_components_unoriented;
+		}
+		if(comps.forest[root_idx].genes.size() == 2){--nb_cycles_nontrivial;}
+	}
 	// Transform unoriented components into oriented components using the minimum number of reversals.
 	if(debug){std::cout << "Transform unoriented components into oriented components..." << std::endl;}
 	UnorientedComponents comps_unoriented = UnorientedComponents(genperm, comps);
 	comps_unoriented.debug = debug;
-	reversals = comps_unoriented.clearUnorientedComponents(rng);
+	reversals  = comps_unoriented.clearUnorientedComponents(rng);
+	nb_hurdles = comps_unoriented.nb_hurdles;
 	// For debugging.
 	if(debug){
 		std::cout << "Genome B -- Oriented unextended:\n";

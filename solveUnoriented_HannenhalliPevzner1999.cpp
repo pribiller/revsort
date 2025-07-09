@@ -174,7 +174,8 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 	// List of reversals to transform *all* unoriented components into oriented ones.
 	std::vector<Reversal> reversals;
 	std::vector<int> hurdles = findHurdles();
-	if(hurdles.size() == 0){return reversals;}
+	nb_hurdles = hurdles.size();
+	if(nb_hurdles == 0){return reversals;}
 	
 	// Apply minimum number of reversals to transform unoriented 
 	// components into oriented components.

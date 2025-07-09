@@ -32,7 +32,14 @@
 void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
 	SortByReversals sortGenome(genome_A,genome_B,debug);
 	sortGenome.sort(rng);
+	// [Check 1] Check if the sorting scenario ends with the identity permutation (i.e. no breakpoints).
 	bool correctSolution = sortGenome.printSolution();
+	if(!correctSolution){
+		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
+		exit(1);
+	}
+	// [Check 2] Check if the number of reversals is minimal.
+	correctSolution = sortGenome.printStats();
 	if(!correctSolution){
 		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
 		exit(1);
