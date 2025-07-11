@@ -136,7 +136,7 @@ void ConnectedComponents::findConnectedComponents() {
 			// Find the cycle that is the root of the 
 			// connected component containing element i.
 			int root_idx = cycles[i]; // Index of cycle i in the list ``forest``.
-			while(forest[root_idx].parent > 0){root_idx = forest[root_idx].parent;}
+			while(forest[root_idx].parent >= 0){root_idx = forest[root_idx].parent;}
 			// std::cout << " " << forest[root_idx].printCycle() << std::endl;
 
 			// Merge cycles that overlap.
@@ -152,7 +152,6 @@ void ConnectedComponents::findConnectedComponents() {
 				forest[stack.top()].parent = root_idx;
 				forest[root_idx].children.emplace_back(forest[stack.top()].id);
 				forest[root_idx].genes.insert(forest[root_idx].genes.end(), forest[stack.top()].genes.begin(), forest[stack.top()].genes.end());
-
 				// Top of the stack is not a root anymore. Delete root.
 				rootList.erase(forest[stack.top()].root);
 				// Remove top of the stack.

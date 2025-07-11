@@ -310,7 +310,7 @@ std::pair<int,int> GenomePermutation<BlockT>::getGeneExtremities(const int g_lab
 // only of gene extremities specified in the input.
 template <typename BlockT>
 std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& gene_extremities, std::unordered_map<int,std::pair<int,int>>& newlabels_map) {
-	std::vector<int> perm(gene_extremities.size()/2+1);
+	std::vector<int> perm(gene_extremities.size()/2+1);	
 	// Sort gene extremities by their position in the current permutation.
 	std::unordered_map<int,int> gene_to_pos_map = sortGeneExtremities(gene_extremities);
 
@@ -325,10 +325,8 @@ std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& ge
 	int g_pos   = 0;
 	for (int i=0; i<perm.size()-1; i++) {
 		perm[g_pos] = g_label;
-		
 		// Create map between new gene label and given gene extremities.
 		newlabels_map[std::abs(g_label)] = getGeneExtremities(g_label, g_pos, gene_extremities);
-
 		// std::cout << "i=" << i << ": g_pos=" << g_pos << " / g_label=" << g_label << std::endl;
 		// Move through a gray edge.
 		// A gray edge has its start in an even value and its end in an odd value.	
