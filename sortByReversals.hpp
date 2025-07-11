@@ -101,12 +101,14 @@ public:
 	void printInputGenomes();
 	bool printSolution();
 	bool printStats();
-
+	
 	// It ``replays`` the sorting scenario, starting with the input 
 	// permutation and applying each reversal from the list ``reversals``.
 	// If the final permutation is equal to the identity permutation,
 	// it returns true; otherwise false.
 	bool checkSolution();
+	// Check if number of reversals matches the minimum number expected.
+	bool checkDistance();
 
 	void sort(std::mt19937& rng);
 
