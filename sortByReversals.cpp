@@ -107,6 +107,51 @@ bool SortByReversals::checkSolution(){
 	return (genperm_final.getBreakpoints() == 0);
 }
 
+// TODO: This function is very similar to another function: GenomeSort::getReversal.
+//       Maybe refactoring both in the future?
+Reversal SortByReversals::convertLabels(const Reversal& rev, std::unordered_map<int,std::pair<int,int>>& labels_map, const GenomePermutation<BlockSimple>& genperm){
+	// std::cout << "[convertLabels] Arc: " << rev.g_arc << std::endl;
+	// Check orientation of genes 1 and 2.
+	bool g1_rev   = genperm.isReversed(labels_map[std::abs(rev.g_arc)].first, labels_map[std::abs(rev.g_arc)].second);
+	bool g2_rev   = genperm.isReversed(labels_map[std::abs(rev.g_arc+1)].first, labels_map[std::abs(rev.g_arc+1)].second);
+	// std::cout << "[convertLabels] Is arc reversed? " << (g1_rev ? "T" : "F") << " - Extremities: "<< labels_map[std::abs(rev.g_arc)].first << " and " << labels_map[std::abs(rev.g_arc)].second << std::endl;
+	// std::cout << "[convertLabels] Is arc->next reversed? " << (g2_rev ? "T" : "F") << " - Extremities: "<< labels_map[std::abs(rev.g_arc+1)].first << " and " << labels_map[std::abs(rev.g_arc+1)].second << std::endl;	
+	if(g1_rev==g2_rev){
+		std::cout << "ERROR! Reversal in genes with same orientation: " << rev.printReversal() << ". Program is aborting."<< std::endl;
+		exit(1);
+	}
+	// Check if gene g2 appears before gene g1 in the permutation.
+	bool g1g2_rev = genperm.isReversed(labels_map[std::abs(rev.g_arc)].first, labels_map[std::abs(rev.g_arc+1)].first);
+	int g_beg;
+	int g_end;
+	// Reversal (i, i+1] (normal case).
+	if(!g1_rev){
+		// std::cout << "[convertLabels] Reversal (i, i+1] (normal case): ";
+		// Reversal (g2, g1].
+		if (g1g2_rev) {
+			g_beg = convertLabel(rev.g_arc+1, labels_map, !g2_rev); // Current rightmost extremity depends on the gene orientation.
+			g_end = convertLabel(rev.g_arc,   labels_map, !g1_rev); // Current rightmost extremity depends on the gene orientation.
+		// Reversal (g1, g2].
+		} else {
+			g_beg = convertLabel(rev.g_arc,  labels_map, !g1_rev); // Current rightmost extremity depends on the gene orientation.
+			g_end = convertLabel(rev.g_arc+1,labels_map, !g2_rev); // Current rightmost extremity depends on the gene orientation.
+		}
+	// Reversal [i, i+1) (case needs adjustment).
+	} else {
+		// std::cout << "[convertLabels] Reversal [i, i+1) (case needs adjustment): ";
+		// Convert labels.
+		g_beg = convertLabel(rev.g_arc,  labels_map, g1_rev); // Current leftmost extremity depends on the gene orientation.
+		g_end = convertLabel(rev.g_arc+1,labels_map, g2_rev); // Current leftmost extremity depends on the gene orientation.
+		// Reversal [g1, g2).
+		g_beg = genperm.genes[g_beg-1]->block->getPrevGene(genperm.genes[g_beg-1])->id;
+		g_end = genperm.genes[g_end-1]->block->getPrevGene(genperm.genes[g_end-1])->id;
+		// Reversal [g2, g1).
+		if (g1g2_rev) {std::swap(g_beg,g_end);}
+	}
+	// std::cout << "(" << g_beg << "," << g_end << "]" << std::endl;
+	return Reversal(rev.g_arc, g_beg, g_end, -1, -1);
+}
+
 /* Sort a unichromosomal genome by reversals.
    It returns ``true`` if the input permutation is 
    properly sorted in the end, and ``false`` if 
@@ -170,13 +215,14 @@ void SortByReversals::sort(std::mt19937& rng){
 		std::deque<Reversal> reversalsPerComp = genomeSort.sortByReversals();
 		// Apply reversals to the permutation.
 		if(debug){std::cout << "Save reversals..." << std::endl;}
-		// printGenome(genperm.getExtendedPerm());
+		printGenome(genperm.getExtendedPerm());
 		for(Reversal const &rev : reversalsPerComp) {
-			Reversal rev_ = convertLabels(rev, newlabels_map);
+			Reversal rev_ = convertLabels(rev, newlabels_map, genperm);
+			//convertLabel(rev.g_arc)
 			// std::cout << "(" << rev.g_beg << "{" << rev_.g_beg << "}, " << rev.g_end << "{" << rev_.g_end << "}]" << std::endl;
 			applyReversal(genperm, rev_.g_beg, rev_.g_end);
 			reversals.emplace_back(rev_);
-			// printGenome(genperm.getExtendedPerm());
+			printGenome(genperm.getExtendedPerm());
 		}
 		genperm.clearBlockStatus();
 	}

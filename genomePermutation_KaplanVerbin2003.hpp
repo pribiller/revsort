@@ -186,7 +186,7 @@ public:
 	std::vector<int> getExtendedPerm() const;
 	std::vector<int> getExtendedPerm(std::vector<int>& gene_extremities, std::unordered_map<int,std::pair<int,int>>& newlabels_map);
 	std::vector<int> getUnextendedPerm() const;
-	std::vector<int> getUnsignedExtendedPerm() const;
+	std::vector<int> getUnsignedExtendedPerm() const; // Set of extremities: {0, 1, 2, ..., 2n, 2n+1}
 
 	int getBreakpoints() const;
 
@@ -203,6 +203,21 @@ public:
 	inline bool isLastGene(Gene<BlockT> const &gene) const {
 		return (gene.block->genePosAbs(gene) == n);
 	}
+
+	inline int unsExtToGene(const int g_ext) const {
+		return (int)(std::trunc((g_ext+1)/2)+1);
+	}
+
+	inline bool isReversed(const int gene_id) const {
+		return (genes[gene_id-1]->block->reversed != genes[gene_id-1]->reversed);
+	}
+
+	/* It receives two gene extremities (i.e. two values from the
+	unsigned permutation representation, where a gene i is 
+	represented by (2*i)-1 and 2*i.
+	It returns true if the position of ``g_ext_2`` is smaller 
+	than the position of ``g_ext_1``, and false otherwise. */
+	bool isReversed(const int g_ext_1, const int g_ext_2) const;
 };
 
 /*******************************************************/
@@ -637,5 +652,27 @@ void GenomePermutation<BlockT>::initializeBlocks(const std::vector<int>& perm){
 		// Make a block with the permutation segment.
 		// ``permSegment`` becomes unusable after this point.
 		createNewBlock(pos-currentChunkSize+1,permSegment, blockList.end());
+	}
+}
+
+/* It receives two gene extremities (i.e. two values from the
+unsigned permutation representation, where a gene i is 
+represented by (2*i)-1 and 2*i.
+It returns true if the position of ``g_ext_2`` is smaller 
+than the position of ``g_ext_1``, and false otherwise. */
+template <typename BlockT>
+bool GenomePermutation<BlockT>::isReversed(const int g_ext_1, const int g_ext_2) const {
+	if ((g_ext_1 < 0) || (g_ext_2 < 0)) {return false;}
+	const int gene_1 = unsExtToGene(g_ext_1);
+	const int gene_2 = unsExtToGene(g_ext_2);
+	// Extremities come from the same gene: check gene orientation.
+	// Gene i extremities: 2*i-1 (odd), 2*i (even).
+	if(gene_1 == gene_2){
+		return (((g_ext_1 % 2) == 1) == isReversed(gene_1));
+	// Extremities come from different genes: check their positions in the permutation.
+	} else {
+		const int g_pos_1 = genes[gene_1-1]->block->genePosAbs((*genes[gene_1-1]));
+		const int g_pos_2 = genes[gene_2-1]->block->genePosAbs((*genes[gene_2-1]));
+		return (g_pos_2 < g_pos_1);
 	}
 }

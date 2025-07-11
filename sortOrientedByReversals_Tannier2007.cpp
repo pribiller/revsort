@@ -88,7 +88,7 @@ void GenomeSort::updateTreesAfterReversal(const int g_beg, const int g_end){
 		if ((b.status.find(SPLIT) != std::string::npos) || (b.status.find(CONC) != std::string::npos)) {
 			b.makeTree(nodes); // Make tree from scratch.
 		} else {
-			b.mergeTrees(g_beg, g_end);	
+			b.mergeTrees(g_beg, g_end);
 		}
 	}
 }
@@ -119,8 +119,10 @@ bool GenomeSort::hasUnused() {
 Node<BlockTree>* GenomeSort::getUnusedOriented() {
 	Node<BlockTree>* node = nullptr;
 	for(BlockTree &b : genperm.blockList) {
+		std::cout << "\t> begin " << b.printBlock() << std::endl;
 		node = b.tree.getUnusedOriented();
 		if(node != nullptr){break;}
+		std::cout << "\t> end " << b.printBlock() << std::endl;
 	}
 	return node;
 }
@@ -194,7 +196,7 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	std::list<BlockTree>::iterator reversal_last = genperm.getBlock(g_end);  // this block is the last reversed block.
 	std::list<BlockTree>::iterator reversal_end  = std::next(reversal_last); // this block will not be reversed.
 	for (std::list<BlockTree>::iterator b = reversal_beg; b != reversal_end; ++b) { b->reversed = !(b->reversed); b->status += MUT;}
-	
+
 	// (3) Reverse the order of the blocks between the endpoints of the reversal;
 	const int g_after_beg = reversal_beg->permutationSegment.front().id;
 	const int g_after_end = reversal_end->permutationSegment.front().id;
@@ -276,7 +278,7 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 		// If sorted, either the last element of s1 or the first element of s2 should be popped. 
 		// Supposedly, it makes no difference.
 		while((!s2.empty()) && (nodes[s2.front().g_arc-1].isSorted())){
-			if (debug) {std::cout << "\nRemoving reversal from s2 (reversal is equivalente to last reversal applied)..." << std::endl;}
+			if (debug) {std::cout << "\nRemoving reversal (" << s2.front().g_arc << ") from s2 (reversal is equivalente to last reversal applied)..." << std::endl;}
 			// s2 <- -[new arc] +s2 
 			s2.pop_front();
 		}

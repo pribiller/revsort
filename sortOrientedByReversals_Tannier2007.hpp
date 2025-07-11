@@ -140,20 +140,20 @@ public:
 		} else if (t3.root != nullptr) {
 			// TODO: Depending on tree sizes, get max of one or the min from the other.
 			// std::cout << "[Merge trees] join t1 + t2 + t3 | Block: " << printBlock() << std::endl;
-			// std::cout << "T1 (x <= " << g_beg << ")" << std::endl;
+			// std::cout << "T1+T2 (x <= " << g_end << ")" << std::endl;
 			// tree.printTree();
 			Node<BlockTree>* max_t1 = tree.getGlobalMax();
-			// std::cout << "[Merge trees] Max from T1: (" << max_t1->printNode() << ")" << std::endl;
+			// std::cout << "[Merge trees] Max from T1+T2: (" << max_t1->printNode() << ")" << std::endl;
 			tree.remove(max_t1);
-			// std::cout << "[Merge trees] T1 (x <= " << g_beg << ") after removing (" << max_t1->printNodeDetailed() << ")" << std::endl;
+			// std::cout << "[Merge trees] T1+T2 (x <= " << g_end << ") after removing (" << max_t1->printNodeDetailed() << ")" << std::endl;
 			// tree.printTree();
 			tree.join(max_t1,t3);
+			// std::cout << "[Merge trees] T1+T2+T3" << std::endl;
+			// tree.printTree();
 		}
 		status = OK;
-
 		// std::cout << "[Merge trees] Resulting tree | Block: " << printBlock() << std::endl;
 		// tree.printTree();
-		// exit(0);
 	}
 };
 

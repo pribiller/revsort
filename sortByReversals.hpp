@@ -61,13 +61,19 @@
 class SortByReversals {
 private:
 
+	// Input : gene A with (unsigned) extremities x_1, y_2
+	// Output: gene X or gene Y, depending on which extremity is selected.
 	inline int convertLabel(const int g_label, std::unordered_map<int,std::pair<int,int>>& labels_map, const bool rightmost){
 		return (rightmost == (g_label > 0)) ? (int)(std::trunc((labels_map[std::abs(g_label)].second+1)/2)+1) : (int)(std::trunc((labels_map[std::abs(g_label)].first+1)/2)+1);
 	}
 
-	inline Reversal convertLabels(Reversal rev, std::unordered_map<int,std::pair<int,int>>& labels_map){
-		return Reversal(convertLabel(rev.g_beg,labels_map,true), convertLabel(rev.g_end,labels_map,true), convertLabel(rev.g_beg_next,labels_map,false), convertLabel(rev.g_end_next,labels_map,false));
-	}
+	// inline Reversal convertLabels(Reversal rev, std::unordered_map<int,std::pair<int,int>>& labels_map){
+	// 	return Reversal(convertLabel(rev.g_beg,labels_map,true), convertLabel(rev.g_end,labels_map,true), convertLabel(rev.g_beg_next,labels_map,false), convertLabel(rev.g_end_next,labels_map,false));
+	// }
+
+	// TODO: This function is very similar to another function: GenomeSort::getReversal.
+	//       Maybe refactoring both in the future?
+	Reversal convertLabels(const Reversal& rev, std::unordered_map<int,std::pair<int,int>>& labels_map, const GenomePermutation<BlockSimple>& genperm);
 
 public:
 

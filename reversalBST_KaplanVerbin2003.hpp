@@ -139,7 +139,7 @@ public:
 	}
 
 	inline std::string printNodeDetailed() const {
-		return std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]" + " (" + ((color == RbColor::RED) ? "RED" : "BLACK") + ";BH=" + std::to_string(blackHeight) + ";UN=" + std::to_string(unused_tot) + ";OR=" + std::to_string(unused_oriented_tot) + ";MIN=" + min->printNode() + ";MAX=" + max->printNode() + ";REV=" + (reversed ? "T" : "F") + ")";
+		return std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]" + " (" + ((color == RbColor::RED) ? "RED" : "BLACK") + ";BH=" + std::to_string(blackHeight) + ";UN=" + std::to_string(unused_tot) + ";OR=" + std::to_string(unused_oriented_tot) + ";MIN=" + min->printNode() + ";MAX=" + max->printNode() + ";REV=" + (reversed ? "T" : "F") + ";PARENT=" + ((parent == nullptr)? "-" : std::to_string(parent->gene.id))+ ")";
 	}
 
 	// Overload the '<' operator.
@@ -228,8 +228,12 @@ private:
 	- Thus, the rotation does not change the ``black height`` of a node,
 		as its left child does not change.
 	*/
-	void rotateLeft(Node<BlockT>*& node)
-	{
+	void rotateLeft(Node<BlockT>*& node) {
+		
+		// WARNING - Be careful with edge cases:
+		// node has reversed=True, it has a right child but no left child.
+		// after clear reversed flag, now node has a left child but NO RIGHT CHILD to do the rotation.
+
 		// Clear reversed flags (turn them off),
 		// to make sure that rotation is valid.
 		node->clearReversedFlag();
@@ -329,6 +333,13 @@ private:
 		while ((node != root) && (node->color == RbColor::RED) && (node->parent->color == RbColor::RED)) {
 			parent	  = node->parent;
 			grandparent = parent->parent;
+
+			// Clear reversed flags of grandparent, parent, and node.
+			// It must be in this order since reversed flags are pushed down in the tree.
+			grandparent->clearReversedFlag();
+			parent->clearReversedFlag();
+			node->clearReversedFlag();
+
 			if (parent == grandparent->left) {
 				Node<BlockT>* uncle = grandparent->right;
 				if ((uncle != nullptr) && (uncle->color == RbColor::RED)) {
@@ -391,13 +402,15 @@ private:
 
 	// Utility function: Fixing Deletion Violation
 	void fixDelete(Node<BlockT>* node, Node<BlockT>* parent) {
-		// Extreme case: Deleted node is the root of the tree and 
-		// a red node becomes the new root of the tree.
-		if((node == root) && (node != nullptr) && (node->color == RbColor::RED)){
-			node->blackHeight = 1;
-			node->color = RbColor::BLACK;
-		}
 		while ((node != root) && ((node == nullptr) || (node->color == RbColor::BLACK))) {
+			// Clear reversed flags of parent, node, and its sibling.
+			if(parent != nullptr){
+				parent->clearReversedFlag();
+				if(parent->left  != nullptr){parent->left->clearReversedFlag();}
+				if(parent->right != nullptr){parent->right->clearReversedFlag();}
+			} else if (node != nullptr) {
+				node->clearReversedFlag();
+			}
 			if (node == parent->left) {
 				Node<BlockT>* sibling = parent->right;
 				if (sibling->color == RbColor::RED) {
@@ -413,7 +426,10 @@ private:
 				if (((sibling->left  == nullptr) || (sibling->left->color  == RbColor::BLACK))
 				&&  ((sibling->right == nullptr) || (sibling->right->color == RbColor::BLACK))) {
 					// Update ``blackHeight`` if needed.
-					if (sibling->color == RbColor::BLACK) {sibling->blackHeight -= 1;}
+					if (sibling->color == RbColor::BLACK) {
+						sibling->blackHeight -= 1;
+						parent->blackHeight  -= 1;
+					}
 					sibling->color = RbColor::RED;
 					node   = parent;
 					parent = node->parent;
@@ -431,14 +447,17 @@ private:
 						sibling = parent->right;
 					}
 					// Update ``blackHeight`` of parent and sibling.
-					if(parent->color == RbColor::RED){
-						parent->blackHeight += 1;
-						if(sibling->color != parent->color){
-							sibling->blackHeight -= 1;
-						}
-					} else {
-						if(sibling->color != parent->color){
+					// In this case, parent is going to become the left child of ``sibling`` (via rotateLeft).
+					// Sibling color at the end is going to be parent's color.
+					// Parent color at the end is going to be BLACK.
+					if(parent->color == RbColor::BLACK){ // Parent is BLACK.
+						// Sibling is going to become parent of its black parent node. 
+						// Thus, black height of sibling increases by 1.
+						sibling->blackHeight += 1;
+						if(sibling->color != parent->color){ // Sibling: RED -> BLACK. Parent does not lose any black child.
 							sibling->blackHeight += 1;
+						} else { // Sibling is BLACK. Parent loses one black height.
+							parent->blackHeight -= 1;
 						}
 					}
 					sibling->color = parent->color;
@@ -460,12 +479,15 @@ private:
 					parent->blackHeight  -= 1;
 					rotateRight(parent);
 					sibling = parent->left;
-				} 
+				}
 				// Sibling can be either BLACK or RED (both its children are BLACK).
 				if ( ((sibling->left  == nullptr) || (sibling->left->color  == RbColor::BLACK))
 				  && ((sibling->right == nullptr) || (sibling->right->color == RbColor::BLACK))) {
 					// Update ``blackHeight`` if needed.
-					if (sibling->color == RbColor::BLACK) {sibling->blackHeight -= 1;}
+					if (sibling->color == RbColor::BLACK) {
+						sibling->blackHeight -= 1;
+						parent->blackHeight  -= 1;
+					}
 					sibling->color = RbColor::RED;
 					node   = parent;
 					parent = node->parent;
@@ -483,14 +505,17 @@ private:
 						sibling = parent->left;
 					}
 					// Update ``blackHeight`` of parent and sibling.
-					if(parent->color == RbColor::RED){
-						parent->blackHeight += 1;
-						if(sibling->color != parent->color){
-							sibling->blackHeight -= 1;
-						}
-					} else {
-						if(sibling->color != parent->color){
+					// In this case, parent is going to become the right child of ``sibling`` (via rotateRight).
+					// Sibling color at the end is going to be parent's color.
+					// Parent color at the end is going to be BLACK.
+					if(parent->color == RbColor::BLACK){ // Parent is BLACK.
+						// Sibling is going to become parent of its black parent node. 
+						// Thus, black height of sibling increases by 1.
+						sibling->blackHeight += 1;
+						if(sibling->color != parent->color){ // Sibling: RED -> BLACK. Parent does not lose any black child.
 							sibling->blackHeight += 1;
+						} else { // Sibling is BLACK. Parent loses one black height.
+							parent->blackHeight -= 1;
 						}
 					}
 					sibling->color = parent->color;
@@ -504,7 +529,14 @@ private:
 				}
 			}
 		}
-		if(node != nullptr){node->color = RbColor::BLACK;}
+		if(node != nullptr){
+			if (node == root) {
+				node->blackHeight = 1;
+			} else if (node->color == RbColor::RED) {
+				node->blackHeight += 1;
+			}
+			node->color = RbColor::BLACK;
+		}
 	}
 
 	// Utility function: Transplant nodes in Red-Black Tree
@@ -558,6 +590,8 @@ private:
 		node->clearReversedFlag();
 		t2.root->clearReversedFlag();
 
+		std::cout << "[Join trees] JOIN RIGHT"<< std::endl;
+
 		bool const reversed_block = node->gene.block->reversed;
 		node->unused_tot = (node->unused) ? 1 : 0;
 		node->unused_oriented_tot = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
@@ -567,6 +601,7 @@ private:
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t2.root->unused_oriented_tot;
 		Node<BlockT>* current = t1.root;
 		while((current->blackHeight != t2.root->blackHeight) || (current->color != RbColor::BLACK)){
+			std::cout << "[Join trees] current="<< current->printNodeDetailed() << std::endl;
 			// Update counts.
 			current->unused_tot += unused_tot_upd;
 			current->unused_oriented_tot += unused_oriented_tot_upd;
@@ -576,6 +611,7 @@ private:
 			current->clearReversedFlag();
 		}
 		// At this point: t1 and t2 have the same height; t1 and t2 roots are black.
+		std::cout << "[Join trees] Same height="<< current->printNodeDetailed() << std::endl;
 
 		// Insert node.
 		Node<BlockT>* parent = current->parent;
@@ -587,6 +623,8 @@ private:
 		node->parent = parent;  // red (potential conflict with parent; fixed later in fixInsert)
 		node->left   = current; // black
 		node->right  = t2.root; // black
+		node->left->parent  = node;
+		node->right->parent = node;
 		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
 		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
 		// node, t1 and t2 have the same ``reversed`` flag (= false).
@@ -633,8 +671,10 @@ private:
 			parent->left = node;
 		}
 		node->parent = parent;   // red (potential conflict with parent; fixed later in fixInsert)
-		node->left   = t1.root; // black
+		node->left   = t1.root;  // black
 		node->right  = current;  // black
+		node->left->parent  = node;
+		node->right->parent = node;
 		node->blackHeight = current->blackHeight; // New node is always (initially) a RED node.
 		node->unused_tot += (node->left->unused_tot + node->right->unused_tot);
 		// node, t1 and t2 have the same ``reversed`` flag (= false).
@@ -742,9 +782,7 @@ public:
 	// current tree (with all elements <= key); 
 	// another_tree (with all elements > key).
 	void split(int key, RedBlackTree& another_tree) {
-		
 		if(root == nullptr){return;} // Nothing to split.
-
 		// Check extreme cases.
 		int const min_key = (root->reversed) ? root->max->getPosNext() : root->min->getPosNext();
 		int const max_key = (root->reversed) ? root->min->getPosNext() : root->max->getPosNext();
@@ -758,7 +796,6 @@ public:
 			return;
 		}
 		// std::cout << "[split] No extreme cases" << std::endl;
-
 		Node<BlockT>* current = root;
 		Node<BlockT>* parent  = nullptr;
 		RedBlackTree tmp_t{};
@@ -769,6 +806,8 @@ public:
 		while (current != nullptr){
 			// Make sure that the ``reversed`` flag is set to false 
 			// in all the way between the root and the insertion point.
+			// std::cout << "[split] Current node: " << current->printNodeDetailed() << std::endl;
+			// std::cout << "[split] key=" << key << " current=" << current->getPosNext() << std::endl;
 			current->clearReversedFlag();
 			if(key < current->getPosNext()) {
 				parent  = current;
@@ -777,7 +816,19 @@ public:
 				// are bigger than key, but smaller than all values 
 				// inserted in another_tree so far.
 				tmp_t.reroot(parent->right);
-				another_tree.join(parent, tmp_t);
+				if(tmp_t.root == nullptr) {
+					another_tree.insert(parent);
+				} else {
+					// Parent is the lowest value in ``tmp``.
+					tmp_t.insert(parent);
+					// Extract the maximum node from the right tree.
+					// Both trees have ``reversed`` flag false.
+					Node<BlockT>* k = tmp_t.root->max;
+					tmp_t.remove(k);
+					another_tree.join(k, tmp_t);
+				}
+				// std::cout << "[split] [key<current] After joining" << std::endl;
+				// another_tree.printTree();
 
 			} else if(key > current->getPosNext()) {
 				parent  = current;
@@ -787,20 +838,42 @@ public:
 				// are smaller than key, but bigger than all values 
 				// inserted in another_tree so far.
 				tmp_t.reroot(parent->left);
-				join(parent, tmp_t);
+				if(tmp_t.root == nullptr) {
+					insert(parent);
+				} else {
+					// Parent is the biggest value in ``tmp``.
+					tmp_t.insert(parent);
+					// Extract the minimum node from the left tree.
+					// Both trees have ``reversed`` flag false.
+					Node<BlockT>* k = tmp_t.root->min;
+					tmp_t.remove(k);
+					join(k, tmp_t);
+				}
+				// std::cout << "[split] [key>current] After joining" << std::endl;
+				// printTree();
 
 			// key == current.
 			// ``Shortcut case``: loop does not need to go until a leaf.
 			} else {
-				// All nodes in the left subtree (+ the current node) 
-				// are smaller or equal than key, but bigger than all 
-				// values inserted in another_tree so far.
 				parent  = current;
 				current = current->right;
 
+				// All nodes in the left subtree are smaller than key,
+				// but bigger than all values inserted in ``tree`` so far.
 				tmp_t.reroot(parent->left);
-				join(parent, tmp_t);
-
+				if(tmp_t.root == nullptr) {
+					insert(parent);
+				} else {
+					// Parent is the biggest value in the ``tmp``.
+					tmp_t.insert(parent);
+					// Extract the minimum node from the left tree.
+					// Both trees have ``reversed`` flag false.
+					Node<BlockT>* k = tmp_t.root->min;
+					tmp_t.remove(k);
+					join(k, tmp_t);
+				}				
+				// std::cout << "[split] [key=current] After joining" << std::endl;
+				// printTree();
 				// All nodes in the right subtree are bigger than key,
 				// but smaller than all values inserted in another_tree so far.
 				if(current != nullptr){
@@ -839,7 +912,18 @@ public:
 		Node<BlockT>* x = nullptr;
 		Node<BlockT>* y = nullptr;
 		if (z == nullptr) {return;}
-		z->clearReversedFlag();
+		// Make sure the ``reversed`` flags are off so comparison is valid.
+		Node<BlockT>* current = root;
+		while(current != node){
+			current->clearReversedFlag();
+			// Traverse tree in the correct order (reversed flag=false).
+			if ((*node) < (*current)){
+				current = current->left;
+			} else {
+				current = current->right;
+			}
+		}
+		node->clearReversedFlag();
 		// Check if the deleted node is the min or max of its parent.
 		// In this scenario, the node has at most one child.
 		Node<BlockT>* new_min = nullptr;
@@ -847,7 +931,6 @@ public:
 		if((z->parent != nullptr) && ((z == z->parent->min) || (z == z->parent->max))){
 			Node<BlockT>* child = (z->left != nullptr) ? z->left : z->right;
 			// Make sure the ``reversed`` flags are off so comparison is valid.
-			z->parent->clearReversedFlag();
 			if (child != nullptr) {child->clearReversedFlag();}
 			// Finds new min/max.
 			if(z == z->parent->min){
@@ -868,20 +951,15 @@ public:
 		// Update min/max and other counts in the path between the root and the deleted node.
 		// Make sure that all ``reversed`` flags in the path 
 		// between the root and the deleted node are ``off``.
-		Node<BlockT>* current = root;
+		current = root;
 		bool const reversed_block = node->gene.block->reversed;
 		const int unused_upd  = ((node->unused) ? 1 : 0);
 		const int unused_oriented_upd = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
 		while(current != node){
-			current->clearReversedFlag();
 			if(current->max == node) {current->max = new_max;}
 			if(current->min == node) {current->min = new_min;}
-
 			current->unused_tot -= unused_upd;
 			current->unused_oriented_tot -= unused_oriented_upd;
-
-			//std::to_string(gene.id) + ","  + std::to_string(gene_next.id) + "[" + std::to_string(getPosNext()) +"]" + " (" + ((color == RbColor::RED) ? "RED" : "BLACK") + ";BH=" + std::to_string(blackHeight) + ";UN=" + std::to_string(unused_tot) + ";OR=" + std::to_string(unused_oriented_tot) + ";MIN=" + min->printNode() + ";MAX=" + max->printNode() + ";REV=" + (reversed ? "T" : "F") + ")"
-
 			// Traverse tree in the correct order (reversed flag=false).
 			if ((*node) < (*current)){
 				current = current->left;
@@ -1010,14 +1088,18 @@ public:
 		// Find an oriented unused arc in the tree.
 		int unused_oriented_tot  = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
 		bool curIsUnusedOriented = ((current->unused) && (current->getOrientation()));
+		std::cout << current->printNodeDetailed() << std::endl;
 		while ((current != nullptr) && (!curIsUnusedOriented) && (unused_oriented_tot > 0)) {
+			std::cout << current->printNodeDetailed() << std::endl;
 			// Compute amount of unused arcs in the right and left child.
 			int unused_oriented_left = 0;			
 			if(current->left != nullptr){
+				current->left->clearReversedFlag();
 				unused_oriented_left = reversed_block ? (current->left->unused_tot - current->left->unused_oriented_tot) : current->left->unused_oriented_tot;
 			}
 			int unused_oriented_right = 0;			
 			if(current->right != nullptr){
+				current->right->clearReversedFlag();
 				unused_oriented_right = reversed_block ? (current->right->unused_tot - current->right->unused_oriented_tot) : current->right->unused_oriented_tot;
 			}
 			// Move to the child with the highest amount of unused oriented arcs.
@@ -1027,11 +1109,13 @@ public:
 				current = current->right;
 			}
 			// Update flag and count.
-			current->clearReversedFlag();
-			unused_oriented_tot = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
-			curIsUnusedOriented = ((current->unused) && (current->getOrientation()));
+			if(current != nullptr){
+				unused_oriented_tot = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
+			} else {
+				unused_oriented_tot = 0;
+			}
+			curIsUnusedOriented = ((current != nullptr) && (current->unused) && (current->getOrientation()));
 		}
-
 		// Check if current node represents an arc that is unused and oriented.
 		return curIsUnusedOriented ? current : nullptr;
 	}

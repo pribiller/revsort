@@ -71,6 +71,14 @@ void testCase_Garg2019(std::mt19937& rng, bool debug){
 
 // Example used in the paper from Bader et al. (2001).
 // (+3, +9, −7, +5, −10, +8, +4, −6, +11, +2, +1)
+// This is the only case where the lower bound for the 
+// reversal distance does not match the value found:
+// - Reversal distance (d) = expected: 7 reversals (or 8 if there is a fortress); found: 8 reversals.
+// The graph has 1 unoriented component composed of **two** intertwining cycles.
+// As the definition of hurdle seems to be a cycle in an unoriented component with 
+// all its elements appearing in a consecutive order, apparently 
+// in this case there are no hurdles (h=0). 
+// However, the program finds h=1. Notice that, if h=2, the expected and observed values would match.
 void testCase_Bader2001(std::mt19937& rng, bool debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false, false, false};
@@ -186,13 +194,13 @@ int main(int argc, char* argv[]) {
 
 	// Examples from various papers.
 	testCase_Garg2019(rng,debug);               // --> work: OK
-	testCase_Bader2001(rng,debug);              // --> work: OK
+	testCase_Bader2001(rng,debug);              // --> work: OK* (check the header of the function)
 	testCase_Hannehalli1999_Fig4a(rng,debug);   // --> work: OK
 	testCase_Hannehalli1999_Fig4b(rng,debug);   // --> work: OK
 	testCase_Bergeron2005_Sec10_4_2(rng,debug); // --> work: OK
 	testCase_Bergeron2005_Fig10_6(rng,debug);   // --> work: OK
 	testCase_Tannier2007_Figure4(rng,debug);    // --> work: OK
-		
+	
 	std::cout << std::endl << "Bye bye" << std::endl;
 	return 0;
 }
