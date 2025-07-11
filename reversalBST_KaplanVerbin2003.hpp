@@ -402,6 +402,15 @@ private:
 
 	// Utility function: Fixing Deletion Violation
 	void fixDelete(Node<BlockT>* node, Node<BlockT>* parent) {
+		// Edge case: node is the new root.
+		if((node != nullptr) && (node == root)){
+			if (node->color == RbColor::RED){
+				node->blackHeight = 0; // It will be incremented later in the end of the function.
+			} else {
+				node->blackHeight = 1; // It will not be incremented later in the end of the function.
+			}
+		}
+		// Normal case: node is not a root.
 		while ((node != root) && ((node == nullptr) || (node->color == RbColor::BLACK))) {
 			// Clear reversed flags of parent, node, and its sibling.
 			if(parent != nullptr){
@@ -530,11 +539,7 @@ private:
 			}
 		}
 		if(node != nullptr){
-			if (node == root) {
-				node->blackHeight = 1;
-			} else if (node->color == RbColor::RED) {
-				node->blackHeight += 1;
-			}
+			if (node->color == RbColor::RED) {node->blackHeight += 1;}
 			node->color = RbColor::BLACK;
 		}
 	}
@@ -590,8 +595,6 @@ private:
 		node->clearReversedFlag();
 		t2.root->clearReversedFlag();
 
-		std::cout << "[Join trees] JOIN RIGHT"<< std::endl;
-
 		bool const reversed_block = node->gene.block->reversed;
 		node->unused_tot = (node->unused) ? 1 : 0;
 		node->unused_oriented_tot = ((node->unused) && (node->getOrientation() != reversed_block)) ? 1 : 0;
@@ -601,7 +604,7 @@ private:
 		const int unused_oriented_tot_upd = node->unused_oriented_tot + t2.root->unused_oriented_tot;
 		Node<BlockT>* current = t1.root;
 		while((current->blackHeight != t2.root->blackHeight) || (current->color != RbColor::BLACK)){
-			std::cout << "[Join trees] current="<< current->printNodeDetailed() << std::endl;
+			// std::cout << "[Join trees] current="<< current->printNodeDetailed() << std::endl;
 			// Update counts.
 			current->unused_tot += unused_tot_upd;
 			current->unused_oriented_tot += unused_oriented_tot_upd;
@@ -611,7 +614,7 @@ private:
 			current->clearReversedFlag();
 		}
 		// At this point: t1 and t2 have the same height; t1 and t2 roots are black.
-		std::cout << "[Join trees] Same height="<< current->printNodeDetailed() << std::endl;
+		// std::cout << "[Join trees] Same height="<< current->printNodeDetailed() << std::endl;
 
 		// Insert node.
 		Node<BlockT>* parent = current->parent;
@@ -1074,23 +1077,17 @@ public:
 
 	// Returns an unused oriented arc from the tree (if it exists).
 	Node<BlockT>* getUnusedOriented(){
-		
 		if(root == nullptr){return nullptr;}
-		
 		Node<BlockT>* current = root;
 		current->clearReversedFlag();
-
 		// ``reversed`` flag of the block should be taken 
 		// into account in the orientation of a node 
 		// (but **not** on how the tree is traversed).
 		bool const reversed_block = root->gene.block->reversed;
-
 		// Find an oriented unused arc in the tree.
 		int unused_oriented_tot  = reversed_block ? (current->unused_tot-current->unused_oriented_tot) : current->unused_oriented_tot;
 		bool curIsUnusedOriented = ((current->unused) && (current->getOrientation()));
-		std::cout << current->printNodeDetailed() << std::endl;
 		while ((current != nullptr) && (!curIsUnusedOriented) && (unused_oriented_tot > 0)) {
-			std::cout << current->printNodeDetailed() << std::endl;
 			// Compute amount of unused arcs in the right and left child.
 			int unused_oriented_left = 0;			
 			if(current->left != nullptr){

@@ -119,10 +119,8 @@ bool GenomeSort::hasUnused() {
 Node<BlockTree>* GenomeSort::getUnusedOriented() {
 	Node<BlockTree>* node = nullptr;
 	for(BlockTree &b : genperm.blockList) {
-		std::cout << "\t> begin " << b.printBlock() << std::endl;
 		node = b.tree.getUnusedOriented();
 		if(node != nullptr){break;}
-		std::cout << "\t> end " << b.printBlock() << std::endl;
 	}
 	return node;
 }
@@ -205,14 +203,14 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	temp.splice(temp.begin(), genperm.blockList, reversal_beg, reversal_end);
 	temp.reverse();
 	genperm.blockList.splice(reversal_end, temp);
-
+	
 	// (3.1) Update positions of reversed blocks.
 	int blockPos = genperm.getBlock(g_beg)->pos + genperm.getBlock(g_beg)->permutationSegment.size();
 	for (std::list<BlockTree>::iterator b = genperm.getBlock(g_end); b != std::next(genperm.getBlock(g_after_beg)); ++b) { 
 		b->pos = blockPos;
 		blockPos += b->permutationSegment.size();
 	}
-
+	
 	// (3.2) After reversing the order and ﬂags of the blocks inside the reversal, 
 	// every tree, even those outside the reversal, are processed separately.
 	updateTreesAfterReversal(g_beg, g_end);

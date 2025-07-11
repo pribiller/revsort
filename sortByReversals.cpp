@@ -199,7 +199,7 @@ void SortByReversals::sort(std::mt19937& rng){
 	// Sort each connected component separately.
 	if(debug){std::cout << "Sort connected components by reversals" << std::endl;}
 	for(const int& root_idx: comps.rootList){
-		comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);
+		if(debug){comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);}
 		std::unordered_map<int,std::pair<int,int>> newlabels_map;
 		// Permutation **must** start at 1: [1 2 .. gene]
 		std::vector<int> perm = genperm.getExtendedPerm(comps.forest[root_idx].genes,newlabels_map);
@@ -215,14 +215,13 @@ void SortByReversals::sort(std::mt19937& rng){
 		std::deque<Reversal> reversalsPerComp = genomeSort.sortByReversals();
 		// Apply reversals to the permutation.
 		if(debug){std::cout << "Save reversals..." << std::endl;}
-		printGenome(genperm.getExtendedPerm());
+		// printGenome(genperm.getExtendedPerm());
 		for(Reversal const &rev : reversalsPerComp) {
 			Reversal rev_ = convertLabels(rev, newlabels_map, genperm);
-			//convertLabel(rev.g_arc)
 			// std::cout << "(" << rev.g_beg << "{" << rev_.g_beg << "}, " << rev.g_end << "{" << rev_.g_end << "}]" << std::endl;
 			applyReversal(genperm, rev_.g_beg, rev_.g_end);
 			reversals.emplace_back(rev_);
-			printGenome(genperm.getExtendedPerm());
+			// printGenome(genperm.getExtendedPerm());
 		}
 		genperm.clearBlockStatus();
 	}

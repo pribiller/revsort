@@ -152,6 +152,7 @@ public:
 			// tree.printTree();
 		}
 		status = OK;
+		
 		// std::cout << "[Merge trees] Resulting tree | Block: " << printBlock() << std::endl;
 		// tree.printTree();
 	}

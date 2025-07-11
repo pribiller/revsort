@@ -19,7 +19,7 @@
  * g++ tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o gensort_random
  * 
  * Run:
- * ./gensort_random 42 10 3 0
+ * ./gensort_random 42 10 3 0 1
  * 
  *******************************************************/
 
@@ -35,18 +35,17 @@
  * Some basic tests.
 *******************************************************/
 
-SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug, const bool printSol){
 	
 	SortByReversals sortGenome(genome_A,genome_B,debug);
-
+	
 	// Sort genome and measure time.
 	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 	sortGenome.sort(rng);
 	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-	std::cout << "Running time: " << (std::chrono::duration_cast<std::chrono::microseconds>(end - begin)).count() << " [µs]." << std::endl;
 
 	// [Check 1] Check if the sorting scenario ends with the identity permutation (i.e. no breakpoints).
-	bool correctSolution = sortGenome.printSolution();
+	bool correctSolution = (printSol ? sortGenome.printSolution() : sortGenome.checkSolution());
 	if(!correctSolution){
 		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
 		exit(1);
@@ -57,6 +56,7 @@ SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMult
 		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
 		exit(1);
 	}
+	std::cout << "- Running time: " << (std::chrono::duration_cast<std::chrono::microseconds>(end - begin)).count() << " [µs]." << std::endl;	
 	return sortGenome;
 }
 
@@ -65,17 +65,18 @@ int main(int argc, char* argv[]) {
 	if (argc < 2) {
 		std::cout << "ERROR! No extra command line argument passed other than program name. Program is aborting." << std::endl;
 		exit(1);
-	} else if (argc != 5) {
-		std::cout << "ERROR! Wrong number of arguments. Expected: ./program [seed] [#genes] [#tests] [debug]. Program is aborting." << std::endl;
+	} else if (argc != 6) {
+		std::cout << "ERROR! Wrong number of arguments. Expected: ./program [seed] [#genes] [#tests] [debug] [print solution]. Program is aborting." << std::endl;
 		exit(1);
 	}
 
 	// Parameters.
-	int const seed    = std::stoi(argv[1]);        // input (command line argument): seed random number generator.
-	int const nbgenes = std::stoi(argv[2]);        // input (command line argument): number of genes.
-	int const nbtests = std::stoi(argv[3]);        // input (command line argument): how many random permutations will be generated.
-	bool const debug  = (std::stoi(argv[4]) == 1); // input (command line argument): debug flag (1: debug is ON; 0 (or any other integer for now): debug is OFF).
-	int const nbchrom = 1; // For now only unichromosomal genomes.
+	int const seed      = std::stoi(argv[1]);        // input (command line argument): seed random number generator.
+	int const nbgenes   = std::stoi(argv[2]);        // input (command line argument): number of genes.
+	int const nbtests   = std::stoi(argv[3]);        // input (command line argument): how many random permutations will be generated.
+	bool const debug    = (std::stoi(argv[4]) == 1); // input (command line argument): debug flag (1: debug is ON; 0 (or any other integer for now): debug is OFF).
+	bool const printSol = (std::stoi(argv[5]) == 1); // input (command line argument): flag for printing solution (1: solution is going to be printed; 0 (or any other integer for now): solution is NOT printed).
+	int const nbchrom   = 1; // For now only unichromosomal genomes.
 	
 
 	std::cout << "**********************************************" << std::endl;
@@ -102,7 +103,7 @@ int main(int argc, char* argv[]) {
 		GenomeMultichrom<int> genome_B(rng, nbgenes, nbchrom, probRev, genome_A.gene_labels_map);
 
 		// Sort genomes using the minimum number of reversals.
-		SortByReversals solution = testCase_generalSort(genome_A, genome_B, rng, debug);
+		SortByReversals solution = testCase_generalSort(genome_A, genome_B, rng, debug, printSol);
 
 		// Save stats.
 		// Save genomes.
