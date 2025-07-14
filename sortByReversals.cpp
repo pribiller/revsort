@@ -94,14 +94,6 @@ bool SortByReversals::printStats(){
 	return is_correct;
 }
 
-// Check if number of reversals matches the minimum number expected.
-bool SortByReversals::checkDistance(){
-	int const exp_distance = nb_breakpoints - nb_cycles_nontrivial + nb_hurdles;
-	int const obs_distance = reversals.size();
-	const bool is_correct = ((obs_distance-exp_distance) < 2);
-	return is_correct;
-}
-
 // Check if final permutation is equal to the identity permutation.
 bool SortByReversals::checkSolution(){
 	if(debug){std::cout << "\nSorting by reversals - Solution (" << reversals.size() << " reversals)" << std::endl;}
@@ -113,6 +105,14 @@ bool SortByReversals::checkSolution(){
 		if(debug){printGenome(genperm_final.getExtendedPerm());}
 	}
 	return (genperm_final.getBreakpoints() == 0);
+}
+
+// Check if number of reversals matches the minimum number expected.
+bool SortByReversals::checkDistance(){
+	int const exp_distance = nb_breakpoints - nb_cycles_nontrivial + nb_hurdles;
+	int const obs_distance = reversals.size();
+	const bool is_correct = ((obs_distance-exp_distance) < 2);
+	return is_correct;
 }
 
 // TODO: This function is very similar to another function: GenomeSort::getReversal.

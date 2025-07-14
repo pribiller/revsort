@@ -184,8 +184,7 @@ public:
 		// Create chromosomes **without** creating a new mapping between gene labels and internal gene ids.
 		createPermutation(rdmgen.first, rdmgen.second, true);
 	}
-
-
+	
 	// Creates an extended signed permutation, where two 
 	// additional gene extremities are added: 1 and n+2.
 	// The label of gene i becomes i+1.

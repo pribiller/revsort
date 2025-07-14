@@ -23,6 +23,7 @@
 #include <cmath>	 // abs
 #include <memory>	 // shared_ptr
 #include <utility>   // move, pair
+#include <random>    // mt19937
 
 #include "genomePermutation_KaplanVerbin2003.hpp"
 
@@ -100,3 +101,31 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 	
 	if(debug) std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
 }
+
+// Apply d random reversals.
+template <typename BlockT>
+void applyRandomReversals(GenomePermutation<BlockT>& genperm, int nb_reversals, std::mt19937& rng) {
+	// Two genes in the extended permutation are caps that shouldn't be reversed.
+	// The permutation needs to have at least another gene besides the caps to have random permutations.
+	if (genperm.n > 2) {
+		// Uniform distribution in the closed interval [0,n-2] (the rightmost cap will never appear in any reversal).
+		std::uniform_int_distribution distr(1, genperm.n-2);
+
+		// Apply d random reversals.
+		for (int i = 0; i < nb_reversals; ++i){
+			// Choose two random genes.
+			int g_idx_beg = distr(rng);
+			int g_idx_end = distr(rng);
+			while(g_idx_beg == g_idx_end){g_idx_end = distr(rng);}
+
+			// Get their positions.
+			Gene<BlockT> g_beg = (*genperm.genes[g_idx_beg]);
+			Gene<BlockT> g_end = (*genperm.genes[g_idx_end]);
+			if(g_beg.block->genePosAbs(g_beg) > g_end.block->genePosAbs(g_end)){std::swap(g_beg,g_end);}
+
+			// Apply reversals (g_beg,g_end].
+			applyReversal(genperm, g_beg.id, g_end.id);
+		}
+	}
+}
+
