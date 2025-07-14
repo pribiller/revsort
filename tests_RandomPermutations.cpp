@@ -27,7 +27,6 @@
 #include <vector>
 #include <cstdlib>   // exit
 #include <cmath>	 // abs
-#include <chrono>
 
 #include "sortByReversals.hpp"
 
@@ -36,15 +35,10 @@
 *******************************************************/
 
 SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, int verbose){
-	
 	const bool debug = (verbose > 2);
 	SortByReversals sortGenome(genome_A,genome_B,debug);
-
 	// Sort genome and measure time.
-	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 	sortGenome.sort(rng);
-	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-
 	// [Check 1] Check if the sorting scenario ends with the identity permutation (i.e. no breakpoints).
 	bool correctSolution = ((verbose > 1) ? sortGenome.printSolution() : sortGenome.checkSolution());
 	if(!correctSolution){
@@ -53,7 +47,6 @@ SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMult
 	}
 	// [Check 2] Check if the number of reversals is minimal.
 	correctSolution = ((verbose > 0) ? sortGenome.printStats() : sortGenome.checkDistance());
-	if(verbose > 0){std::cout << "- Running time: " << (std::chrono::duration_cast<std::chrono::microseconds>(end - begin)).count() << " [µs]." << std::endl;}
 	if(!correctSolution){
 		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
 		exit(1);
@@ -134,6 +127,8 @@ int main(int argc, char* argv[]) {
 	// Distribution for the probability of negative signs in genes.
 	std::uniform_real_distribution<> distr(0.0, 1.0);
 
+	if(verbose < 1) {std::cout << "test;t_µs;d_obs;d_exp;nb_breakpoints;nb_hurdles;cyc_nontriv;cyc_tot;comp_tot;comp_ori;comp_unori;" << std::endl;}
+
 	// Generate random tests.
 	for(int i=0; i<nbtests; ++i){
 
@@ -147,7 +142,7 @@ int main(int argc, char* argv[]) {
 
 		// Sort genomes using the minimum number of reversals.
 		SortByReversals solution = testCase_generalSort(genome_A, genome_B, rng, verbose);
-
+		if(verbose < 1) {std::cout << (i+1) << ";" << solution.t << ";" << solution.obs_distance << ";" << solution.exp_distance << ";" << solution.nb_breakpoints << ";" << solution.nb_hurdles << ";" << solution.nb_cycles_nontrivial << ";" << solution.nb_cycles << ";" << solution.nb_components << ";" << solution.nb_components_oriented << ";" << solution.nb_components_unoriented << ";" << std::endl;}
 	} 
 	if(verbose > 0) {std::cout << std::endl << "Bye bye" << std::endl;}
 	return 0;

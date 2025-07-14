@@ -51,6 +51,7 @@
 #include <cstdlib>   // exit
 #include <cmath>	 // abs
 #include <memory>	 // shared_ptr
+#include <chrono>
 
 #include "genome.hpp"
 #include "reversal.hpp"
@@ -92,6 +93,9 @@ public:
 	int nb_components_oriented{0};
 	int nb_components_unoriented{0};
 	int nb_hurdles{0};
+	int exp_distance{0};
+	int obs_distance{0};
+	int t{0};
 
 	SortByReversals(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, bool debug=false):genome_A(genome_A),genome_B(genome_B),debug(debug){
 		if(debug){printInputGenomes();}
@@ -101,7 +105,7 @@ public:
 	void printInputGenomes();
 	bool printSolution();
 	bool printStats();
-	
+
 	// It ``replays`` the sorting scenario, starting with the input 
 	// permutation and applying each reversal from the list ``reversals``.
 	// If the final permutation is equal to the identity permutation,

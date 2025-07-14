@@ -81,14 +81,11 @@ bool SortByReversals::printSolution(){
 
 bool SortByReversals::printStats(){
 	std::cout << std::endl << "Some stats: " << std::endl;
+	std::cout << "- Running time: " << t << " [µs]." << std::endl;
 	std::cout << "- Breakpoints (b) = " << nb_breakpoints << std::endl;
 	std::cout << "- Non-trivial cycles (c) = " << nb_cycles_nontrivial << "; total (including trivial cycles): " << nb_cycles << std::endl;
 	std::cout << "- Hurdles (h) = " << nb_hurdles << std::endl;
 	std::cout << "- Components = total: " << nb_components << "; oriented: " << nb_components_oriented << "; unoriented: " << nb_components_unoriented << "." << std::endl;
-
-	int const exp_distance = nb_breakpoints - nb_cycles_nontrivial + nb_hurdles;
-	int const obs_distance = reversals.size();
-	
 	std::cout << "- Reversal distance (d) = expected: " << exp_distance << " reversals (or " << (exp_distance+1) << " if there is a fortress); found: " << obs_distance << " reversals." << std::endl;
 	const bool is_correct = ((obs_distance-exp_distance) < 2);
 	return is_correct;
@@ -166,6 +163,7 @@ Reversal SortByReversals::convertLabels(const Reversal& rev, std::unordered_map<
    something went wrong.
 */
 void SortByReversals::sort(std::mt19937& rng){
+	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 	// Part I: Unoriented components -> oriented components.
 	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
 	nb_breakpoints = genperm.getBreakpoints();
@@ -233,4 +231,8 @@ void SortByReversals::sort(std::mt19937& rng){
 		}
 		genperm.clearBlockStatus();
 	}
+	exp_distance = nb_breakpoints - nb_cycles_nontrivial + nb_hurdles;
+	obs_distance = reversals.size();
+	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+	t = (std::chrono::duration_cast<std::chrono::microseconds>(end - begin)).count();
 }
