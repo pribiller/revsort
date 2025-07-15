@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * This class implements the data structure described in 
  * Bader, Moret, and Yan (2001), called ``overlap forest``.
  * Given two genomes, the overlap forest is a way to 

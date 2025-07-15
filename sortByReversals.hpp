@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * This class implements a method to sort two genomes
  * by reversals, i.e., it finds a minimum number of 
  * reversals to transform one of the input genomes 

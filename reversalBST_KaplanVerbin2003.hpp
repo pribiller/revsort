@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ *  
  * This class implements a Balanced Search Tree (BST)
  * whose nodes are 'arcs', a concept related to how
  * reversals are represented (see Kaplan and Verbin (2003) 

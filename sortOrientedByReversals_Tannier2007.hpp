@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * One genome is represented as one permutation. 
  * The permutation is given as a vector of integers (int),
  * where each int corresponds to a gene, and its sign
@@ -152,7 +156,7 @@ public:
 			// tree.printTree();
 		}
 		status = OK;
-		
+
 		// std::cout << "[Merge trees] Resulting tree | Block: " << printBlock() << std::endl;
 		// tree.printTree();
 	}

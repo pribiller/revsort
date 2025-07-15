@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * This class provides some basic data structures to convert 
  * a multichromosomal (or unichromosomal) genome with generic 
  * labels to the internal representation used by the methods  
@@ -184,7 +188,7 @@ public:
 		// Create chromosomes **without** creating a new mapping between gene labels and internal gene ids.
 		createPermutation(rdmgen.first, rdmgen.second, true);
 	}
-	
+
 	// Creates an extended signed permutation, where two 
 	// additional gene extremities are added: 1 and n+2.
 	// The label of gene i becomes i+1.

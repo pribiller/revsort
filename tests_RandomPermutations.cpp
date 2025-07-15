@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * This file is intended to test the implementation
  * of the Sorting by Reversals method.
  * 

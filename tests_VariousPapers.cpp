@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * This file contains many small examples of permutations
  * coming from different papers (the paper's reference is 
  * indicated in the name of each function).

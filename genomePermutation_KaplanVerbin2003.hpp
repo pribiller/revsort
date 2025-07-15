@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * One genome is represented as one permutation. 
  * The permutation is given as a vector of ints,
  * where each int corresponds to a gene, and its sign

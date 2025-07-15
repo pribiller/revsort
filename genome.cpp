@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * This class provides some basic data structures to convert 
  * a multichromosomal (or unichromosomal) genome with generic 
  * labels to the internal representation used by the methods  

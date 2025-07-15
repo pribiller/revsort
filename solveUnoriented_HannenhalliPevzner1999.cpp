@@ -1,4 +1,8 @@
 /*******************************************************
+ * Original author: Priscila Biller
+ * Created: July/2025
+ * License: GPL v3
+ * 
  * This class implements the algorithm described in 
  * Hannenhalli and Pevzner (1999) to transform unoriented 
  * components into oriented components with a minimum
