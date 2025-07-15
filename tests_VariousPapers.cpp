@@ -11,10 +11,10 @@
  * implementation of the sorting by reversals method.
  * 
  * Compile:
- * g++ tests_VariousPapers.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o gensort_papers
+ * g++ tests_VariousPapers.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_papers
  * 
  * Run:
- * ./gensort_papers 42 1
+ * ./revsort_papers 42 1
  * 
  *******************************************************/
 

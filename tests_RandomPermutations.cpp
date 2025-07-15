@@ -20,10 +20,10 @@
  * number of cycles, etc.) and the time needed to run the method.
  * 
  * Compile:
- * g++ tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o gensort_random
+ * g++ tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_random
  * 
  * Run:
- * ./gensort_random 42 10 4 3 2
+ * ./revsort_random 42 10 4 3 2
  * 
  *******************************************************/
 
