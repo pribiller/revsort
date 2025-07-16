@@ -18,7 +18,7 @@ Two options are available to test the implementation:
 1. a program that runs on a set of small examples taken from literature; 
 2. a program that generates random signed permutations, either completely independent or constrained to be separated by a given number of inversions. 
 
-Here we focus on the usage of the latter. Information about the former is available in the header of [tests_VariousPapers.cpp](https://github.com/pribiller/revsort/blob/main/src/tests_VariousPapers.cpp).
+Here I focus on the usage of the latter. Information about the former is available in the header of [tests_VariousPapers.cpp](https://github.com/pribiller/revsort/blob/main/src/tests_VariousPapers.cpp).
 
 ### Use case: Random permutations
 
@@ -59,15 +59,15 @@ This paper proposes an algorithm with subquadratic time complexity to sort a gen
 > Last year, two independent teams presented an O(*n*×log(*n*)) implementation, both inspired by Tannier's method. 
 > If you want to know more about these recent developments, please check the papers from [Krister Swenson](https://arxiv.org/abs/2403.20165) and [Bartłomiej Dudek et al.](https://epubs.siam.org/doi/abs/10.1137/1.9781611977936.19).
 
-Here we test the algorithm's implementation with random unichromosomal genomes of different sizes. The size of the genome, defined by the number of genes (*n*), varies from very small genomes with 10 genes to very large genomes with 100,000 genes.
+Here I tested the algorithm's implementation with random unichromosomal genomes of different sizes. The size of the genome, defined by the number of genes (*n*), varies from very small genomes with 10 genes to very large genomes with 100,000 genes.
 Each genome size was tested 100 times, and the results below show the average time taken and the standard deviation. 
-The algorithm typically runs in less than 5 seconds for most sizes, staying under 1 second for genomes with thousands of genes. Even in the worst-case scenario of 100,000 genes, the algorithm provides a solution in about 20 seconds.
+The algorithm typically runs in less than 5 seconds for most sizes, staying under 1 second for genomes with thousands of genes. Even in the worst-case scenario tested (100,000 genes), the algorithm provides a solution in about 20 seconds.
 
 ![Plot performance](./docs/assets/performance.svg)
 
 ## How the actual number of inversions affects different attributes
 
-In this second test, I fixed the number of genes at **1,000 genes** and we varied the number of inversions separating the two genomes. The number of inversions, expressed as a percentage of the total number of genes, ranges from 1% (10 inversions) to 100% (1,000 inversions), increasing in increments of 1% (10 inversions), 2% (20 inversions), and so on.
+In this second test, I fixed the number of genes at **1,000 genes** and varied the number of inversions separating the two genomes. The number of inversions, expressed as a percentage of the total number of genes, ranges from 1% (10 inversions) to 100% (1,000 inversions), increasing in increments of 1% (10 inversions), 2% (20 inversions), and so on.
 Each number of reversals was tested 100 times, and all plots show the average and standard deviation values.
 
 In the plot below, I compared the actual number of inversions separating the two genomes with the average number of inversions found in our solution. The number of inversions in the solutions corresponds to the *reversal distance*, which is the minimum number of inversions required to explain the observed differences between two genomes. We can see that as the number of inversions becomes too high, the reversal distance underestimates the actual number of inversions.
