@@ -8,6 +8,9 @@ It is expected that many different evolutionary paths, possibly composed of diff
 
 This problem is known in the literature as **Sorting by Reversals**. Further information on program usage, performance, and algorithm details is provided below.
 
+> [!IMPORTANT]  
+> If you have any questions that are not covered in the documentation, or if you come across any bugs in the code, please feel free to contact me at: pribiller[at]gmail.com
+
 ## Usage
 
 Two options are available to test the implementation: 
@@ -15,13 +18,13 @@ Two options are available to test the implementation:
 1. a program that runs on a set of small examples taken from literature; 
 2. a program that generates random signed permutations, either completely independent or constrained to be separated by a given number of inversions. 
 
-Here we focus on the usage of the latter. Information about the former is available in the header of [tests_VariousPapers.cpp](https://github.com/pribiller/revsort/blob/main/tests_VariousPapers.cpp).
+Here we focus on the usage of the latter. Information about the former is available in the header of [tests_VariousPapers.cpp](https://github.com/pribiller/revsort/blob/main/src/tests_VariousPapers.cpp).
 
 ### Use case: Random permutations
 
 #### Compile
 ```
-g++ tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_random
+g++ -O3 tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_random
 ```
 
 #### Run
@@ -58,24 +61,50 @@ This paper proposes an algorithm with subquadratic time complexity to sort a gen
 
 Here we test the algorithm's implementation with random unichromosomal genomes of different sizes. The size of the genome, defined by the number of genes (*n*), varies from very small genomes with 10 genes to very large genomes with 100,000 genes.
 Each genome size was tested 100 times, and the results below show the average time taken and the standard deviation. 
-The algorithm typically runs in a few seconds for most sizes, staying under a minute for genomes with thousands of genes. Even in the worst-case scenario of 100,000 genes, the algorithm provides a solution in about 2 minutes.
+The algorithm typically runs in less than 5 seconds for most sizes, staying under 1 second for genomes with thousands of genes. Even in the worst-case scenario of 100,000 genes, the algorithm provides a solution in about 20 seconds.
 
 ![Plot performance](./docs/assets/performance.svg)
 
 ## How the actual number of inversions affects different attributes
 
-In this second test, we fix the number of genes at **1,000 genes** and we vary the number of inversions separating the two genomes. The number of inversions, expressed as a percentage of the total number of genes, ranges from 1% (10 inversions) to 100% (1,000 inversions), increasing in increments of 1% (10 inversions), 2% (20 inversions), and so on.
+In this second test, I fixed the number of genes at **1,000 genes** and we varied the number of inversions separating the two genomes. The number of inversions, expressed as a percentage of the total number of genes, ranges from 1% (10 inversions) to 100% (1,000 inversions), increasing in increments of 1% (10 inversions), 2% (20 inversions), and so on.
+Each number of reversals was tested 100 times, and all plots show the average and standard deviation values.
 
-In the plot below, we compare the actual number of inversions separating the two genomes with the average number of inversions found in our solution. The number of inversions in the solutions correspond to the *reversal distance*, which is the minimum number of inversions required to explain the observed differences between two genomes. We can see that as the number of inversions becomes too high, the reversal distance underestimates the actual number of inversions.
+In the plot below, I compared the actual number of inversions separating the two genomes with the average number of inversions found in our solution. The number of inversions in the solutions corresponds to the *reversal distance*, which is the minimum number of inversions required to explain the observed differences between two genomes. We can see that as the number of inversions becomes too high, the reversal distance underestimates the actual number of inversions.
 
 ![Plot estimated distance vs actual value](./docs/assets/distance_est_vs_exp.svg)
 
-In the next plot we check how performance is influenced by the number of inversions. Every reversal needed to sort one genome into another requires an extra iteration of the method. As the number of inversions increases, so do the iterations, affecting the running time until it reaches the maximum possible distance, which is limited by the genome size, where the time plateaus and stops increasing.
+In the next plot I checked how performance is influenced by the number of inversions. Every reversal needed to sort one genome into another requires an extra iteration of the method. As the number of inversions increases, so do the iterations, affecting the running time until it reaches the maximum possible distance, which is limited by the genome size, where the time plateaus and stops increasing.
 
 ![Plot performance depending on the distance](./docs/assets/performance_revdist.svg)
 
+In this last part I evaluated how different parameters of the *Breakpoint Graph*, an important data structure in comparative genomics, vary depending on the number of inversions. The minimum number of reversals (*d*) needed to transform one genome into another can be expressed in terms of different attributes of the Breakpoint Graph:
+```
+d = b -c +h (+1 if the Breakpoint Graph is a *fortress*),
+```
+where *d* is the reversal distance, *b* is the number of breakpoints, *c* is the number of non-trivial cycles, and *h* is the number of hurdles.
+
+This relation was first shown in *Theorem 5* of the pioneering work by [Hannehalli and Pevzner](https://dl.acm.org/doi/abs/10.1145/300515.300516). The definition of each term (hurdle, fortress, etc.) is out of the scope of this documentation, but they are well-covered in numerous places. I personally like and recommend the book ["Mathematics of Evolution and Phylogeny"](https://academic.oup.com/book/52874) edited by Olivier Gascuel, which includes an entire chapter (Chapter 10) dedicated to reversals.
+
+![Plot different properties of the breakpoint graph depending on the distance](./docs/assets/breakpoint_graph.svg)
+
 ## Algorithm details
 
+In order to achieve an efficient solution to the "Sorting by Reversals" problem, the implementation is built on research findings published in distinct papers over the last two decades. 
+
+This section provides a concise overview of each step in the algorithm, including the files where the implementation can be found, and references to relevant literature for further details.
+
+1. *Find connected components*. To find the connected components of the Overlap Graph in an efficient way, the algorithm from [Bader et al. (2001)](https://pubmed.ncbi.nlm.nih.gov/11694179/) was implemented. A recent paper from [Garg et al. (2019)](https://ieeexplore.ieee.org/abstract/document/8711775/) provides a slightly different alternative to Bader's algorithm. A component can be either *oriented* or *unoriented*, a key distinction that will be used in later steps. An *unoriented component* means that all genes have the *same sign*. The algorithm to find connected components is implemented in the file [findComponents_Bader2001.hpp](https://github.com/pribiller/revsort/blob/main/src/findComponents_Bader2001.hpp);
+2. *Unoriented connected components*. To transform unoriented components into oriented components using the minimum number of reversals needed, the method from [Hannehalli and Pevzner (1999)](https://dl.acm.org/doi/abs/10.1145/300515.300516) was implemented. In the literature, this method is also called *clear hurdles*. This method is also explained in details in the paper from [Kaplan, Shamir, and Tarjan (1997)](https://dl.acm.org/doi/pdf/10.1145/267521.267544). The implementation of this step can be found in the file [solveUnoriented_HannenhalliPevzner1999.hpp](https://github.com/pribiller/revsort/blob/main/src/solveUnoriented_HannenhalliPevzner1999.hpp);
+3. *Oriented connected components*. To sort an oriented component using the minimum number of reversals needed, the method from [Tannier et al. (2007)](https://www.sciencedirect.com/science/article/pii/S0166218X06003751) was implemented. Every oriented connected component is treated separately. The implementation of this step can be found in [sortOrientedByReversals_Tannier2007.hpp](https://github.com/pribiller/revsort/blob/main/src/sortOrientedByReversals_Tannier2007.hpp). To be able to find a safe reversal in a fast way, the algorithm uses a special data structure introduced by [Kaplan and Verbin (2003)](https://link.springer.com/chapter/10.1007/3-540-44888-8_13). A genomic permutation is represented as a list of blocks of size Θ(√n×log(n)), where each block points to a binary search tree that contains potential reversals to be applied. The binary search tree was implemented here as a Red-Black Tree, customized to maintain additional properties needed for Tannier's algorithm. The implementation of this data structure can be found in [genomePermutation_KaplanVerbin2003.hpp](https://github.com/pribiller/revsort/blob/main/src/genomePermutation_KaplanVerbin2003.hpp).
 
 ## References
 
+- Tannier et al. (2007). Advances on sorting by reversals.
+- Kaplan and Verbin (2003). Efficient data structures and a new randomized approach for sorting signed permutations by reversals.
+- Bader et al. (2001). A linear-time algorithm for computing inversion distance between signed permutations with an experimental study.
+- Garg et al. (2019). Sorting by Reversals: A faster approach for building overlap forest.
+- Hannehalli and Pevzner (1999). Transforming cabbage into turnip: polynomial algorithm for sorting signed permutations by reversals.
+- Kaplan, Shamir, and Tarjan (1997). Faster and simpler algorithm for sorting signed permutations by reversals.
+- Swenson (2024). A simple and efficient algorithm for sorting signed permutations by reversals.
+- Dudek et al. (2024). Sorting signed permutations by reversals in nearly-linear time.
