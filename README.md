@@ -17,21 +17,24 @@ Two options are available to test the implementation:
 
 Here we focus on the usage of the latter. Information about the former is available in the header of [tests_VariousPapers.cpp](https://github.com/pribiller/revsort/blob/main/tests_VariousPapers.cpp).
 
-### Compile
+### Use case: Random permutations
+
+#### Compile
 ```
 g++ tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_random
 ```
 
-### Run
+#### Run
 ```
 ./revsort_random [seed] [genes] [reversals] [tests] [verbose]
 ```
 
-**Example:**
+#### Example
 ```
 ./revsort_random 42 10 4 3 2
 ```
 
+#### Parameters
 All parameters are mandatory and must be given in the following order:
 1. **seed**: any positive integer greater than 0. This value is used by the random number generator to produce random values. It ensures that tests are reproducible: If you use the same number as a seed in two different runs, you are going to obtain the same results;
 2. **genes**: the number of genes. In the example above, all random genomes will have 1 chromosome (for now all genomes are unichromosomal) and 10 genes;
@@ -45,7 +48,7 @@ All parameters are mandatory and must be given in the following order:
 
 ## Performance
 
-The main algorithm implemented in this program comes from the paper ["Advances on sorting by reversals"](https://www.sciencedirect.com/science/article/pii/S0166218X06003751) by Eric Tannier, Anne Bergeron, Marie-France Sagot.
+The main algorithm implemented in this program comes from the paper ["Advances on sorting by reversals"](https://www.sciencedirect.com/science/article/pii/S0166218X06003751) by Eric Tannier, Anne Bergeron, and Marie-France Sagot.
 
 This paper proposes an algorithm with subquadratic time complexity to sort a genome. Given two genomes with *n* genes, the program can find a sequence of reversals in O(*n*×√(*n*×log(*n*)). Until very recently (2024), this was the fastest algorithm to solve the problem. 
 
@@ -61,6 +64,15 @@ The algorithm typically runs in a few seconds for most sizes, staying under a mi
 
 ## How the actual number of inversions affects different attributes
 
+In this second test, we fix the number of genes at **1,000 genes** and we vary the number of inversions separating the two genomes. The number of inversions, expressed as a percentage of the total number of genes, ranges from 1% (10 inversions) to 100% (1,000 inversions), increasing in increments of 1% (10 inversions), 2% (20 inversions), and so on.
+
+In the plot below, we compare the actual number of inversions separating the two genomes with the average number of inversions found in our solution. The number of inversions in the solutions correspond to the *reversal distance*, which is the minimum number of inversions required to explain the observed differences between two genomes. We can see that as the number of inversions becomes too high, the reversal distance underestimates the actual number of inversions.
+
+![Plot estimated distance vs actual value](./docs/assets/distance_est_vs_exp.svg)
+
+In the next plot we check how performance is influenced by the number of inversions. Every reversal needed to sort one genome into another requires an extra iteration of the method. As the number of inversions increases, so do the iterations, affecting the running time until it reaches the maximum possible distance, which is limited by the genome size, where the time plateaus and stops increasing.
+
+![Plot performance depending on the distance](./docs/assets/performance_revdist.svg)
 
 ## Algorithm details
 
