@@ -82,8 +82,8 @@ GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const 
 }
 
 void printHelper() {
-	std::cout << "Use: ./gensort_random [seed] [genes] [reversals] [tests] [verbose]" << std::endl;
-	std::cout << "Example: ./gensort_random 42 10 4 3 2" << std::endl;
+	std::cout << "Use: ./revsort_random [seed] [genes] [reversals] [tests] [verbose]" << std::endl;
+	std::cout << "Example: ./revsort_random 42 10 4 3 2" << std::endl;
 	std::cout << "Parameters:" << std::endl;
 	std::cout << "- [seed]: any positive integer number greater than 0;" << std::endl;
 	std::cout << "- [genes]: the number of genes. In the example above, all random genomes will have 1 chromosome and 10 genes;" << std::endl;
