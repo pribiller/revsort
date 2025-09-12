@@ -11,14 +11,64 @@ This problem is known in the literature as **Sorting by Reversals**. Further inf
 > [!IMPORTANT]  
 > If you have any questions that are not covered in the documentation, or if you come across any bugs in the code, please feel free to contact me at: pribiller[at]gmail.com
 
+> [!NOTE]
+> Although the guide refers to **gene** and **gene order**, the program can be applied to any kind of aligned blocks, which may contain numerous genes or even lack genes entirely.
+
 ## Usage
 
-Two options are available to test the implementation: 
+Three options are available to test the implementation: 
 
 1. a program that runs on a set of small examples taken from literature; 
-2. a program that generates random signed permutations, either completely independent or constrained to be separated by a given number of inversions. 
+2. a program that parses a file containing pairs of signed permutations, and computes the reversal distance for each pair;
+3. a program that generates random signed permutations, either completely independent or constrained to be separated by a given number of inversions. 
 
-Here I focus on the usage of the latter. Information about the former is available in the header of [tests_VariousPapers.cpp](https://github.com/pribiller/revsort/blob/main/src/tests_VariousPapers.cpp).
+Here I focus on the usage of the two last cases. Information about the first case is available in the header of [tests_VariousPapers.cpp](https://github.com/pribiller/revsort/blob/main/src/tests_VariousPapers.cpp).
+
+### Use case: Input file containing permutations
+
+#### Compile
+```
+g++ tests_InputFile.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_input
+```
+#### Run
+```
+./revsort_input [seed] [verbose] [input_file]
+```
+
+#### Parameters
+All parameters are mandatory and must be given in the following order:
+1. **seed**: any positive integer greater than 0. This value is used by the random number generator to produce random values. It ensures that tests are reproducible: If you use the same number as a seed in two different runs, you are going to obtain the same results;
+2. **verbose**: a number between 0 and 4 that controls the verbosity level for the output messages:
+   - **verbose=0** (for cluster): only basic stats are printed;
+   - **verbose=1** (for user): basic messages are printed;
+   - **verbose=2** (for user): basic messages + replay of the sorting scenario (not recommended if the genome is too big);
+   - **verbose=3** (for developer): very detailed messages, useful for debugging;
+3. **input_file**: the path to the file containing one or more pairs of genomes. The format of the file is explained in the following section.
+
+#### File format
+
+The input file defines the gene order of one or more pairs of genomes. Each pair of genomes requires 3 lines:
+
+1. First Line: Test Identifier. The line must start with the character **>**, followed by a string that identifies the test (no spaces allowed; underscores, hyphens, dots, numbers, and other characters can be used). The identifier may include a combination of the names of the genomes being analyzed or any other relevant information that distinguishes the test. This information will be included in the output file.
+2. Second line: Gene order of the reference genome. Each gene is associated to an integer value, where the sign (positive or negative) designates the orientation of the gene in the DNA strand. Despite being the reference genome, its gene order does not necessarily have to be an identity permutation; the program internally processes the conversion to an identity permutation.
+3. Third line: Gene order of the query genome. It follows the same format as the reference genome and must be defined using the same set of genes as the reference genome.
+
+An example of an input file with two pairs of genomes is given in the next section. Notice that in the first case the reference genome is not an identity permutation.
+
+#### Example
+```
+./revsort_input 42 0 inputFile.txt
+```
+
+inputFile.txt:
+```
+>GenomePair1_refnotidentity
+1 -2 3 -4 5 -6
+1 -2 -3 4 5 6
+>GenomePair2_refisidentity
+1 2 3 4 5 6
+-2 -1 -5 4 6
+```
 
 ### Use case: Random permutations
 

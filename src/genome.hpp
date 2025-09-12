@@ -96,7 +96,10 @@ public:
 	int getAdjustedId(const GeneLabelT& gene_label, bool const reversed) const {
 		if (labels->find(gene_label) != labels->end()) {
 			int gene_id = getId(gene_label);
-			const bool sign = (((gene_id < 0) && !reversed) || ((gene_id > 0) && reversed));
+			// Sign: [true]  = the reference gene and the query gene have different orientations. 
+			//       [false] = the reference gene and the query gene have the same orientation. 
+			const bool sign = ((gene_id < 0) != reversed);
+			gene_id = std::abs(gene_id);
 			return (sign ? -gene_id : gene_id);
 		} else {
 			return 0;
@@ -274,7 +277,7 @@ public:
 			std::cout << "ERROR! The gene with label '" << geneLabel << "' was not found in another genome. For now, all genomes must have the same gene content, and missing genes are not supported. Program is aborting." << std::endl;
 			exit(1);			
 		} 
-		return gene_labels_map.getAdjustedId(geneLabel, geneSign); // Retrieve ID correspoding to the label.
+		return gene_labels_map.getAdjustedId(geneLabel, geneSign); // Retrieve ID corresponding to the label.
 	}
 	
 	int createGeneId(GeneLabelT const &geneLabel, bool const &geneSign) {
