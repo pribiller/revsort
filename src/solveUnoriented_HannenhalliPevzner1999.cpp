@@ -170,6 +170,35 @@ std::vector<int> UnorientedComponents::findHurdles() {
 	return hurdles;
 }
 
+int UnorientedComponents::getGeneExtIndex(const int gene_ext) const {
+	// Compute position of the gene extremity in the current permutation.
+	int const gene_idx = genperm.unsExtToGene(gene_ext)-1;
+	std::list<Gene<BlockSimple>>::iterator gene = genperm.genes[gene_idx];
+
+	bool const is_gene_rev = genperm.isReversed(gene_idx+1);
+	bool const is_gene_ext_odd = ((gene_ext % 2)==1);
+	bool const is_beg_ext = (is_gene_rev != is_gene_ext_odd);
+
+	int idx = 2*(gene->block->genePosAbs((*gene))-1);
+	if (is_beg_ext){idx = idx-1;}
+	return idx;
+}
+
+int UnorientedComponents::getRandomBlackEdge(const Cycle& comp, std::mt19937& rng, const bool beg_ext) const {
+	// A black edge points to the consecutive element in the current permutation.
+	// A black edge always starts at an even index (e.g. 0) and points to an odd index.
+	std::vector<int> candidates = {};
+	for (int gene_ext : comp.genes) {
+		int idx = getGeneExtIndex(gene_ext);
+		// start of a black edge : even index
+		// end of a black edge : odd index
+		const bool validCandidate = ((beg_ext && ((idx % 2)==0)) || (!beg_ext && ((idx % 2)==1)));
+		if(validCandidate){candidates.emplace_back(gene_ext);}
+	}
+	std::uniform_int_distribution distr(0, static_cast<int>(candidates.size()-1));
+	return candidates[distr(rng)];
+}
+
 // Get a **random** black edge, so different parsimonious scenarios can be sampled.
 std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt19937& rng) {
 
@@ -187,14 +216,15 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 	for (int comp_1=0; comp_1 < comp_2; ++comp_1) {
 
 		// Get one black edge in each component.
-		int gen_ext_beg = comps.getRandomBlackEdge(comps.forest[hurdles[comp_1]], rng, true);
-		int gen_ext_end = comps.getRandomBlackEdge(comps.forest[hurdles[comp_1+comp_2]], rng, true);
+		int gen_ext_beg = getRandomBlackEdge(comps.forest[hurdles[comp_1]], rng, true);
+		int gen_ext_end = getRandomBlackEdge(comps.forest[hurdles[comp_1+comp_2]], rng, true);
 
 		// Merge two non-consecutive unoriented components with one reversal.
 		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
-		if(debug) std::cout << "[Merge components] Reversal: (" << rev.g_beg << " " << rev.g_end << "]" << std::endl;
+		if(debug) std::cout << "[Merge components] Reversal: (" << rev.g_beg << " " << rev.g_end << "]; Chosen gene extremities: (" << gen_ext_beg << ", " << gen_ext_end << "]" << std::endl;
+
 		applyReversal(genperm, rev.g_beg, rev.g_end);
-		if(debug) genperm.printBlocks();
+
 		// Labels correspond to extended signed permutation.
 		reversals.emplace_back(rev); 
 	}
@@ -212,14 +242,14 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 		// This is done in the case where the last component in the list  
 		// remains untouched by the previous merging operations. 
 		// This happens when the list of unoriented components has an odd number of elements.
-		int gen_ext_beg = comps.getRandomBlackEdge(comps.forest[hurdles[idx_last]], rng,  true);
+		int gen_ext_beg = getRandomBlackEdge(comps.forest[hurdles[idx_last]], rng,  true);
 		int gen_ext_end = gen_ext_beg;
-		while(gen_ext_end == gen_ext_beg){
-			gen_ext_end = comps.getRandomBlackEdge(comps.forest[hurdles[idx_last]], rng,  true);
+		while(gen_ext_beg == gen_ext_end){
+			gen_ext_end = getRandomBlackEdge(comps.forest[hurdles[idx_last]], rng,  true);
 		}
 		// Merge two non-consecutive unoriented components with one reversal.
 		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
-		if(debug) std::cout << "[Split last component] Reversal: (" << rev.g_beg << " " << rev.g_end << "]" << std::endl;
+		if(debug) std::cout << "[Split last component] Reversal: (" << rev.g_beg << " " << rev.g_end << "]; Chosen gene extremities: (" << gen_ext_beg << ", " << gen_ext_end << "]" << std::endl;
 		applyReversal(genperm, rev.g_beg, rev.g_end);
 		genperm.printBlocks();
 		// Labels correspond to extended signed permutation.

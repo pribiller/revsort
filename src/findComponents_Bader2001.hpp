@@ -114,9 +114,6 @@ public:
 	void printComponents() const;
 
 	std::vector<int> getExtendedPerm(const Cycle& comp) const;
-
-	int getBlackEdge(const int gene_ext, const bool beg_ext) const;
-	int getRandomBlackEdge(const Cycle& comp, std::mt19937& rng, const bool beg_ext) const;
-
+	
 	inline int getGene(const int gene_ext) const {return (int)(std::ceil(gene_ext/2.0)+1);}
 };

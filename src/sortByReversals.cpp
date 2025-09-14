@@ -204,10 +204,11 @@ void SortByReversals::sort(std::mt19937& rng){
 		printGenome(genperm.getUnsignedExtendedPerm());
 	}
 	// Part II: Sort oriented components.
-	// Find connected components again (they should be all oriented now).
+	// Find connected components again (all hurdles should be all oriented now; some non-hurdle components might still be unoriented).
 	comps = ConnectedComponents(genperm.getUnsignedExtendedPerm(),debug);
 	// Sort each connected component separately.
 	if(debug){std::cout << "Sort connected components by reversals" << std::endl;}
+	
 	for(const int& root_idx: comps.rootList){
 		if(debug){comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);}
 		std::unordered_map<int,std::pair<int,int>> newlabels_map;

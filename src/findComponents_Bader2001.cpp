@@ -66,7 +66,7 @@ void ConnectedComponents::printComponent(const Cycle& comp, std::string indent, 
 void ConnectedComponents::findConnectedComponents() {
 
 	std::stack<int> stack; // Store all cycles currently "active", one element per cycle.
-
+	// Update indices of elements.
 	for (int i=0; i<perm.size(); ++i){idxs[perm[i]] = i;}
 	// Find components.
 	int cycle_id = perm.size();
@@ -179,25 +179,4 @@ void ConnectedComponents::printComponents() const {
 		printComponent(forest[root_idx], "", perm.size(), forest);
 	}
 	std::cout << std::endl;
-}
-
-int ConnectedComponents::getBlackEdge(const int gene_ext, const bool beg_ext) const {
-	int idx = idxs[gene_ext];
-	// A black edge points to the consecutive element in the current permutation.
-	// A black edge always starts at an even index (e.g. 0) and points to an odd index.
-	if (beg_ext) { // start of a black edge : even index
-		if((idx % 2)==1){ // current index is odd.
-			idx -= 1;
-		}
-	} else { // end of a black edge : odd index
-		if((idx % 2)==0){ // current index is even.
-			idx += 1;
-		}
-	}
-	return perm[idx];
-}
-
-int ConnectedComponents::getRandomBlackEdge(const Cycle& comp, std::mt19937& rng, const bool beg_ext) const {
-	std::uniform_int_distribution distr(0, static_cast<int>(comp.genes.size()-1));
-	return getBlackEdge(comp.genes[distr(rng)], beg_ext);
 }

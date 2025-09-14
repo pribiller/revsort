@@ -59,6 +59,9 @@ protected:
 
 	Reversal getReversal(int gen_ext_beg, int gen_ext_end);
 
+	int getGeneExtIndex(const int gene_ext) const;
+	int getRandomBlackEdge(const Cycle& comp, std::mt19937& rng, const bool beg_ext) const;
+
 public:
 	ConnectedComponents& comps;
 	GenomePermutation<BlockSimple>& genperm;
