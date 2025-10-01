@@ -11,7 +11,7 @@
  * implementation of the sorting by reversals method.
  * 
  * Compile:
- * g++ tests_SampleScenarios.cpp sampleRandomReversal_Larget2004.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler
+ * g++ tests_SampleScenarios.cpp sampleReversal_Larget2004.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler
  * 
  * Run:
  * ./revsampler 42 1
@@ -27,7 +27,7 @@
 #include <cmath>	 // abs
 #include <memory>	 // shared_ptr
 
-#include "sampleRandomReversal_Larget2004.hpp"
+#include "sampleReversal_Larget2004.hpp"
 
 /*******************************************************
  * Some basic tests.
