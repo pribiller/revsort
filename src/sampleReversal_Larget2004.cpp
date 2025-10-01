@@ -3,34 +3,10 @@
  * Created: October/2025
  * License: GPL v3
  * 
- * This class implements a method to sample a random
- * sorting scenario by reversals given two genomes,
- * i.e., it finds a sequence of reversals to transform 
- * one of the input genomes into the other genome.
- * Note that the sequence of reversals might not be optimal,
- * specially if the two given genomes are far apart.
- * 
- * The given scenario is just one of the many possible
- * scenarios that could transform one genome
- * into another.
- * 
- * To find a random scenario, a method similar to Larget's
- * work [Larget et al. (2004), Larget et al. (2005)] 
- * is implemented.
- * 
- * The method implements a MCMCMC (also know as 
- * MCMC with Parallel Tempering), in which each
- * several chains are ran in parallel and swaped
- * every once in a while. The chains have different
- * 'temperatures', a parameter that controls how
- * flat or rugged is the solution space. Flatter 
- * landscapes allow for bigger jumps in the solution space.
- * 
- * To find a random reversal history, at each step
- * a random reversal is sampled. Reversals are categorized
- * in 4 types: "good reversals", "neutral good reversals",
- * "neutral reversals", and "bad reversals". These types are 
- * defined based on how close the genome gets to the target 
+ * This class implements a method to sample one random reversal. 
+ * Reversals are categorized in 4 types: "good reversals", 
+ * "neutral good reversals", "neutral reversals", and "bad reversals". 
+ * These types are defined based on how close the genome gets to the target 
  * genome after they are applied:
  * 
  * 1) Good reversals
@@ -130,7 +106,7 @@
 #include <cmath>	 // abs
 #include <memory>	 // shared_ptr
 
-#include "sampleRandomReversal_Larget2004.hpp"
+#include "sampleReversal_Larget2004.hpp"
 
 void SampleRandomReversal::initializeComponents(){
 
