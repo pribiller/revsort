@@ -91,9 +91,10 @@ void ConnectedComponents::findConnectedComponents() {
 			BgColor edge_color = BgColor::GRAY;
 			int current = perm[i];
 			// Finds the cycle by traversing the alternating gray and black edges from the cycle.
-			// std::cout << "\tNew cycle : ";
+			//std::cout << "\tNew cycle : ";
 			do {
-				// std::cout << " " << current;
+				//std::cout << " - Current element = " << current << "; idx = " << idxs[current] << "; cycle idx = " << cycle_idx << std::endl;
+
 				// Map element to the new cycle.
 				cycles[idxs[current]] = cycle_idx;
 				new_cycle.children.emplace_back(current);
@@ -124,7 +125,7 @@ void ConnectedComponents::findConnectedComponents() {
 					current = (((idxs[current] % 2)==0) ? perm[idxs[current]+1] : perm[idxs[current]-1]);
 					edge_color = BgColor::GRAY;
 				}
-				// std::cout << "(next:" << current << ")";
+				//std::cout << "(next:" << current << ")";
 			} while ((idxs[current]-i) != 0);
 			// std::cout << std::endl;
 			// Add cycle to the stack.
@@ -136,7 +137,7 @@ void ConnectedComponents::findConnectedComponents() {
 
 		// Case 2: Cycle of element i was already created.
 		} else {
-			// std::cout << "\tExistent cycle with element "  << perm[i] << ": ";
+			//std::cout << "\tExistent cycle with element "  << perm[i] << ": ";
 			// Find the cycle that is the root of the 
 			// connected component containing element i.
 			int root_idx = cycles[i]; // Index of cycle i in the list ``forest``.
@@ -144,7 +145,7 @@ void ConnectedComponents::findConnectedComponents() {
 			// std::cout << " " << forest[root_idx].printCycle() << std::endl;
 
 			// Merge cycles that overlap.
-			// std::cout << "\tStack size = " << stack.size() << std::endl;
+			//std::cout << "\tStack size = " << stack.size() << std::endl;
 			while((stack.size() > 0) && (forest[stack.top()].min > forest[root_idx].min)){
 				// Update max if needed.
 				if(forest[root_idx].max < forest[stack.top()].max){
@@ -179,4 +180,54 @@ void ConnectedComponents::printComponents() const {
 		printComponent(forest[root_idx], "", perm.size(), forest);
 	}
 	std::cout << std::endl;
+}
+
+std::vector<int> ConnectedComponents::getCycles(const Cycle& comp) const {
+	const int n = perm.size();
+	const int comp_idx = comp.id-n;
+	std::vector<int> cycles = {comp_idx};
+	for(const int& c: comp.children) {
+		if(c >= n) {
+			std::vector<int> more_cycles = getCycles(forest[c-n]);
+			cycles.insert(cycles.end(), more_cycles.begin(), more_cycles.end());
+		}
+	}
+	return cycles;
+}
+
+int ConnectedComponents::getCycleSize(const Cycle& comp, bool blackEdgesOnly) const {
+	const int n = perm.size();
+	int size = 0;
+	for(const int& c: comp.children) {if(c < n) {size += 1;}}
+	return (blackEdgesOnly ? (int) size/2 : size);
+}
+
+std::vector<int> ConnectedComponents::getCycleSizes(bool blackEdgesOnly) const {
+	std::vector<int> sizes(forest.size());
+	for (int i = 0; i < forest.size(); ++i) {sizes[i] = getCycleSize(forest[i], blackEdgesOnly);}
+	return sizes;
+}
+
+std::vector<int> ConnectedComponents::getGeneExtremities(const Cycle& cycle, bool onlyBlackEdgeStart) const {
+	const int n = perm.size();
+	std::vector<int> gene_exts;
+	for(const int& c: cycle.children) {
+		if((c < n) && ((onlyBlackEdgeStart && (idxs[c] % 2 == 0)) || (!onlyBlackEdgeStart))) {
+			gene_exts.emplace_back(c);
+		}
+	}
+	return gene_exts;
+}
+
+std::vector<int> ConnectedComponents::getGeneExtremities(bool onlyBlackEdgeStart) const {
+		
+	// All gene extremities.
+	std::vector<int> gene_exts_all(perm.size());
+	std::iota(gene_exts_all.begin(), gene_exts_all.end(), 0);
+	if(!onlyBlackEdgeStart){return gene_exts_all;}
+
+	// Only gene extremities that start black edges (extremities in even indices).
+	std::vector<int> gene_exts;
+	for(const int& g: gene_exts_all) { if(idxs[g] % 2 == 0) {gene_exts.emplace_back(g);} }
+	return gene_exts;
 }

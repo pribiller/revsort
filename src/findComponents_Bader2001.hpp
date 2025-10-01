@@ -97,10 +97,12 @@ public:
 
 	std::vector<int> perm;   // pos i stores a gene extremity.
 	std::vector<int> idxs;   // pos i stores the current position of gene extremity i in the permutation.
-	std::vector<int> cycles; // pos i stores the cycle id that gene extremity i belongs.
+	std::vector<int> cycles; // pos i stores the cycle index that gene extremity occupying position i belongs (Note that this is *not* the same as gene extremity i).
 
 	std::vector<Cycle> forest; // Store all cycles in the breakpoint graph, one element per cycle.
 	std::list<int> rootList;   // Store all roots in the overlap (forest) graph, one element per root.
+
+	ConnectedComponents(){}
 
 	ConnectedComponents(const std::vector<int> unsignedExtPerm, bool debug=false):perm(unsignedExtPerm),idxs(perm.size()),cycles(perm.size(),-1),debug(debug){
 		if(debug){printUnsignedExtPerm();}
@@ -113,7 +115,17 @@ public:
 	void printUnsignedExtPerm() const;
 	void printComponents() const;
 
-	std::vector<int> getExtendedPerm(const Cycle& comp) const;
+	// Get all cycle's indices from a given component.
+	std::vector<int> getCycles(const Cycle& comp) const;
 	
+	// Get the number of edges (gray edges + black edges) in a cycle.
+	// This number is equal to the number of gene extremities.
+	int getCycleSize(const Cycle& comp, bool blackEdgesOnly=false) const;
+	std::vector<int> getCycleSizes(bool blackEdgesOnly=false) const;
+
+	inline int getCycleIdx(const int gene_ext) const {return cycles[idxs[gene_ext]];}
 	inline int getGene(const int gene_ext) const {return (int)(std::ceil(gene_ext/2.0)+1);}
+
+	std::vector<int> getGeneExtremities(const Cycle& cycle, bool onlyBlackEdgeStart) const;
+	std::vector<int> getGeneExtremities(bool onlyBlackEdgeStart) const;
 };
