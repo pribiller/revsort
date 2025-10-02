@@ -38,10 +38,11 @@
 class Reversal {
 public:
 	int g_arc{-1};  // It indicates which of the four saved genes was supposed to be sorted after the reversal.
-	int g_beg;  // Gene i.
-	int g_end;  // Gene i+1.
-	int g_beg_next; // Current gene after gene i.
-	int g_end_next; // Current gene after gene i+1.
+	int g_beg{-1};  // Gene i.
+	int g_end{-1};  // Gene i+1.
+	int g_beg_next{-1}; // Current gene after gene i.
+	int g_end_next{-1}; // Current gene after gene i+1.
+	Reversal(){}
 	Reversal(const int g_beg, const int g_end, const int g_beg_next, const int g_end_next):g_beg(g_beg),g_end(g_end),g_beg_next(g_beg_next),g_end_next(g_end_next){
 
 	}
@@ -67,6 +68,8 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 	
 	// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 	genperm.splitBlock(g_beg);
+	if(debug) std::cout << applyReversal_str << " After splitting block 1: " << genperm.printBlocks("\n\t") << std::endl;
+
 	genperm.splitBlock(g_end);
 
 	if(debug) std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;

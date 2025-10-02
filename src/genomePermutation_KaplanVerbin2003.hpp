@@ -483,7 +483,6 @@ void GenomePermutation<BlockT>::splitBlock(const int gene){
 	} else {
 		// Check if ``gene`` is not the last element in the list.
 		if ((g_it != b_it->permutationSegment.end()) && (std::next(g_it) != b_it->permutationSegment.end())) {
-
 			// Move genes that appear after `gene` to a new list.
 			std::list<Gene<BlockT>> permSegment;
 			permSegment.splice(permSegment.begin(), b_it->permutationSegment, std::next(g_it), b_it->permutationSegment.end());
@@ -491,7 +490,7 @@ void GenomePermutation<BlockT>::splitBlock(const int gene){
 			// Create a new block containing all genes that appear after the gene specified in the input.
 			// ``permSegment`` becomes unusable after this point.
 			new_block = createNewBlock(b_it->pos+b_it->permutationSegment.size(), permSegment, b_it);
-
+			
 			// Update status of blocks.
 			b_it->status      += SPLIT;
 			new_block->status += SPLIT;

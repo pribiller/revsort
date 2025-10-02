@@ -101,7 +101,7 @@
 
 #include <iostream>
 #include <unordered_map>
-#include <algorithm> // set_difference
+#include <algorithm> // set_difference, find
 #include <vector>
 #include <stack>
 #include <list>
@@ -142,6 +142,18 @@ enum CycleType : int {
 };
 const int CycleType_COUNT = 4;
 
+/* This class extends the Reversal class by adding info about the probability to sample the reversal.*/
+class ReversalRandom : public Reversal {
+public:
+	ReversalType type;
+	CycleType cycle;
+	ReversalRandom(){}
+	ReversalRandom(const int g_beg_, const int g_end_, const int g_beg_next_, 
+		const int g_end_next_, const ReversalType type_, const CycleType cycle_):Reversal(g_beg_, g_end_, g_beg_next_, g_end_next_), type(type_),cycle(cycle_){
+		// std::cout << " " << g_beg << " " << g_end << " " << g_beg_next << " " << g_end_next << std::endl;
+	}
+};
+
 /* This class store information about the reversals in a cycle.*/
 class CycleCounters {
 public:
@@ -172,24 +184,20 @@ public:
 	CycleInfo(CycleType type_, int size_, int hurdle_idx_, std::pair<int,int> hurdles_adj_):type(type_),size(size_),hurdle_idx(hurdle_idx_),hurdles_adj(hurdles_adj_){}
 };
 
-class SampleRandomReversal {
+class ReversalSampler {
 // private:
 
 public:
 
-	GenomePermutation<BlockSimple> genperm; // Unsigned extended permutation (it assumes that one of the permutations is the identity).
-	ConnectedComponents comps;              // It stores the current state of the components.
-	std::vector<int> hurdles;               // indices of all roots (cycles) of components that are hurdles.
-	std::vector<CycleInfo> cycles_info;     // General properties of each cycle (nb. of black edges, if it is oriented or not, etc.).
+	GenomePermutation<BlockSimple>& genperm; // Unsigned extended permutation (it assumes that one of the permutations is the identity).
+	ConnectedComponents comps;               // It stores the current state of the components.
+	std::vector<int> hurdles;                // indices of all roots (cycles) of components that are hurdles.
+	std::vector<CycleInfo> cycles_info;      // General properties of each cycle (nb. of black edges, if it is oriented or not, etc.).
 
 	std::vector<CycleCounters> revcounters; // Counts the number of reversals in each category (good, neutral, bad...) for *each cycle*.
 	
 	std::vector<float> revprobs;  // Probability of each type of reversal.
 	std::vector<float> revtotals; // Total count of each type of reversal.
-
-	//std::vector<Reversal> reversals; // It saves all sampled reversals in the solution.
-
-	float p_stop{0.99};
 
 	int nb_cycles{0};
 	int nb_gene_ext{0};
@@ -198,7 +206,7 @@ public:
 
 	bool debug{false};
 
-	SampleRandomReversal(GenomePermutation<BlockSimple>& genperm, bool debug=false, float p_good=0.97, float p_neutralgood=0.92, float p_neutral=0.92, float p_stop=0.99):genperm(genperm),revprobs(ReversalType_COUNT, 0),revtotals(ReversalType_COUNT, 0.0),p_stop(p_stop),debug(debug){
+	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, bool debug=false, float p_good=0.97, float p_neutralgood=0.92, float p_neutral=0.92):genperm(genperm_),revprobs(ReversalType_COUNT, 0),revtotals(ReversalType_COUNT, 0.0),debug(debug){
 		initializeComponents();
 		initializeCounts();
 		std::vector<float> probs = {p_good, p_neutralgood, p_neutral, static_cast<float>(1.0-p_neutral)};
@@ -233,9 +241,10 @@ public:
 	std::vector<int> getAdjacentHurdleExtremities(const int cycle_idx);
 	std::vector<int> getAllHurdleExtremities();
 
+	ReversalRandom sampleReversal(std::mt19937& rng, bool updateComps);
+
 	ReversalType sampleReversalType(std::mt19937& rng);
 	int  sampleCycle(ReversalType revtype, std::mt19937& rng);
-	std::pair<int,int> sampleReversal(std::mt19937& rng, bool updateComps=false);
 	std::pair<int,int> sampleReversalFromCycle(const int cycle_idx, const ReversalType revtype, std::mt19937& rng);
 
 	std::pair<int,int> sampleOriented(const int cycle_idx, const ReversalType revtype, std::mt19937& rng);
@@ -248,5 +257,6 @@ public:
 
 	std::vector<std::pair<int,int>> makeAllCombinations(std::vector<int> elems);
 	std::vector<std::pair<int,int>> makeAllCombinations(std::vector<int> elems1, std::vector<int> elems2);
-	
+
+	void debugPrintRevTotals();
 };
