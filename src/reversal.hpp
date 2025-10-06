@@ -68,8 +68,6 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 	
 	// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 	genperm.splitBlock(g_beg);
-	if(debug) std::cout << applyReversal_str << " After splitting block 1: " << genperm.printBlocks("\n\t") << std::endl;
-
 	genperm.splitBlock(g_end);
 
 	if(debug) std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
