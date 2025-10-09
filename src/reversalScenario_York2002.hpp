@@ -95,20 +95,28 @@ class RandomReversalScenario {
 
 public:
 
-	GenomePermutation<BlockSimple>& genperm; // Unsigned extended permutation (it assumes that one of the permutations is the identity).
-	std::vector<ReversalRandom> reversals;   // It saves all sampled reversals in the solution.
-
 	std::vector<float> revprobs;  // Probability of each type of reversal.
 	float p_stop{0.99};
 
 	bool debug{false};
 
-	RandomReversalScenario(GenomePermutation<BlockSimple>& genperm_, const bool debug=false, const float p_good=1.0, const float p_neutralgood=0.025, const float p_neutral=0.020, const float p_bad=0.015, const float p_stop=0.99):genperm(genperm_),revprobs(ReversalType_COUNT, 0),p_stop(p_stop),debug(debug){
+	RandomReversalScenario(const bool debug=false, const float p_good=1.0, const float p_neutralgood=0.025, const float p_neutral=0.020, const float p_bad=0.015, const float p_stop=0.99):revprobs(ReversalType_COUNT, 0),p_stop(p_stop),debug(debug){
 		revprobs = {p_good, p_neutralgood, p_neutral, p_bad};
 	}
 	
-	std::vector<ReversalRandom> sampleScenario(std::mt19937& rng);
-	std::vector<ReversalRandom> sampleModifiedScenario(std::mt19937& rng, int updpos_beg=-1, int updpos_end=-1);
+	std::vector<ReversalRandom> sampleScenario(GenomeMultichrom<int>& genome_B, std::mt19937& rng);
+	std::vector<ReversalRandom> sampleModifiedScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, std::mt19937& rng);
+
+	std::vector<ReversalRandom> updateReversalScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom> reversals, std::vector<ReversalRandom> reversals_new, const int pos_beg, const int pos_end);
+
+	int samplePathLength(std::mt19937& rng, const int N, const float alpha=0.65, const float epsilon=8);
+	int samplePathStart(std::mt19937& rng, const int N, const int l);
+
+	std::pair<std::vector<int>,std::vector<int>> getPathEnds(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
+	GenomeMultichrom<int> getGenomes(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
+	int getGeneLabelDefault(GenomeMultichrom<int>& genome, int gene_lbl_ext);
 
 	void printGenome(std::vector<int> perm);
+	void printSortingScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, int pos_beg, int pos_end);
+
 };

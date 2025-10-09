@@ -36,35 +36,35 @@
  * Some basic tests.
 *******************************************************/
 
+void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+	
+	SortByReversals sortGenome(genome_A,genome_B,false);
+	//sortGenome.printInputGenomes();
+
+	sortGenome.sort(rng);
+
+	RandomReversalScenario sampler(false);
+
+	std::cout << "Sampling scenario..." << std::endl;
+	std::vector<ReversalRandom> reversals = sampler.sampleScenario(genome_B,rng);
+	std::cout << " - Sampled scenario = " << reversals.size() << " reversals." << std::endl;
+
+	bool correctSolution = sortGenome.printStats();
+
+	std::cout << "\nSampling modified scenario..." << std::endl;
+	std::vector<ReversalRandom> reversals_new = sampler.sampleModifiedScenario(genome_B, reversals, rng);
+
+}
+
 void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
 
 	SortByReversals sortGenome(genome_A,genome_B,false);
 	sortGenome.sort(rng);
 
-	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
-	// for (auto b_it = genperm.blockList.begin(); b_it != genperm.blockList.end(); ++b_it) {
-	// 	for (auto & g : b_it->permutationSegment) {
-	// 		if(g.block == b_it){
-	// 			std::cout << " [debug] They are the same iterator" << std::endl; 
-	// 		} else {
-	// 			std::cout << " [debug] They are diff iterator: " << b_it->printBlock() << "  AND " << g.block->printBlock() << std::endl;
-	// 		}
-	// 	}
-	// }
-
-	RandomReversalScenario sampler(genperm,true);
-	// for (auto b_it = sampler.genperm.blockList.begin(); b_it != sampler.genperm.blockList.end(); ++b_it) {
-	// 	for (auto & g : b_it->permutationSegment) {
-	// 		if(g.block == b_it){
-	// 			std::cout << " [debug] They are the same iterator" << std::endl; 
-	// 		} else {
-	// 			std::cout << " [debug] They are diff iterator: " << b_it->printBlock() << "  AND " << g.block->printBlock() << std::endl;
-	// 		}
-	// 	}
-	// }
+	RandomReversalScenario sampler(true);
 
 	std::cout << "Sampling scenario..." << std::endl;
-	std::vector<ReversalRandom> reversals = sampler.sampleScenario(rng);
+	std::vector<ReversalRandom> reversals = sampler.sampleScenario(genome_B,rng);
 	std::cout << " - Sampled scenario = " << reversals.size() << " reversals." << std::endl;
 
 	bool correctSolution = sortGenome.printStats();
@@ -105,7 +105,7 @@ void testCase_Garg2019(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
-	testCase_sampleReversalScenario(genome_A, genome_B, rng, debug);
+	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Bader et al. (2001).
@@ -129,7 +129,7 @@ void testCase_Bader2001(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Bader et al.(2001)\n";
-	testCase_sampleReversalScenario(genome_A, genome_B, rng, debug);
+	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Tannier et al. (2007) (Figure 4).
@@ -145,7 +145,7 @@ void testCase_Tannier2007_Figure4(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Tannier et al. (2007) (Figure 4)\n";
-	testCase_sampleReversalScenario(genome_A, genome_B, rng, debug);
+	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(a)).
@@ -161,7 +161,7 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(a)\n";
-	testCase_sampleReversalScenario(genome_A, genome_B, rng, debug);
+	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
@@ -177,7 +177,7 @@ void testCase_Hannehalli1999_Fig4b(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(b)\n";
-	testCase_sampleReversalScenario(genome_A, genome_B, rng, debug);
+	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
@@ -193,7 +193,7 @@ void testCase_Bergeron2005_Sec10_4_2(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (Section 10.4.2)\n";
-	testCase_sampleReversalScenario(genome_A, genome_B, rng, debug);
+	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Figure 10.6).
@@ -210,7 +210,7 @@ void testCase_Bergeron2005_Fig10_6(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (permutation P_2, Figure 10.6)\n";
-	testCase_sampleReversalScenario(genome_A, genome_B, rng, debug);
+	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
 }
 
 int main(int argc, char* argv[]) {

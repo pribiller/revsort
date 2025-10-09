@@ -84,3 +84,19 @@ std::vector<int> createRandomPartition(std::mt19937& rng, int n, const int m) {
 	}
 	return partitions;
 }
+
+/*******************************************************
+ *  Auxiliary functions to create genomes from permutations.
+*******************************************************/
+
+// Get the gene order and the gene signs from a given permutation.
+std::pair<std::vector<int>,std::vector<bool>> permToGenome(std::vector<int> permutation){
+	std::vector<int>   gene_order(permutation.size());
+	std::vector<bool>  gene_signs(permutation.size());
+	for(int i=0; i < permutation.size(); ++i){
+		gene_order[i] = std::abs(permutation[i]);
+		gene_signs[i] = (permutation[i] < 0);
+	}
+	return std::make_pair(gene_order,gene_signs);
+}
+

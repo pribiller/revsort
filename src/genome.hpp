@@ -54,6 +54,13 @@ std::vector<bool> createRandomSigns(std::mt19937& rng, const int n, const double
 std::vector<int> createRandomPartition(std::mt19937& rng, int n, const int m);
 
 /*******************************************************
+ *  Auxiliary functions to create genomes from permutations.
+*******************************************************/
+
+// Get the gene order and the gene signs from a given permutation.
+std::pair<std::vector<int>,std::vector<bool>> permToGenome(std::vector<int> permutation);
+
+/*******************************************************
  *  Genome data structure.
 *******************************************************/
 
@@ -175,7 +182,7 @@ public:
 		// Create chromosomes **without** creating a new mapping between gene labels and internal gene ids.
 		createPermutation(genome_multichrom, genome_orientation, true);
 	}
-	
+
 	// Create a random genome with n genes and m chromosomes.
 	GenomeMultichrom(std::mt19937& rng, int n, int m, double probRev):n(n),m(m),genome(m),gene_labels_map(new typename std::unordered_map<GeneLabelT, int>,new typename std::vector<GeneLabelT>){
 		// Initialize a random genome.
