@@ -88,20 +88,26 @@
 #include "findComponents_Bader2001.hpp"
 #include "solveUnoriented_HannenhalliPevzner1999.hpp"
 
+#include "sortByReversals.hpp"
 #include "sampleReversal_York2002.hpp"
 
 class ProposalReversalMean {
 public:
+	std::mt19937& rng;
 
 	double rev_mean_min;
 	double rev_mean_range; // Proposed values are uniformly sampled from the range [cur-range, cur+range].
 
+	double acceptanceProb{0.0};
+	double rev_mean_new{0.0};
+
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ProposalReversalMean(double rev_mean_min_, double rev_mean_range_):rev_mean_min(rev_mean_min_),rev_mean_range(rev_mean_range_){}
+	ProposalReversalMean(std::mt19937& rng_, double rev_mean_min_, double rev_mean_range_):rng(rng_),rev_mean_min(rev_mean_min_),rev_mean_range(rev_mean_range_){}
+	ProposalReversalMean(std::mt19937& rng_):rng(rng_){}
 
-	double sampleReversalMean(std::mt19937& rng, const double rev_mean_cur) const;
-
-	double getAcceptanceProb(const int rev_path_len, const double rev_mean_cur, const double rev_mean_prop) const;
+	double sampleReversalMean(const double rev_mean_cur);
+	double getAcceptanceProb(const int rev_path_len, const double rev_mean_cur, const double rev_mean_prop);
+	inline double proposeNewValue(const int rev_path_len, const double rev_mean_cur) {return getAcceptanceProb(rev_path_len, rev_mean_cur, sampleReversalMean(rev_mean_cur));}
 };
 
 class ProposalReversalScenario {
@@ -127,6 +133,9 @@ public:
 	//          path (N). From this point on, the probability drops to almost 0.
 	double alpha{0.65}; 
 	double epsilon{8};
+
+	double proposalRatio{0.0};  // Updated in getProposalRatio.
+	double posteriorRatio{0.0}; // Updated in getPosteriorRatio.
 
 	bool debug{false};
 
@@ -187,4 +196,50 @@ public:
 	void printGenome(std::vector<int> perm);
 	void printSortingScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, int pos_beg, int pos_end);
 
+};
+
+class ReversalMCMC {
+public:
+
+	int nb_chains;
+
+	GenomeMultichrom<int>& genome_B;
+	std::mt19937& rng;
+	bool debug;
+
+	int rev_dist{-1}; // It makes sure that estimated nb. of reversals is equal or above the reversal distance.
+	double rev_mean_range; // Parameter used to propose new values for the mean based on the current value.
+
+	// It stores the current state of all chains.
+	std::vector<std::vector<ReversalRandom>> currentState_revHists;
+	std::vector<double> currentState_revMeans;
+
+	// It stores sampled values.
+	std::vector<std::vector<ReversalRandom>> sampled_revHists;
+	std::vector<double> sampled_revMeans;
+
+	// Distribution used for computing acceptance probabilities.
+	std::uniform_real_distribution<double> distr_accept;
+
+	ProposalReversalMean proposalMean;
+
+	// The occurrence of inversions is a Poisson process with unknown mean lambda.
+	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_){
+
+		// Compute reversal distance.
+		SortByReversals sortGenome(genome_A_,genome_B_,false);
+		sortGenome.sort(rng);
+		rev_dist = sortGenome.obs_distance;
+
+		// Initialize proposal mean.
+		proposalMean.rev_mean_min = rev_dist;
+		proposalMean.rev_mean_range = rev_mean_range;
+
+		// Initialize reversal histories/means.
+		initializeChains();
+	}
+
+	void initializeChains();
+	void runSingleChain(const int chainIdx);
+	void run();
 };

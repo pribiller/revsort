@@ -77,31 +77,89 @@
 #include <cmath>	 // abs, tanh
 #include <memory>	 // shared_ptr
 
-#include "reversalScenario_York2002.hpp"
+#include "reversalMCMC_York2002.hpp"
 
 
 //////////////////////////////////////////////////////////////////////
 // MCMC Metropolis-Hastings
 //////////////////////////////////////////////////////////////////////
 
+void ReversalMCMC::initializeChains(){
+
+	RandomReversalScenario sampler(false);
+
+	std::cout << "Sampling scenario..." << std::endl;
+	
+	double p_good = 1.0;
+	const double p_good_min = 0.1;
+	const double p_delta = (p_good-p_good_min)/(nb_chains-1);
+
+	for (int idx=0; idx<nb_chains; ++idx){
+		sampler.rev_weights[ReversalType::GOOD] = p_good-idx*p_delta;
+		currentState_revHists[idx] = sampler.sampleScenario(genome_B,rng);
+		currentState_revMeans[idx] = currentState_revHists[idx].size();
+		std::cout << "- Chain " << idx << ": p_good=" << sampler.rev_weights[ReversalType::GOOD] << "; size=" << currentState_revHists[idx].size() << "; size_min=" << rev_dist << std::endl;
+	}
+
+}
+
+void ReversalMCMC::runSingleChain(const int chainIdx){
+
+	std::vector<ReversalRandom>& reversals = currentState_revHists[chainIdx];
+	double rev_mean = currentState_revMeans[chainIdx];
+
+	// Sample a modified reversal history.
+	std::cout << "\nSampling modified scenario..." << std::endl;
+	RandomReversalScenario sampler(false);
+	ProposalReversalScenario proposalHist = sampler.sampleModifiedScenario(genome_B, reversals, rng);
+
+	// Compute the acceptance probability of the modified reversal history.
+	std::cout << "\nComputing acceptance probability..." << std::endl;
+	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop);
+	std::cout << "Acceptance prob. = " << acceptanceProb << "; Posterior ratio = " << proposalHist.posteriorRatio << "; Proposal ratio = " << proposalHist.proposalRatio << std::endl;
+
+	// Check if current reversal history should be updated or not based on the acceptance probability.
+	if(distr_accept(rng) < acceptanceProb){
+		std::cout << "\nNew scenario ACCEPTED..." << std::endl;
+		currentState_revHists[chainIdx] = proposalHist.proposedReversalScenario;
+	} else {
+		std::cout << "\nNew scenario REJECTED..." << std::endl;
+	}
+
+	// Sample an updated reversal mean.
+	proposalMean.proposeNewValue(currentState_revHists[chainIdx].size(), currentState_revMeans[chainIdx]);
+	std::cout << "\nCur. mean= " << currentState_revMeans[chainIdx] << "; New mean=" << proposalMean.rev_mean_new << "; Acceptance prob.=" << proposalMean.acceptanceProb << std::endl;
+	if(distr_accept(rng) < proposalMean.acceptanceProb){
+		std::cout << "\nNew mean ACCEPTED..." << std::endl;
+		currentState_revMeans[chainIdx] = proposalMean.rev_mean_new;
+	} else {
+		std::cout << "\nNew mean REJECTED..." << std::endl;
+	}
+}
+
+void ReversalMCMC::run(){
+	runSingleChain(0);
+}
 
 //////////////////////////////////////////////////////////////////////
 // Mean number of reversals update.
 //////////////////////////////////////////////////////////////////////
 
-double ProposalReversalMean::sampleReversalMean(std::mt19937& rng, const double rev_mean_cur) const{
+double ProposalReversalMean::sampleReversalMean(const double rev_mean_cur) {
 	const double rev_mean_lb = std::max(rev_mean_min, rev_mean_cur-rev_mean_range/2);
 	const double rev_mean_ub = rev_mean_lb + rev_mean_range;
 
 	// Proposed values are uniformly sampled from the range [cur-range, cur+range].
 	std::uniform_real_distribution<double> distrib(rev_mean_lb, rev_mean_ub);
-	return distrib(rng);
+	rev_mean_new = distrib(rng);
+	return rev_mean_new;
 }
 
-double ProposalReversalMean::getAcceptanceProb(const int rev_path_len, const double rev_mean_cur, const double rev_mean_prop) const{
+double ProposalReversalMean::getAcceptanceProb(const int rev_path_len, const double rev_mean_cur, const double rev_mean_prop) {
 	// P(lambda | X, D) ~ P(X|lambda) P(lambda) ~ e^(-lambda) * lambda^L_x * P(lambda)
 	// P(lambda) = 1/(lambda_max-lambda_min+1)
-	return std::exp(-rev_mean_prop+rev_mean_cur)*(std::pow(rev_mean_prop/rev_mean_cur, rev_path_len));
+	acceptanceProb = std::exp(-rev_mean_prop+rev_mean_cur)*(std::pow(rev_mean_prop/rev_mean_cur, rev_path_len));
+	return acceptanceProb;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -171,7 +229,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<float>& rev_
 	// Proposal ratio: q(X|Y) / q(Y|X)
 	// q(X|Y) = q_L'(l',j) * q_old
 	// q(Y|X) = q_L(l,j)   * q_new
-	double proposalRatio = q_lj_new/q_lj_cur; // q_L'(l',j) / q_L(l,j)
+	proposalRatio = q_lj_new/q_lj_cur; // q_L'(l',j) / q_L(l,j)
 	std::cout << " - q_L'(l',j)=" << q_lj_new << "; q_L(l,j)=" << q_lj_cur << "; ratio=" << proposalRatio << std::endl;
 	int factors_max = std::max(q_cur.size(), q_new.size());
 	int factors_idx = 0;
@@ -193,6 +251,7 @@ double ProposalReversalScenario::getPosteriorRatio(const double rev_mean){
 	
 	// Simple case: both paths have the same size.
 	// For now there is no bias towards small reversals or specific regions for example.
+	posteriorRatio = 1.0;
 	if (L_cur == L_new) {return 1.0;}
 	
 	// Number of possible reversals that can be done in a certain step (including all types: good, bad, neutral).
@@ -213,7 +272,8 @@ double ProposalReversalScenario::getPosteriorRatio(const double rev_mean){
 
 	// P(X_new|lambda) / P(X_cur|lambda)
 	// P(X|lambda) is defined in York, Durrett, and Nielsen (2002)
-	return std::pow(nb_rev_step, -L_new+L_cur) * factorial;
+	posteriorRatio = std::pow(nb_rev_step, -L_new+L_cur) * factorial;
+	return posteriorRatio;
 }
 
 // The acceptance probability is the minimum of one and
@@ -294,7 +354,7 @@ std::vector<ReversalRandom> RandomReversalScenario::sampleScenario(GenomeMultich
 		if(debug){std::cout << "\n\n\n------------------------------------------------\n\n - Current nb. of breakpoints = " << genperm.getBreakpoints() << std::endl;}
 
 		// Sample a random reversal.
-		ReversalSampler sampler(genperm,debug);
+		ReversalSampler sampler(genperm,rev_weights,debug);
 		//sampler.debug      = true;
 		ReversalRandom rev = sampler.sampleReversal(rng,true);
 		//if(debug){printGenome(genperm.getExtendedPerm());}

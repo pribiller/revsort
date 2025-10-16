@@ -11,7 +11,7 @@
  * implementation of the sorting by reversals method.
  * 
  * Compile:
- * g++ tests_SampleScenarios.cpp sortByReversals.cpp reversalScenario_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler
+ * g++ tests_SampleScenarios.cpp sortByReversals.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler
  * 
  * Run:
  * ./revsampler 42 1
@@ -28,13 +28,24 @@
 #include <memory>	 // shared_ptr
 
 #include "sampleReversal_York2002.hpp"
-#include "reversalScenario_York2002.hpp"
+#include "reversalMCMC_York2002.hpp"
 
 #include "sortByReversals.hpp"
 
 /*******************************************************
  * Some basic tests.
 *******************************************************/
+
+void testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+
+	std::cout << "Starting MCMC..." << std::endl;
+
+	const int nb_chains=10;
+	const double rev_mean_range=10;
+	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,false);
+	mcmc.run();
+
+}
 
 void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
 	
@@ -69,11 +80,14 @@ void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	std::cout << "\nComputing acceptance probability..." << std::endl;
 	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop);
 	std::cout << "\nAcceptance prob. = " << acceptanceProb << std::endl;
-	
+
 	std::cout << "\nSampling new mean..." << std::endl;
 	// rev_mean_range how far from the current value the new sampled value can be.
 	const double rev_mean_range = 10.0;
-	ProposalReversalMean proposalMean(rev_mean, rev_mean_range);
+	ProposalReversalMean proposalMean(rng, rev_mean, rev_mean_range);
+	double rev_mean_prop = proposalMean.sampleReversalMean(rev_mean);
+	double acceptanceProb_mean = proposalMean.getAcceptanceProb(proposalHist.L_new, rev_mean, rev_mean_prop);
+	std::cout << "\nCur. mean= " << rev_mean << "; New mean=" << rev_mean_prop << "; Acceptance prob.=" << acceptanceProb_mean << std::endl;
 }
 
 void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
@@ -125,7 +139,7 @@ void testCase_Garg2019(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
-	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Bader et al. (2001).
@@ -149,7 +163,7 @@ void testCase_Bader2001(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Bader et al.(2001)\n";
-	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Tannier et al. (2007) (Figure 4).
@@ -165,7 +179,7 @@ void testCase_Tannier2007_Figure4(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Tannier et al. (2007) (Figure 4)\n";
-	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(a)).
@@ -181,7 +195,7 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(a)\n";
-	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
@@ -197,7 +211,7 @@ void testCase_Hannehalli1999_Fig4b(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(b)\n";
-	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
@@ -213,7 +227,7 @@ void testCase_Bergeron2005_Sec10_4_2(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (Section 10.4.2)\n";
-	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Figure 10.6).
@@ -230,7 +244,7 @@ void testCase_Bergeron2005_Fig10_6(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (permutation P_2, Figure 10.6)\n";
-	testCase_sampleModifiedScenario(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
 }
 
 int main(int argc, char* argv[]) {

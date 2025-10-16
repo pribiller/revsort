@@ -215,11 +215,11 @@ void ReversalSampler::updateRevProbs() {
 	// reversals associated have 0 chance to be sampled.
 	float rev_weight_cur = (rev_totals[0] == 0) ? 0.0 : rev_weights[0];
 	rev_weights_cum[0]   = rev_weight_cur;
-	rev_weights_total    = rev_weight_cur;
 	for (int i=1; i<ReversalType_COUNT; ++i) {
 		rev_weight_cur     = (rev_totals[i] == 0) ? 0.0 : rev_weights[i];
 		rev_weights_cum[i] = rev_weights_cum[i-1] + rev_weight_cur;
 	}
+	rev_weights_total = rev_weights_cum[ReversalType_COUNT-1];
 }
 
 // It returns a list of pairs of gene extremities. 
@@ -854,7 +854,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 				goodReversals.insert(goodReversals.end(), cycReversals.begin(), cycReversals.end());
 			}
 
-			std::cout << std::endl;
+			if(debug){std::cout << std::endl;}
 
 			std::uniform_int_distribution distr(0, static_cast<int>(goodReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -951,7 +951,7 @@ ReversalRandom ReversalSampler::sampleReversal(std::mt19937& rng, bool updateCom
 	// Sample reversal type.
 	ReversalType revtype = sampleReversalType(rng);
 	if(debug){std::cout << "\n > Sampled type " << revtype << " : nb. rev=" << rev_totals[revtype] << "; prob.=" << rev_weights[revtype] << std::endl;}
-	
+
 	// Sample a cycle based on how many reversals of the chosen reversal type each cycle has.
 	int cycle_idx = sampleCycle(revtype, rng);
 

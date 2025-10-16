@@ -226,6 +226,12 @@ public:
 		initializeRevProbs(probs);
 	}
 
+	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, std::vector<float>& rev_weights, bool debug=false):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
+		initializeComponents();
+		initializeCounts();
+		initializeRevProbs(rev_weights);
+	}
+
 	void initializeComponents();
 	void updateComponents();
 	void getCyclesInfo();
