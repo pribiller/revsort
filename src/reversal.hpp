@@ -81,12 +81,12 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 	// (3) Reverse the order of the blocks between the endpoints of the reversal;
 	const int g_after_beg = reversal_beg->permutationSegment.front().id;
 	const int g_after_end = reversal_end->permutationSegment.front().id;
-	
+
 	std::list<BlockT> temp;
 	temp.splice(temp.begin(), genperm.blockList, reversal_beg, reversal_end);
 	temp.reverse();
 	genperm.blockList.splice(reversal_end, temp);
-
+	
 	// (3.1) Update positions of reversed blocks.
 	int blockPos = genperm.getBlock(g_beg)->pos + genperm.getBlock(g_beg)->permutationSegment.size();
 	for (typename std::list<BlockT>::iterator b = genperm.getBlock(g_end); b != std::next(genperm.getBlock(g_after_beg)); ++b) { 

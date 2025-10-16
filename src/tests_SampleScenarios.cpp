@@ -50,10 +50,30 @@ void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	std::cout << " - Sampled scenario = " << reversals.size() << " reversals." << std::endl;
 
 	bool correctSolution = sortGenome.printStats();
-
+		
 	std::cout << "\nSampling modified scenario..." << std::endl;
-	std::vector<ReversalRandom> reversals_new = sampler.sampleModifiedScenario(genome_B, reversals, rng);
+	ProposalReversalScenario proposalHist = sampler.sampleModifiedScenario(genome_B, reversals, rng);
+	
+	// Compute proposal ratio.
+	std::cout << "\nComputing proposal ratio..." << std::endl;
+	double propRatio = proposalHist.getProposalRatio(sampler.rev_weights, sampler.p_stop);
 
+	// Compute posterior ratio.
+	std::cout << "\nComputing posterior ratio..." << std::endl;
+
+	double rev_mean  = sortGenome.obs_distance;
+	double postRatio = proposalHist.getPosteriorRatio(rev_mean);
+	std::cout << "\nPosterior ratio = " << postRatio << std::endl;
+
+	// Compute acceptance probability.
+	std::cout << "\nComputing acceptance probability..." << std::endl;
+	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop);
+	std::cout << "\nAcceptance prob. = " << acceptanceProb << std::endl;
+	
+	std::cout << "\nSampling new mean..." << std::endl;
+	// rev_mean_range how far from the current value the new sampled value can be.
+	const double rev_mean_range = 10.0;
+	ProposalReversalMean proposalMean(rev_mean, rev_mean_range);
 }
 
 void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){

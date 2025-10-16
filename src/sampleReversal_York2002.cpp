@@ -965,3 +965,169 @@ ReversalRandom ReversalSampler::sampleReversal(std::mt19937& rng, bool updateCom
 	if(debug){std::cout << "- Sampled reversal: exts=(" << blackEdges.first << ", " << blackEdges.second << "); genes: (" << reversal.g_beg << ", " << reversal.g_end << "]" << std::endl;}
 	return reversal;
 }
+
+
+ReversalType ReversalSampler::getReversalType_Oriented(const int cycle_idx, const std::pair<int,int>& rev){
+	// rev_counters[cycle_idx].counts[ReversalType::NEUTRAL_GOOD] = 0;
+	// rev_counters[cycle_idx].counts[ReversalType::NEUTRAL]      = ((cycle_size*(cycle_size-1))/2) - rev_counters[cycle_idx].counts[ReversalType::GOOD];
+	// rev_counters[cycle_idx].counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
+	//std::vector<std::pair<int,int>>& goodReversals = rev_counters[cycle_idx].reversals[ReversalType::GOOD];
+	const int cycleIdx_end = comps.getCycleIdx(rev.second);
+	ReversalType revtype   = ReversalType::NEUTRAL;
+	// Extremities are in the same cycle.
+	if(cycle_idx == cycleIdx_end){
+		// Check if reversal is included in the list of good reversals.
+		std::vector<std::pair<int,int>>& goodReversals = rev_counters[cycle_idx].reversals[ReversalType::GOOD];
+		for(std::pair<int,int>& goodrev : goodReversals){
+			if (   ((goodrev.first == rev.first)  && (goodrev.second == rev.second)) 
+				|| ((goodrev.second == rev.first) && (goodrev.first  == rev.second)) ) {
+				revtype = ReversalType::GOOD;
+				break;
+			}
+		}
+	} else {
+		revtype = ReversalType::BAD;
+	}
+	return revtype;
+}
+
+ReversalType ReversalSampler::getReversalType_Unoriented(const int cycle_idx, const std::pair<int,int>& rev){
+
+	// UNORIENTED
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL_GOOD] = ((cycle_size*(cycle_size-1))/2);
+	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
+
+	const int cycleIdx_end = comps.getCycleIdx(rev.second);
+	ReversalType revtype   = ReversalType::NEUTRAL_GOOD;
+	// Extremities are in the same cycle.
+	if(cycle_idx != cycleIdx_end){
+		revtype = ReversalType::BAD;
+	}
+	return revtype;
+}
+
+ReversalType ReversalSampler::getReversalType_Trivial(const int cycle_idx, const std::pair<int,int>& rev){
+
+	// TRIVIAL
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::BAD]          = (nb_genes-1);
+
+	return ReversalType::BAD;
+}
+
+ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const std::pair<int,int>& rev){
+
+	// MANY HURDLES
+	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size));
+	// counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
+	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
+
+	// FEW HURDLES
+	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-hurdle_cur_size);
+	// counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle;
+	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
+
+	// ONE HURDLE
+	// counters.counts[ReversalType::GOOD]         = black_edges_same_cycle + black_edges_own_hurdle;
+	// counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
+
+	const int cycleIdx_end = comps.getCycleIdx(rev.second);
+	ReversalType revtype   = ReversalType::NEUTRAL;
+
+	// Check the status of the other extremity involved in the reversal (is it in a hurdle, is it the same hurdle, etc.).
+	const bool sameCycle = (cycle_idx == cycleIdx_end);
+	bool isHurdle   = false;
+	bool sameHurdle = false;
+	bool adjHurdle  = false;
+	if (!sameCycle){
+		// Check if extremity is in a hurdle.
+		std::vector<int> hurdle_exts_all = getAllHurdleExtremities();
+		isHurdle = (std::find(hurdle_exts_all.begin(), hurdle_exts_all.end(), cycleIdx_end) != hurdle_exts_all.end());
+		if(isHurdle){
+
+			// Check if extremity is in the own hurdle.
+			std::vector<int> hurdle_exts_own = getGeneExtremitiesComponent(cycles_info[cycle_idx].hurdle_idx);
+			sameHurdle = (std::find(hurdle_exts_own.begin(), hurdle_exts_own.end(), cycleIdx_end) != hurdle_exts_own.end());
+
+			if(!sameHurdle){
+				// Check if extremity is in an adjacent hurdle.
+				std::vector<int> hurdle_exts_adj = getAdjacentHurdleExtremities(cycle_idx);
+				adjHurdle = (std::find(hurdle_exts_adj.begin(), hurdle_exts_adj.end(), cycleIdx_end) != hurdle_exts_adj.end());
+			}
+		}
+	}
+
+	// Case: Many hurdles (h > 3).
+	if(hurdles.size() > 3){
+		if(isHurdle){
+			if(sameCycle || sameHurdle || adjHurdle) {
+				revtype   = ReversalType::NEUTRAL_GOOD;
+			} else {
+				revtype   = ReversalType::GOOD;
+			}
+		} else {
+			revtype   = ReversalType::BAD;
+		}
+
+	// Case: Few hurdles (h=2 or 3).
+	} else if(hurdles.size() > 1){ 
+		if(isHurdle){
+			if(sameCycle || sameHurdle) {
+				revtype   = ReversalType::NEUTRAL_GOOD;
+			} else {
+				revtype   = ReversalType::GOOD;
+			}
+		} else {
+			revtype   = ReversalType::BAD;
+		}
+
+	// Case: Single hurdle (h=1).
+	} else {
+		if(isHurdle){
+			revtype   = ReversalType::GOOD;
+		} else {
+			revtype   = ReversalType::BAD;
+		}
+
+	}
+	return revtype;
+}
+
+ReversalType ReversalSampler::getReversalType(const std::pair<int,int>& rev){
+
+	// Get reversal type.
+	const int cycle_idx = comps.getCycleIdx(rev.first);
+	ReversalType revtype;
+	switch(cycles_info[cycle_idx].type) {
+
+		case CycleType::ORIENTED: {
+			if(debug){std::cout << "It is oriented ";}
+			revtype = getReversalType_Oriented(cycle_idx, rev);
+			break;
+		}
+		case CycleType::UNORIENTED: {
+			if(debug){std::cout << "It is unoriented ";}
+			revtype = getReversalType_Unoriented(cycle_idx, rev);
+			break;
+		}
+		case CycleType::TRIVIAL: {
+			if(debug){std::cout << "It is trivial ";}
+			revtype = getReversalType_Trivial(cycle_idx, rev);
+			break;
+		}
+		case CycleType::HURDLE: {
+			if(debug){std::cout << "It is hurdle ";}
+			revtype = getReversalType_Hurdle(cycle_idx, rev);
+			break;
+		}
+	}
+	return revtype;
+}

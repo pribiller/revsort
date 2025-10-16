@@ -254,6 +254,8 @@ public:
 	std::vector<int> getAllHurdleExtremities();
 
 	ReversalRandom sampleReversal(std::mt19937& rng, bool updateComps);
+	ReversalType getReversalType(const std::pair<int,int>& rev);
+	inline CycleType getCycleType(const std::pair<int,int>& rev) const {return cycles_info[comps.getCycleIdx(rev.first)].type;}
 
 	ReversalType sampleReversalType(std::mt19937& rng);
 	int  sampleCycle(ReversalType revtype, std::mt19937& rng);
@@ -263,6 +265,11 @@ public:
 	std::pair<int,int> sampleUnoriented(const int cycle_idx, const ReversalType revtype, std::mt19937& rng);
 	std::pair<int,int> sampleTrivial(const int cycle_idx, const ReversalType revtype, std::mt19937& rng);
 	std::pair<int,int> sampleHurdle(const int cycle_idx, const ReversalType revtype, std::mt19937& rng);
+
+	ReversalType getReversalType_Oriented(const int cycle_idx, const std::pair<int,int>& rev);
+	ReversalType getReversalType_Unoriented(const int cycle_idx, const std::pair<int,int>& rev);
+	ReversalType getReversalType_Trivial(const int cycle_idx, const std::pair<int,int>& rev);
+	ReversalType getReversalType_Hurdle(const int cycle_idx, const std::pair<int,int>& rev);
 
 	std::vector<std::pair<int,int>> getReversalsFromCycle(const int cycle_idx);
 	std::vector<int> getGeneExtNotInCycle(const int cycle_idx);

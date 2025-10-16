@@ -212,6 +212,10 @@ public:
 		return (int)(std::trunc((g_ext+1)/2)+1);
 	}
 
+	inline std::pair<int,int> geneToUnsExt(const int gene_id) const {		
+		return std::make_pair((gene_id-1)*2-1,(gene_id-1)*2);
+	}
+
 	inline bool isReversed(const int gene_id) const {
 		return (genes[gene_id-1]->block->reversed != genes[gene_id-1]->reversed);
 	}
