@@ -214,6 +214,10 @@ public:
 	std::vector<std::vector<ReversalRandom>> currentState_revHists;
 	std::vector<double> currentState_revMeans;
 
+	// Convergence measures.
+	double cur_step{0}; // It stores the current step.
+	std::vector<double> rev_path_avgsize; // Position i stores the average path size in chain i so far.
+
 	// It stores sampled values.
 	std::vector<std::vector<ReversalRandom>> sampled_revHists;
 	std::vector<double> sampled_revMeans;
@@ -224,7 +228,7 @@ public:
 	ProposalReversalMean proposalMean;
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_){
+	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(nb_chains_){
 
 		// Compute reversal distance.
 		SortByReversals sortGenome(genome_A_,genome_B_,false);
@@ -242,4 +246,7 @@ public:
 	void initializeChains();
 	void runSingleChain(const int chainIdx);
 	void run();
+
+	double computeWithinChainVariance();
+	double computeBetweenChainVariance();
 };

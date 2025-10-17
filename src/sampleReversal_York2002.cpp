@@ -614,6 +614,30 @@ std::vector<std::pair<int,int>> ReversalSampler::makeAllCombinations(std::vector
 	return allpairs;
 }
 
+std::vector<int> ReversalSampler::getDifference(std::vector<int>& elems1, std::vector<int>& elems2){
+	// Sort the vectors before computing the set difference
+	std::sort(elems1.begin(), elems1.end());
+	std::sort(elems2.begin(), elems2.end());
+	// Compute difference.
+	std::vector<int> elems_diff;
+	std::set_difference(elems1.begin(), elems1.end(), elems2.begin(), elems2.end(),
+						std::inserter(elems_diff, elems_diff.begin()));
+	// Return elems1-elems2.
+	return elems_diff;
+}
+
+std::vector<std::pair<int,int>> ReversalSampler::getDifference(std::vector<std::pair<int,int>>& elems1, std::vector<std::pair<int,int>>& elems2){
+	// Sort the vectors before computing the set difference
+	std::sort(elems1.begin(), elems1.end());
+	std::sort(elems2.begin(), elems2.end());
+	// Compute difference.
+	std::vector<std::pair<int,int>> elems_diff;
+	std::set_difference(elems1.begin(), elems1.end(), elems2.begin(), elems2.end(),
+						std::inserter(elems_diff, elems_diff.begin()));
+	// Return elems1-elems2.
+	return elems_diff;
+}
+
 std::vector<std::pair<int,int>> ReversalSampler::getReversalsFromCycle(const int cycle_idx){
 	std::vector<int> genes = comps.getGeneExtremities(comps.forest[cycle_idx], true);
 	return makeAllCombinations(genes);
@@ -627,10 +651,7 @@ std::vector<int> ReversalSampler::getGeneExtNotInCycle(const int cycle_idx){
 	// Gene extremities in the cycle.
 	std::vector<int> gene_exts_cyc = comps.getGeneExtremities(comps.forest[cycle_idx], true);
 
-	std::vector<int> gene_exts_diff;
-	std::set_difference(gene_exts_all.begin(), gene_exts_all.end(), gene_exts_cyc.begin(), gene_exts_cyc.end(),
-						std::inserter(gene_exts_diff, gene_exts_diff.begin()));
-	return gene_exts_diff;
+	return getDifference(gene_exts_all, gene_exts_cyc);
 }
 
 std::pair<int,int> ReversalSampler::sampleOriented(const int cycle_idx, const ReversalType revtype, std::mt19937& rng){
@@ -668,9 +689,7 @@ std::pair<int,int> ReversalSampler::sampleOriented(const int cycle_idx, const Re
 				std::cout << std::endl;
 			}
 
-			std::vector<std::pair<int,int>> neutralReversals;
-			std::set_difference(allReversals.begin(), allReversals.end(), goodReversals.begin(), goodReversals.end(),
-								std::inserter(neutralReversals, neutralReversals.begin()));
+			std::vector<std::pair<int,int>> neutralReversals = getDifference(allReversals, goodReversals);
 
 			std::uniform_int_distribution distr(0, static_cast<int>(neutralReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -819,7 +838,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 	std::vector<int> hurdle_exts_own = getGeneExtremitiesComponent(cycles_info[cycle_idx].hurdle_idx);
 	std::vector<int> hurdle_exts_adj = getAdjacentHurdleExtremities(cycle_idx);
 	std::vector<int> hurdle_exts_all = getAllHurdleExtremities();
-
+	
 	std::pair<int, int> reversal{-1, -1};
 	switch(revtype) {
 		case ReversalType::GOOD: {
@@ -830,9 +849,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 			if(hurdles.size() > 3){
 				if(debug){std::cout << " --- Many hurdles ";}
 
-				std::vector<int> hurdle_exts_notadj;
-				std::set_difference(hurdle_exts_all.begin(), hurdle_exts_all.end(), hurdle_exts_adj.begin(), hurdle_exts_adj.end(),
-									std::inserter(hurdle_exts_notadj, hurdle_exts_notadj.begin()));
+				std::vector<int> hurdle_exts_notadj = getDifference(hurdle_exts_all, hurdle_exts_adj);
 				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_notadj);
 
 			// Case: Few hurdles (h=2 or 3).
@@ -845,10 +862,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 			} else {
 				if(debug){std::cout << " --- Single hurdle ";}
 
-				std::vector<int> hurdle_exts_own_diff;
-				std::set_difference(hurdle_exts_own.begin(), hurdle_exts_own.end(), cycle_exts.begin(), cycle_exts.end(),
-									std::inserter(hurdle_exts_own_diff, hurdle_exts_own_diff.begin()));
-
+				std::vector<int> hurdle_exts_own_diff = getDifference(hurdle_exts_own, cycle_exts);
 				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_own_diff);
 				std::vector<std::pair<int,int>> cycReversals = getReversalsFromCycle(cycle_idx);
 				goodReversals.insert(goodReversals.end(), cycReversals.begin(), cycReversals.end());
@@ -866,9 +880,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 			
 			// Case: many hurdles or few hurdles.
 			if(hurdles.size() > 1){
-				std::vector<int> hurdle_exts_own_diff;
-				std::set_difference(hurdle_exts_own.begin(), hurdle_exts_own.end(), cycle_exts.begin(), cycle_exts.end(),
-									std::inserter(hurdle_exts_own_diff, hurdle_exts_own_diff.begin()));
+				std::vector<int> hurdle_exts_own_diff = getDifference(hurdle_exts_own, cycle_exts);
 				std::vector<std::pair<int,int>> neutralGoodReversals = makeAllCombinations(cycle_exts, hurdle_exts_own_diff);
 				
 				std::vector<std::pair<int,int>> cycReversals = getReversalsFromCycle(cycle_idx);
@@ -895,9 +907,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 			std::vector<int> gene_exts_all = comps.getGeneExtremities(true);
 
 			// Gene extremities not in hurdles.
-			std::vector<int> exts_not_in_hurdle;
-			std::set_difference(gene_exts_all.begin(), gene_exts_all.end(), hurdle_exts_all.begin(), hurdle_exts_all.end(),
-								std::inserter(exts_not_in_hurdle, exts_not_in_hurdle.begin()));
+			std::vector<int> exts_not_in_hurdle = getDifference(gene_exts_all, hurdle_exts_all);
 
 			std::vector<std::pair<int,int>> badReversals = makeAllCombinations(cycle_exts, exts_not_in_hurdle);
 			std::uniform_int_distribution distr(0, static_cast<int>(badReversals.size()) - 1);

@@ -88,16 +88,20 @@ void ReversalMCMC::initializeChains(){
 
 	RandomReversalScenario sampler(false);
 
-	std::cout << "Sampling scenario..." << std::endl;
+	std::cout << "Initializing chains..." << std::endl;
+	cur_step = 1;
 	
+	// Varying the probability of sampling good reversals allows 
+	// the sampling of shorter and longer paths.
 	double p_good = 1.0;
-	const double p_good_min = 0.1;
+	const double p_good_min = sampler.rev_weights[ReversalType::NEUTRAL_GOOD];
 	const double p_delta = (p_good-p_good_min)/(nb_chains-1);
 
 	for (int idx=0; idx<nb_chains; ++idx){
 		sampler.rev_weights[ReversalType::GOOD] = p_good-idx*p_delta;
 		currentState_revHists[idx] = sampler.sampleScenario(genome_B,rng);
 		currentState_revMeans[idx] = currentState_revHists[idx].size();
+		rev_path_avgsize[idx]      = currentState_revHists[idx].size();
 		std::cout << "- Chain " << idx << ": p_good=" << sampler.rev_weights[ReversalType::GOOD] << "; size=" << currentState_revHists[idx].size() << "; size_min=" << rev_dist << std::endl;
 	}
 
@@ -109,36 +113,88 @@ void ReversalMCMC::runSingleChain(const int chainIdx){
 	double rev_mean = currentState_revMeans[chainIdx];
 
 	// Sample a modified reversal history.
-	std::cout << "\nSampling modified scenario..." << std::endl;
-	RandomReversalScenario sampler(false);
+	if(debug){std::cout << "\nSampling modified scenario..." << std::endl;}
+	RandomReversalScenario sampler(debug);
 	ProposalReversalScenario proposalHist = sampler.sampleModifiedScenario(genome_B, reversals, rng);
 
 	// Compute the acceptance probability of the modified reversal history.
-	std::cout << "\nComputing acceptance probability..." << std::endl;
+	if(debug){std::cout << "\nComputing acceptance probability..." << std::endl;}
 	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop);
-	std::cout << "Acceptance prob. = " << acceptanceProb << "; Posterior ratio = " << proposalHist.posteriorRatio << "; Proposal ratio = " << proposalHist.proposalRatio << std::endl;
+	if(debug){std::cout << "Acceptance prob. = " << acceptanceProb << "; Posterior ratio = " << proposalHist.posteriorRatio << "; Proposal ratio = " << proposalHist.proposalRatio << std::endl;}
 
 	// Check if current reversal history should be updated or not based on the acceptance probability.
 	if(distr_accept(rng) < acceptanceProb){
-		std::cout << "\nNew scenario ACCEPTED..." << std::endl;
+		if(debug){std::cout << "\nNew scenario: accepted..." << std::endl;}
 		currentState_revHists[chainIdx] = proposalHist.proposedReversalScenario;
 	} else {
-		std::cout << "\nNew scenario REJECTED..." << std::endl;
+		if(debug){std::cout << "\nNew scenario: rejected..." << std::endl;}
 	}
 
 	// Sample an updated reversal mean.
 	proposalMean.proposeNewValue(currentState_revHists[chainIdx].size(), currentState_revMeans[chainIdx]);
-	std::cout << "\nCur. mean= " << currentState_revMeans[chainIdx] << "; New mean=" << proposalMean.rev_mean_new << "; Acceptance prob.=" << proposalMean.acceptanceProb << std::endl;
+	if(debug){std::cout << "\nCur. mean= " << currentState_revMeans[chainIdx] << "; New mean=" << proposalMean.rev_mean_new << "; Acceptance prob.=" << proposalMean.acceptanceProb << std::endl;}
 	if(distr_accept(rng) < proposalMean.acceptanceProb){
-		std::cout << "\nNew mean ACCEPTED..." << std::endl;
+		if(debug){std::cout << "\nNew mean: accepted..." << std::endl;}
 		currentState_revMeans[chainIdx] = proposalMean.rev_mean_new;
 	} else {
-		std::cout << "\nNew mean REJECTED..." << std::endl;
+		if(debug){std::cout << "\nNew mean: rejected..." << std::endl;}
 	}
 }
 
+double ReversalMCMC::computeWithinChainVariance(){
+	// Within-chain variance:
+	// W = 1/m * [ sum_j (1/(n-1)) * (L_ij - L_j)^2 ]
+	double W = 0.0; 
+	for (int idx=0; idx<nb_chains; ++idx){
+		const int L_ij   = currentState_revHists[idx].size(); // Size of the current path.
+		const double L_j = rev_path_avgsize[idx]; // Avg. path size in chain j.
+		W += std::pow((L_ij-L_j), 2.0);
+	}
+	return W/(nb_chains*(cur_step-1.0));
+}
+
+double ReversalMCMC::computeBetweenChainVariance(){
+	// Average path size of all chains at all steps.
+	double L = 1.0 * std::accumulate(rev_path_avgsize.begin(), rev_path_avgsize.end(), 0LL) / nb_chains;
+	// std::cout << "\t Global average so far: L=" << L << std::endl;
+
+	// Between chain variance:
+	// B = 1/(m-1) * sum_j [L_j - L]^2
+	double B = 0.0;
+	for (int idx=0; idx<nb_chains; ++idx){
+		const double L_j = rev_path_avgsize[idx]; // Avg. path size in chain j.
+		// std::cout << "\t Average chain " <<  idx << ": L_j=" << L_j << std::endl;
+		B += std::pow((L_j-L), 2.0);
+	}
+	return B / (nb_chains-1.0);
+}
+
 void ReversalMCMC::run(){
-	runSingleChain(0);
+	const int max_steps = 10000;
+	while(cur_step < max_steps){
+
+		// Update current step.
+		++cur_step;
+
+		std::cout << "Step " << cur_step << std::endl;
+
+		// Run current step for all chains in parallel.
+		#pragma omp parallel for
+		for (int idx=0; idx<nb_chains; ++idx){
+			runSingleChain(idx);
+			// Update average path size for each chain (L_j).
+			std::cout << "  Avg. path size: cur= " << rev_path_avgsize[idx] << "; ";
+			rev_path_avgsize[idx] = ((cur_step-1.0)/cur_step)*rev_path_avgsize[idx] + currentState_revHists[idx].size()/cur_step;
+			std::cout << " new= " << rev_path_avgsize[idx] << " / cur. path = " << currentState_revHists[idx].size() << std::endl;
+		}
+
+		// Measures used to assess convergence [York, Durrett, Nielsen (2002)].
+		// Compute between chain variance and within-chain variance.
+		const double W = computeWithinChainVariance();
+		const double B = computeBetweenChainVariance();
+		const double R = std::sqrt((cur_step-1.0)/cur_step + B/W);
+		std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -190,7 +246,7 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 
 		factors.emplace_back((w_total/w_revtype)*(N_revtype/1.0));
 
-		std::cout << " - Factors : Type=" << rev.type << "; W=" << w_total << "; N_revtype=" << N_revtype  << "; prod=" << (w_total/w_revtype)*(N_revtype/1.0) << std::endl;
+		if(debug){std::cout << " - Factors : Type=" << rev.type << "; W=" << w_total << "; N_revtype=" << N_revtype  << "; prod=" << (w_total/w_revtype)*(N_revtype/1.0) << std::endl;}
 
 	}
 	return factors;
@@ -215,12 +271,12 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<float>& rev_
 	std::vector<ReversalRandom> p_cur( currentReversalScenario.begin() + path_beg, currentReversalScenario.begin()  + (path_beg + l_cur));
 	std::vector<ReversalRandom> p_new(proposedReversalScenario.begin() + path_beg, proposedReversalScenario.begin() + (path_beg + l_new));
 
-	std::cout << "\n\n - Current Factors " << std::endl;
+	if(debug){std::cout << "\n\n - Current Factors " << std::endl;}
 	std::vector<double> q_cur = q_path_factors(p_cur, rev_weights, p_stop);
 
-	std::cout << "\n\n - Proposed Factors " << std::endl;
+	if(debug){std::cout << "\n\n - Proposed Factors " << std::endl;}
 	std::vector<double> q_new = q_path_factors(p_new, rev_weights, p_stop);
-	std::cout << "\n\n";
+	if(debug){std::cout << "\n\n";}
 	
 	std::sort(q_cur.begin(), q_cur.end(), std::greater<double>());
 	std::sort(q_new.begin(), q_new.end(), std::greater<double>());
@@ -230,7 +286,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<float>& rev_
 	// q(X|Y) = q_L'(l',j) * q_old
 	// q(Y|X) = q_L(l,j)   * q_new
 	proposalRatio = q_lj_new/q_lj_cur; // q_L'(l',j) / q_L(l,j)
-	std::cout << " - q_L'(l',j)=" << q_lj_new << "; q_L(l,j)=" << q_lj_cur << "; ratio=" << proposalRatio << std::endl;
+	if(debug){std::cout << " - q_L'(l',j)=" << q_lj_new << "; q_L(l,j)=" << q_lj_cur << "; ratio=" << proposalRatio << std::endl;}
 	int factors_max = std::max(q_cur.size(), q_new.size());
 	int factors_idx = 0;
 	while(factors_idx < factors_max){
@@ -238,10 +294,10 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<float>& rev_
 		const double num = (factors_idx < q_new.size()) ? q_new[factors_idx] : 1.0;
 		const double den = (factors_idx < q_cur.size()) ? q_cur[factors_idx] : 1.0;
 		proposalRatio *= (num/den);
-		std::cout << " - Factors : cur=" << q_cur[factors_idx] << "; prop=" << q_new[factors_idx] << std::endl;
+		if(debug){std::cout << " - Factors : cur=" << q_cur[factors_idx] << "; prop=" << q_new[factors_idx] << std::endl;}
 		++factors_idx;
 	}
-	std::cout << " - Proposal ratio : " << proposalRatio << std::endl;
+	if(debug){std::cout << " - Proposal ratio : " << proposalRatio << std::endl;}
 	return proposalRatio;
 }
 
@@ -508,7 +564,7 @@ ProposalReversalScenario RandomReversalScenario::sampleModifiedScenario(GenomeMu
 	const int l = samplePathLength(rng, N);
 	const int j = samplePathStart(rng, N, l);
 
-	std::cout << " Total path size (nb. of reversals) = " << N << "; length modified path = " << l << "; Start modified path: " << j << std::endl;
+	if(debug) {std::cout << " Total path size (nb. of reversals) = " << N << "; length modified path = " << l << "; Start modified path: " << j << std::endl;}
 
 	// Get genomes at these positions in the path.
 	GenomeMultichrom<int> genome_B_new = getGenomes(genome_B, reversals, j, j+l);
@@ -528,11 +584,13 @@ ProposalReversalScenario RandomReversalScenario::sampleModifiedScenario(GenomeMu
 	std::vector<ReversalRandom> reversals_new = updateReversalScenario(genome_B_new, reversals, reversals_sub_new, j, j+l);
 	const int N_new = reversals_new.size();
 
-	std::cout << "\nOld scenario: " << std::endl;
-	printSortingScenario(genome_B, reversals, j, j+l);
+	if(debug) {
+		std::cout << "\nOld scenario: " << std::endl;
+		printSortingScenario(genome_B, reversals, j, j+l);
 
-	std::cout << "\nNew scenario " << std::endl;
-	printSortingScenario(genome_B, reversals_new, j, j+l_new);
+		std::cout << "\nNew scenario " << std::endl;
+		printSortingScenario(genome_B, reversals_new, j, j+l_new);
+	}
 
 	// std::vector<ReversalRandom> reversals_new;
 	return ProposalReversalScenario(reversals_cur, reversals_new, j, N, l, N_new, l_new, genome_B.n);
@@ -542,13 +600,15 @@ void RandomReversalScenario::printSortingScenario(GenomeMultichrom<int>& genome_
 	// Unsigned extended permutation (it assumes that one of the permutations is the identity).
 	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
 
-	std::cout << " Genome [start]" << std::endl;
-	std::vector<int> genome =  genperm.getExtendedPerm();
-	for (int gene : genome) {std::cout << gene << " ";}
-	// Check if the current genome is one of the path ends.
-	if(0 == pos_beg){std::cout << " [A; pos_beg=" << pos_beg << "] ";}
-	if(0 == pos_end){std::cout << " [B] ";}
-	std::cout << std::endl;
+	if(debug){
+		std::vector<int> genome =  genperm.getExtendedPerm();
+		std::cout << " Genome [start]" << std::endl;
+		for (int gene : genome) {std::cout << gene << " ";}
+		// Check if the current genome is one of the path ends.
+		if(0 == pos_beg){std::cout << " [A; pos_beg=" << pos_beg << "] ";}
+		if(0 == pos_end){std::cout << " [B] ";}
+		std::cout << std::endl;
+	}
 
 	for(int rev_idx=0; rev_idx<reversals.size(); ++rev_idx){		
 		
@@ -557,13 +617,14 @@ void RandomReversalScenario::printSortingScenario(GenomeMultichrom<int>& genome_
 		applyReversal(genperm, rev.g_beg, rev.g_end);
 
 		// Print genome after reversal.
-		std::cout << " Genome [" << (rev_idx+1) << "] after reversal (" << rev.g_beg << ", " << rev.g_end << "]: " << std::endl;
-		std::vector<int> genome =  genperm.getExtendedPerm();
-		for (int gene : genome) {std::cout << gene << " ";}
-		// Check if the current genome is one of the path ends.
-		if((rev_idx+1) == pos_beg){std::cout << " [A; pos_beg=" << pos_beg << "] ";}
-		if((rev_idx+1) == pos_end){std::cout << " [B] ";}
-		std::cout << std::endl;
-
+		if(debug){
+			std::cout << " Genome [" << (rev_idx+1) << "] after reversal (" << rev.g_beg << ", " << rev.g_end << "]: " << std::endl;
+			std::vector<int> genome =  genperm.getExtendedPerm();
+			for (int gene : genome) {std::cout << gene << " ";}
+			// Check if the current genome is one of the path ends.
+			if((rev_idx+1) == pos_beg){std::cout << " [A; pos_beg=" << pos_beg << "] ";}
+			if((rev_idx+1) == pos_end){std::cout << " [B] ";}
+			std::cout << std::endl;
+		}
 	}
 }

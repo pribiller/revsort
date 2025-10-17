@@ -11,7 +11,7 @@
  * implementation of the sorting by reversals method.
  * 
  * Compile:
- * g++ tests_SampleScenarios.cpp sortByReversals.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler
+ * g++ -fopenmp tests_SampleScenarios.cpp sortByReversals.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler
  * 
  * Run:
  * ./revsampler 42 1
@@ -40,7 +40,7 @@ void testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int
 
 	std::cout << "Starting MCMC..." << std::endl;
 
-	const int nb_chains=10;
+	const int nb_chains=10; //10
 	const double rev_mean_range=10;
 	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,false);
 	mcmc.run();

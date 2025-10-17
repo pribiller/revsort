@@ -283,5 +283,8 @@ public:
 	std::vector<std::pair<int,int>> makeAllCombinations(std::vector<int> elems);
 	std::vector<std::pair<int,int>> makeAllCombinations(std::vector<int> elems1, std::vector<int> elems2);
 
+	std::vector<int> getDifference(std::vector<int>& elems1, std::vector<int>& elems2);
+	std::vector<std::pair<int,int>> getDifference(std::vector<std::pair<int,int>>& elems1, std::vector<std::pair<int,int>>& elems2);
+
 	void debugPrintRevTotals();
 };
