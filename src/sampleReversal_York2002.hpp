@@ -153,11 +153,11 @@ class ReversalRandom : public Reversal {
 public:
 	ReversalType type;
 	CycleType cycle;
-	std::vector<float> rev_totals; // Total count of each type of reversal.
+	std::vector<double> rev_totals; // Total count of each type of reversal.
 	ReversalRandom(){}
 	ReversalRandom(const int g_beg_, const int g_end_, const int g_beg_next_, 
 		const int g_end_next_, const ReversalType type_, const CycleType cycle_,
-		const std::vector<float>& rev_totals_):Reversal(g_beg_, g_end_, g_beg_next_, g_end_next_), type(type_),cycle(cycle_),rev_totals(rev_totals_){
+		const std::vector<double>& rev_totals_):Reversal(g_beg_, g_end_, g_beg_next_, g_end_next_), type(type_),cycle(cycle_),rev_totals(rev_totals_){
 		// std::cout << " " << g_beg << " " << g_end << " " << g_beg_next << " " << g_end_next << std::endl;
 	}
 };
@@ -205,10 +205,10 @@ public:
 	std::vector<CycleCounters> rev_counters; // Counts the number of reversals in each category (good, neutral, bad...) for *each cycle*.
 	
 
-	float rev_weights_total{0};         // Total sum of weights.
-	std::vector<float> rev_weights;     // Weight of each type of reversal.
-	std::vector<float> rev_weights_cum; // Cumulative weights.
-	std::vector<float> rev_totals;      // Total count of each type of reversal.
+	double rev_weights_total{0};         // Total sum of weights.
+	std::vector<double> rev_weights;     // Weight of each type of reversal.
+	std::vector<double> rev_weights_cum; // Cumulative weights.
+	std::vector<double> rev_totals;      // Total count of each type of reversal.
 
 	int nb_cycles{0};
 	int nb_gene_ext{0};
@@ -217,16 +217,16 @@ public:
 
 	bool debug{false};
 
-	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, bool debug=false, float p_good=1.0, float p_neutralgood=0.025, float p_neutral=0.020, float p_bad=0.015):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
+	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, bool debug=false, double p_good=1.0, double p_neutralgood=0.025, double p_neutral=0.020, double p_bad=0.015):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
 		initializeComponents();
 		initializeCounts();
-		std::vector<float> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+		std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
 		// For testing:
-		// std::vector<float> probs = {1.0, 0.030, 0.030, 0.015};
+		// std::vector<double> probs = {1.0, 0.030, 0.030, 0.015};
 		initializeRevProbs(probs);
 	}
 
-	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, std::vector<float>& rev_weights, bool debug=false):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
+	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, std::vector<double>& rev_weights, bool debug=false):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
 		initializeComponents();
 		initializeCounts();
 		initializeRevProbs(rev_weights);
@@ -237,21 +237,21 @@ public:
 	void getCyclesInfo();
 
 	void initializeCounts();
-	void initializeRevProbs(std::vector<float>& probs);
+	void initializeRevProbs(std::vector<double>& probs);
 	void updateRevProbs();
 
 	// Computes a list of good/proper reversals given one oriented component.
 	std::vector<std::pair<int,int>> getGoodReversalsOriented(Cycle& oriented_component);
 
-	float countReversals();
-	float countReversalsOrientedComponents();
-	float countReversalsUnorientedComponents();
+	double countReversals();
+	double countReversalsOrientedComponents();
+	double countReversalsUnorientedComponents();
 
-	float countReversalsCycle_trivial(    CycleCounters& counters);
-	float countReversalsCycle_unoriented( CycleCounters& counters, const int cycle_size);
-	float countReversalsCycle_manyHurdles(CycleCounters& counters, const int cycle_size, const int hurdles_total_size, const int hurdle_cur_size, const int hurdles_adj_size);
-	float countReversalsCycle_fewHurdles( CycleCounters& counters, const int cycle_size, const int hurdles_total_size, const int hurdle_cur_size);
-	float countReversalsCycle_oneHurdle(  CycleCounters& counters, const int cycle_size, const int hurdles_total_size, const int hurdle_cur_size);
+	double countReversalsCycle_trivial(    CycleCounters& counters);
+	double countReversalsCycle_unoriented( CycleCounters& counters, const int cycle_size);
+	double countReversalsCycle_manyHurdles(CycleCounters& counters, const int cycle_size, const int hurdles_total_size, const int hurdle_cur_size, const int hurdles_adj_size);
+	double countReversalsCycle_fewHurdles( CycleCounters& counters, const int cycle_size, const int hurdles_total_size, const int hurdle_cur_size);
+	double countReversalsCycle_oneHurdle(  CycleCounters& counters, const int cycle_size, const int hurdles_total_size, const int hurdle_cur_size);
 	
 	int getSizesAdjacentHurdles(std::vector<int>& sizes_hurdles, const int hurdle_idx);
 

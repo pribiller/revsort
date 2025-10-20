@@ -197,7 +197,7 @@ void ReversalSampler::initializeCounts(){
 	rev_counters.resize(nb_cycles);
 }
 
-void ReversalSampler::initializeRevProbs(std::vector<float>& probs){
+void ReversalSampler::initializeRevProbs(std::vector<double>& probs){
 	rev_weights_total = 0;
 	for (int i=0; i<ReversalType_COUNT; ++i) {
 		rev_weights[i]     = probs[i];
@@ -213,7 +213,7 @@ void ReversalSampler::initializeRevProbs(std::vector<float>& probs){
 void ReversalSampler::updateRevProbs() {
 	// Make sure that reversal types without any 
 	// reversals associated have 0 chance to be sampled.
-	float rev_weight_cur = (rev_totals[0] == 0) ? 0.0 : rev_weights[0];
+	double rev_weight_cur = (rev_totals[0] == 0) ? 0.0 : rev_weights[0];
 	rev_weights_cum[0]   = rev_weight_cur;
 	for (int i=1; i<ReversalType_COUNT; ++i) {
 		rev_weight_cur     = (rev_totals[i] == 0) ? 0.0 : rev_weights[i];
@@ -277,9 +277,9 @@ void ReversalSampler::debugPrintRevTotals(){
 	std::cout << " good = " << rev_totals[ReversalType::GOOD] << "; neutral good = " << rev_totals[ReversalType::NEUTRAL_GOOD] << "; neutral = " << rev_totals[ReversalType::NEUTRAL] << "; bad = " << rev_totals[ReversalType::BAD] << std::endl;
 }
 
-float ReversalSampler::countReversalsOrientedComponents(){
+double ReversalSampler::countReversalsOrientedComponents(){
 	// Find good, neutral, and bad reversals.
-	float obs_nb_reversals = 0;
+	double obs_nb_reversals = 0;
 	for (int const& root_idx : comps.rootList) {
 		// Component is oriented.
 		if(comps.forest[root_idx].oriented){
@@ -331,7 +331,7 @@ float ReversalSampler::countReversalsOrientedComponents(){
 
 // Trivial component (i.e. 2 gene extremities that are already sorted).
 // There are no neutral or good reversals in this case (the component is already sorted).
-float ReversalSampler::countReversalsCycle_trivial(CycleCounters& counters) {
+double ReversalSampler::countReversalsCycle_trivial(CycleCounters& counters) {
 	counters.counts[ReversalType::GOOD]         = 0;
 	counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
 	counters.counts[ReversalType::NEUTRAL]      = 0;
@@ -351,7 +351,7 @@ float ReversalSampler::countReversalsCycle_trivial(CycleCounters& counters) {
 }
 
 // "Normal" unoriented component (not a hurdle, not trivial).
-float ReversalSampler::countReversalsCycle_unoriented(CycleCounters& counters, const int cycle_size) {
+double ReversalSampler::countReversalsCycle_unoriented(CycleCounters& counters, const int cycle_size) {
 	counters.counts[ReversalType::GOOD]         = 0;
 	counters.counts[ReversalType::NEUTRAL_GOOD] = ((cycle_size*(cycle_size-1))/2);
 	counters.counts[ReversalType::NEUTRAL]      = 0;
@@ -374,7 +374,7 @@ float ReversalSampler::countReversalsCycle_unoriented(CycleCounters& counters, c
 // Good neutral reversals: 
 //    (1) Two black edges from the cycle; 
 //    (2) A black edge from the cycle and another black edge belonging to its own hurdle or an adjacent hurdle.
-float ReversalSampler::countReversalsCycle_manyHurdles(CycleCounters& counters, const int cycle_size, 
+double ReversalSampler::countReversalsCycle_manyHurdles(CycleCounters& counters, const int cycle_size, 
 							const int hurdles_total_size, const int hurdle_cur_size, const int hurdles_adj_size) {
 
 	const int black_edges_same_cycle = (cycle_size*(cycle_size-1))/2;
@@ -403,7 +403,7 @@ float ReversalSampler::countReversalsCycle_manyHurdles(CycleCounters& counters, 
 // Good neutral reversals: 
 //    (1) Two black edges from the cycle; 
 //    (2) A black edge from the cycle and another black edge belonging to its own hurdle.
-float ReversalSampler::countReversalsCycle_fewHurdles(CycleCounters& counters, const int cycle_size, 
+double ReversalSampler::countReversalsCycle_fewHurdles(CycleCounters& counters, const int cycle_size, 
 							const int hurdles_total_size, const int hurdle_cur_size) {
 
 	const int black_edges_same_cycle = (cycle_size*(cycle_size-1))/2;
@@ -430,7 +430,7 @@ float ReversalSampler::countReversalsCycle_fewHurdles(CycleCounters& counters, c
 // Good reversals:
 //    (1) Two black edges from the cycle; 
 //    (2) A black edge from the cycle and another black edge belonging to its own hurdle.
-float ReversalSampler::countReversalsCycle_oneHurdle(CycleCounters& counters, const int cycle_size, 
+double ReversalSampler::countReversalsCycle_oneHurdle(CycleCounters& counters, const int cycle_size, 
 							const int hurdles_total_size, const int hurdle_cur_size) {
 
 	const int black_edges_same_cycle = (cycle_size*(cycle_size-1))/2;
@@ -460,7 +460,7 @@ int ReversalSampler::getSizesAdjacentHurdles(std::vector<int>& sizes_hurdles, co
 	return hurdles_adj_size;
 }
 
-float ReversalSampler::countReversalsUnorientedComponents(){
+double ReversalSampler::countReversalsUnorientedComponents(){
 
 	// Find total edges in hurdles.
 	std::vector<int> sizes_hurdles;
@@ -475,7 +475,7 @@ float ReversalSampler::countReversalsUnorientedComponents(){
 		}
 	}
 
-	float obs_nb_reversals = 0;
+	double obs_nb_reversals = 0;
 
 	int next_hurdle_idx = (nb_hurdles > 0) ? 0 : -1;
 	int next_hurdle = (nb_hurdles > 0) ? hurdles[0] : -1;
@@ -532,11 +532,11 @@ float ReversalSampler::countReversalsUnorientedComponents(){
 	return obs_nb_reversals;
 }
 
-float ReversalSampler::countReversals(){
+double ReversalSampler::countReversals(){
 
 	const int exp_nb_reversals = (nb_genes*(nb_genes-1))/2;
 
-	float obs_nb_reversals = countReversalsOrientedComponents();
+	double obs_nb_reversals = countReversalsOrientedComponents();
 	obs_nb_reversals    += countReversalsUnorientedComponents();
 	
 	if(debug){std::cout << " - Total nb. of reversals : Obs=" << obs_nb_reversals << "; Exp=" << exp_nb_reversals << std::endl;}
@@ -552,9 +552,10 @@ ReversalType ReversalSampler::sampleReversalType(std::mt19937& rng){
 	// Make sure that reversal types without any 
 	// reversals associated have 0 chance to be sampled.
 	updateRevProbs();
+	//std::cout << " type= " << i << std::endl;
 	// Sample reversal type.
 	std::uniform_real_distribution distr(0.0, static_cast<double>(rev_weights_total)); // [0, rev_weights_total)
-	float rdmval = distr(rng);
+	double rdmval = distr(rng);
 	// Find the index corresponding to the random value
 	for (int revtype_idx = 0; revtype_idx < ReversalType_COUNT; ++revtype_idx) {
 		if (rdmval < rev_weights_cum[revtype_idx]) {

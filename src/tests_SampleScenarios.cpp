@@ -42,9 +42,23 @@ void testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int
 
 	const int nb_chains=10; //10
 	const double rev_mean_range=10;
-	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,false);
-	mcmc.run();
+	const int max_steps=12000;
+	const int pre_burnin_steps=10000;
 
+	// If the probability of bad reversals is too low, then the proposal ratio of better paths decreases:
+	// - Proposal ratio increases as P(old|new) / P(new|old).
+	// If the old path is composed of one or more bad reversals, and the probability of bad reversals is very low,
+	// then the probability of coming back from a better new path to the old path reduces.
+	const double p_good=1.0; 
+	const double p_neutralgood=0.027; // new classification. (3/5 of 0.045)
+	const double p_neutral=0.018; // 2/5 of 0.045
+	const double p_bad=0.009; // 1/5 of 0.045
+	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+
+	const double p_stop=0.999; //0.99;
+
+	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,max_steps,pre_burnin_steps,probs,p_stop,false);
+	mcmc.run();
 }
 
 void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
@@ -54,7 +68,14 @@ void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 
 	sortGenome.sort(rng);
 
-	RandomReversalScenario sampler(false);
+	const double p_good=1.0; 
+	const double p_neutralgood=0.025; 
+	const double p_neutral=0.020;
+	const double p_bad=0.015; 
+	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+
+	const double p_stop=0.99; //0.99;
+	RandomReversalScenario sampler(probs,p_stop,false);
 
 	std::cout << "Sampling scenario..." << std::endl;
 	std::vector<ReversalRandom> reversals = sampler.sampleScenario(genome_B,rng);
@@ -95,7 +116,15 @@ void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	SortByReversals sortGenome(genome_A,genome_B,false);
 	sortGenome.sort(rng);
 
-	RandomReversalScenario sampler(true);
+
+	const double p_good=1.0; 
+	const double p_neutralgood=0.025; 
+	const double p_neutral=0.020;
+	const double p_bad=0.015; 
+	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+
+	const double p_stop=0.99; //0.99;
+	RandomReversalScenario sampler(probs,p_stop,true);
 
 	std::cout << "Sampling scenario..." << std::endl;
 	std::vector<ReversalRandom> reversals = sampler.sampleScenario(genome_B,rng);

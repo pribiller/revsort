@@ -85,37 +85,41 @@
 //////////////////////////////////////////////////////////////////////
 
 void ReversalMCMC::initializeChains(){
-
-	RandomReversalScenario sampler(false);
+	
+	RandomReversalScenario sampler(rev_weights,p_stop,false);
 
 	std::cout << "Initializing chains..." << std::endl;
 	cur_step = 1;
 	
-	// Varying the probability of sampling good reversals allows 
+	// Varying the probability of sampling neutral reversals allows 
 	// the sampling of shorter and longer paths.
-	double p_good = 1.0;
-	const double p_good_min = sampler.rev_weights[ReversalType::NEUTRAL_GOOD];
-	const double p_delta = (p_good-p_good_min)/(nb_chains-1);
+	const double p_neutral = sampler.rev_weights[ReversalType::GOOD]/2.0;
+	const double p_neutral_min = sampler.rev_weights[ReversalType::BAD];
+	const double p_delta = (nb_chains > 1) ? (p_neutral-p_neutral_min)/(nb_chains-1) : 0.0;
 
 	for (int idx=0; idx<nb_chains; ++idx){
-		sampler.rev_weights[ReversalType::GOOD] = p_good-idx*p_delta;
+		sampler.rev_weights[ReversalType::NEUTRAL] = p_neutral-idx*p_delta;
 		currentState_revHists[idx] = sampler.sampleScenario(genome_B,rng);
-		currentState_revMeans[idx] = currentState_revHists[idx].size();
+		currentState_revMeans[idx] = proposalMean.sampleReversalMean(currentState_revHists[idx].size());
 		rev_path_avgsize[idx]      = currentState_revHists[idx].size();
-		std::cout << "- Chain " << idx << ": p_good=" << sampler.rev_weights[ReversalType::GOOD] << "; size=" << currentState_revHists[idx].size() << "; size_min=" << rev_dist << std::endl;
+		std::cout << "- Chain " << idx << ": p_neutral=" << sampler.rev_weights[ReversalType::NEUTRAL] << "; size=" << currentState_revHists[idx].size() << "; size_min=" << rev_dist << std::endl;
 	}
-
 }
 
-void ReversalMCMC::runSingleChain(const int chainIdx){
+std::string ReversalMCMC::runSingleChain(const int chainIdx){
 
 	std::vector<ReversalRandom>& reversals = currentState_revHists[chainIdx];
 	double rev_mean = currentState_revMeans[chainIdx];
 
 	// Sample a modified reversal history.
 	if(debug){std::cout << "\nSampling modified scenario..." << std::endl;}
-	RandomReversalScenario sampler(debug);
+	RandomReversalScenario sampler(rev_weights, p_stop, debug);
 	ProposalReversalScenario proposalHist = sampler.sampleModifiedScenario(genome_B, reversals, rng);
+
+	std::string status =  "  L_cur=" + std::to_string(proposalHist.L_cur)
+						+ "  l_cur=" + std::to_string(proposalHist.l_cur)
+						+ "  L_new=" + std::to_string(proposalHist.L_new)
+						+ "  l_new=" + std::to_string(proposalHist.l_new);
 
 	// Compute the acceptance probability of the modified reversal history.
 	if(debug){std::cout << "\nComputing acceptance probability..." << std::endl;}
@@ -123,11 +127,14 @@ void ReversalMCMC::runSingleChain(const int chainIdx){
 	if(debug){std::cout << "Acceptance prob. = " << acceptanceProb << "; Posterior ratio = " << proposalHist.posteriorRatio << "; Proposal ratio = " << proposalHist.proposalRatio << std::endl;}
 
 	// Check if current reversal history should be updated or not based on the acceptance probability.
-	if(distr_accept(rng) < acceptanceProb){
+	const double val = distr_accept(rng);
+	if(val < acceptanceProb){
 		if(debug){std::cout << "\nNew scenario: accepted..." << std::endl;}
 		currentState_revHists[chainIdx] = proposalHist.proposedReversalScenario;
+		status = status + " [ACCEPTED] : " + std::to_string(currentState_revHists[chainIdx].size()) + "; " + std::to_string(val) + "; " + std::to_string(acceptanceProb);
 	} else {
 		if(debug){std::cout << "\nNew scenario: rejected..." << std::endl;}
+		status = status + " [REJECTED] : " + std::to_string(currentState_revHists[chainIdx].size()) + "; rdm=" + std::to_string(val) + "; accepProb=" + std::to_string(acceptanceProb);
 	}
 
 	// Sample an updated reversal mean.
@@ -139,6 +146,7 @@ void ReversalMCMC::runSingleChain(const int chainIdx){
 	} else {
 		if(debug){std::cout << "\nNew mean: rejected..." << std::endl;}
 	}
+	return status;
 }
 
 double ReversalMCMC::computeWithinChainVariance(){
@@ -170,7 +178,6 @@ double ReversalMCMC::computeBetweenChainVariance(){
 }
 
 void ReversalMCMC::run(){
-	const int max_steps = 10000;
 	while(cur_step < max_steps){
 
 		// Update current step.
@@ -181,19 +188,32 @@ void ReversalMCMC::run(){
 		// Run current step for all chains in parallel.
 		#pragma omp parallel for
 		for (int idx=0; idx<nb_chains; ++idx){
-			runSingleChain(idx);
+			std::string status = runSingleChain(idx);
 			// Update average path size for each chain (L_j).
-			std::cout << "  Avg. path size: cur= " << rev_path_avgsize[idx] << "; ";
-			rev_path_avgsize[idx] = ((cur_step-1.0)/cur_step)*rev_path_avgsize[idx] + currentState_revHists[idx].size()/cur_step;
-			std::cout << " new= " << rev_path_avgsize[idx] << " / cur. path = " << currentState_revHists[idx].size() << std::endl;
+			if(cur_step > pre_burnin_steps) {
+				const int steps_after_burnin = cur_step-pre_burnin_steps;
+				// Initial step.
+				if(steps_after_burnin == 1){
+					rev_path_avgsize[idx] = currentState_revHists[idx].size();
+					std::cout << "  [ini] Avg. path size: cur= " << currentState_revHists[idx].size() << "; " << std::endl;
+				// General step.
+				} else {
+					std::cout << "  Avg. path size: cur= " << rev_path_avgsize[idx] << "; ";
+					rev_path_avgsize[idx] = ((steps_after_burnin-1.0)/steps_after_burnin)*rev_path_avgsize[idx] + static_cast<double>(currentState_revHists[idx].size())/steps_after_burnin;
+					std::cout << " new= " << rev_path_avgsize[idx] << " / cur. path = " << currentState_revHists[idx].size() << " / cur mean = " << currentState_revMeans[idx] << " / " << status << std::endl;
+				}
+			}
 		}
 
 		// Measures used to assess convergence [York, Durrett, Nielsen (2002)].
 		// Compute between chain variance and within-chain variance.
-		const double W = computeWithinChainVariance();
-		const double B = computeBetweenChainVariance();
-		const double R = std::sqrt((cur_step-1.0)/cur_step + B/W);
-		std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
+		if(cur_step > pre_burnin_steps) {
+			const int steps_after_burnin = cur_step-pre_burnin_steps;
+			const double W = computeWithinChainVariance();
+			const double B = computeBetweenChainVariance();
+			const double R = std::sqrt((steps_after_burnin-1.0)/steps_after_burnin + B/W);
+			std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
+		}
 	}
 }
 
@@ -202,8 +222,11 @@ void ReversalMCMC::run(){
 //////////////////////////////////////////////////////////////////////
 
 double ProposalReversalMean::sampleReversalMean(const double rev_mean_cur) {
-	const double rev_mean_lb = std::max(rev_mean_min, rev_mean_cur-rev_mean_range/2);
-	const double rev_mean_ub = rev_mean_lb + rev_mean_range;
+	
+	// const double rev_mean_lb = std::max(rev_mean_min, rev_mean_cur-rev_mean_range/2);
+	// const double rev_mean_ub = rev_mean_lb + rev_mean_range;
+	const double rev_mean_lb = rev_mean_min;
+	const double rev_mean_ub = rev_mean_min*2.0;
 
 	// Proposed values are uniformly sampled from the range [cur-range, cur+range].
 	std::uniform_real_distribution<double> distrib(rev_mean_lb, rev_mean_ub);
@@ -227,7 +250,7 @@ double ProposalReversalMean::getAcceptanceProb(const int rev_path_len, const dou
 // of l+1 factors, one for each inversion and a factor of 1-q_stop
 // for actually stopping upon reaching the target genome 
 // [from York, Durrett, and Nielsen (2002)].
-std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<ReversalRandom>& path, const std::vector<float>& rev_weights, const double p_stop){
+std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<ReversalRandom>& path, const std::vector<double>& rev_weights, const double p_stop){
 	std::vector<double> factors;
 	factors.reserve(path.size());
 	for (ReversalRandom rev : path){
@@ -244,7 +267,17 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 		// For example, there is no bias depending on the reversal location or its size.
 		const int N_revtype = rev.rev_totals[rev.type];
 
-		factors.emplace_back((w_total/w_revtype)*(N_revtype/1.0));
+		if(w_revtype > 0.0){
+			factors.emplace_back((w_total/w_revtype)*(N_revtype/1.0));
+
+		// It is a reversal that is not allowed in the walk (e.g. a bad reversal), but it occurred in the path.
+		} else {
+			for (int revtype_idx = 0; revtype_idx < ReversalType_COUNT; ++revtype_idx) {
+				std::cout << " type = " << revtype_idx << "; w=" << rev_weights[revtype_idx] << std::endl;
+			}
+			std::cout << "ERROR! There is a state in the chain with a reversal with weight = 0. Due to this, the state becomes unreachable. The program is being aborted.";
+			exit(1);
+		}
 
 		if(debug){std::cout << " - Factors : Type=" << rev.type << "; W=" << w_total << "; N_revtype=" << N_revtype  << "; prod=" << (w_total/w_revtype)*(N_revtype/1.0) << std::endl;}
 
@@ -256,8 +289,7 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 // proposing the original state from proposed state divided by
 // the probability of proposing the proposed state from the
 // original state.
-double ProposalReversalScenario::getProposalRatio(const std::vector<float>& rev_weights, const double p_stop){
-
+double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev_weights, const double p_stop){
 	// Proposal probability [from York, Durrett, and Nielsen (2002)].
 	// q(Y|X) = q_L(l,j) * q_new
 	const double q_lj_cur = q_lj(L_cur, l_cur, path_beg);
@@ -271,6 +303,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<float>& rev_
 	std::vector<ReversalRandom> p_cur( currentReversalScenario.begin() + path_beg, currentReversalScenario.begin()  + (path_beg + l_cur));
 	std::vector<ReversalRandom> p_new(proposedReversalScenario.begin() + path_beg, proposedReversalScenario.begin() + (path_beg + l_new));
 
+	// debug=true;
 	if(debug){std::cout << "\n\n - Current Factors " << std::endl;}
 	std::vector<double> q_cur = q_path_factors(p_cur, rev_weights, p_stop);
 
@@ -298,6 +331,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<float>& rev_
 		++factors_idx;
 	}
 	if(debug){std::cout << " - Proposal ratio : " << proposalRatio << std::endl;}
+	// debug=false;
 	return proposalRatio;
 }
 
@@ -329,13 +363,18 @@ double ProposalReversalScenario::getPosteriorRatio(const double rev_mean){
 	// P(X_new|lambda) / P(X_cur|lambda)
 	// P(X|lambda) is defined in York, Durrett, and Nielsen (2002)
 	posteriorRatio = std::pow(nb_rev_step, -L_new+L_cur) * factorial;
+	if(debug){std::cout << " - Posterior ratio : " << posteriorRatio << std::endl;}
 	return posteriorRatio;
 }
 
 // The acceptance probability is the minimum of one and
 // the product of the posterior ratio and the proposal ratio.
-double ProposalReversalScenario::getAcceptanceProb(const double rev_mean, const std::vector<float>& rev_weights, const double p_stop){
-	return std::min(1.0, getProposalRatio(rev_weights, p_stop)*getPosteriorRatio(rev_mean));
+double ProposalReversalScenario::getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop){
+	double acceptanceProb = std::min(1.0, getProposalRatio(rev_weights, p_stop)*getPosteriorRatio(rev_mean));
+	// std::cout << " - Proposal ratio : " << proposalRatio << std::endl;
+	// std::cout << " - Posterior ratio : " << posteriorRatio << std::endl;
+	// std::cout << " - Acceptance : " << acceptanceProb << std::endl << std::endl;
+	return acceptanceProb;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -406,7 +445,8 @@ std::vector<ReversalRandom> RandomReversalScenario::sampleScenario(GenomeMultich
 	double prob_rdm = distr(rng);
 
 	std::vector<ReversalRandom> reversals;
-	while((genperm.getBreakpoints() > 0) || (p_stop < prob_rdm)) { // not identity and p_stop.
+	while((genperm.getBreakpoints() > 0) || ((p_stop < prob_rdm) && (rev_weights[ReversalType::BAD] > 0.0))) { // not identity and p_stop.
+
 		if(debug){std::cout << "\n\n\n------------------------------------------------\n\n - Current nb. of breakpoints = " << genperm.getBreakpoints() << std::endl;}
 
 		// Sample a random reversal.
@@ -434,7 +474,7 @@ std::vector<ReversalRandom> RandomReversalScenario::sampleScenario(GenomeMultich
 	return reversals;
 }
 
-int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N, const float alpha, const float epsilon){
+int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N, const double alpha, const double epsilon){
 	// q(l) ~ 1 - tanh(epsilon*(l/(alpha*N)-1))
 	// - alpha: lengths small than N*alpha are roughly equally likely represented.
 	//          For example, alpha=0.65, means that there is more or less the same 
@@ -445,16 +485,17 @@ int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N, con
 	std::vector<double> lprobs_cum(N,0.0);
 	double l_total = 0;
 	int l = 1;
-	double prob_l = 1.0-std::tanh(epsilon*(l/(alpha*N)-1));
+	double prob_l = 1.0-std::tanh(epsilon*(static_cast<double>(l)/(alpha*static_cast<double>(N))-1.0));
 	lprobs_cum[0] = prob_l;	
 	for(l=2; l<=N; ++l){ // l: 1..N; l_idx: 0..N-1
-		prob_l = 1.0-std::tanh(epsilon*(l/(alpha*N)-1));
+		// By commenting this line, all path lenghts have the same probability of being sampled.
+		prob_l = 1.0-std::tanh(epsilon*(static_cast<double>(l)/(alpha*static_cast<double>(N))-1.0));
 		lprobs_cum[l-1] = lprobs_cum[l-2] + prob_l;
 		l_total += prob_l;
 	}
 	// Sample l.
 	std::uniform_real_distribution distr(0.0, l_total); // [0, rev_weights_total)
-	float rdmval = distr(rng);
+	double rdmval = distr(rng);
 	int l_chosen = 1;
 	// Find the index corresponding to the random value
 	for (int l_idx = 0; l_idx < N; ++l_idx) {
@@ -463,7 +504,7 @@ int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N, con
 			break;
 		}
 	}
-	return l_chosen;
+	return 10;//l_chosen;
 }
 
 int RandomReversalScenario::samplePathStart(std::mt19937& rng, const int N, const int l) {
@@ -591,7 +632,6 @@ ProposalReversalScenario RandomReversalScenario::sampleModifiedScenario(GenomeMu
 		std::cout << "\nNew scenario " << std::endl;
 		printSortingScenario(genome_B, reversals_new, j, j+l_new);
 	}
-
 	// std::vector<ReversalRandom> reversals_new;
 	return ProposalReversalScenario(reversals_cur, reversals_new, j, N, l, N_new, l_new, genome_B.n);
 }

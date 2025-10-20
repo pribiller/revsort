@@ -150,16 +150,16 @@ public:
 	inline double q_lj(const int L, const int l, const int j) const {return q_L(L,l)/(L+1-l);}
 
 	// Probability of proposing a particular path with l inversions.
-	std::vector<double> q_path_factors(const std::vector<ReversalRandom>& path, const std::vector<float>& rev_weights, const double p_stop);
+	std::vector<double> q_path_factors(const std::vector<ReversalRandom>& path, const std::vector<double>& rev_weights, const double p_stop);
 
 	// Proposal ratio (Hastings ratio).
-	double getProposalRatio(const std::vector<float>& rev_weights, const double p_stop);
+	double getProposalRatio(const std::vector<double>& rev_weights, const double p_stop);
 
 	// Posterior ratio.
 	double getPosteriorRatio(const double rev_mean);
 
 	// Acceptance probability.
-	double getAcceptanceProb(const double rev_mean, const std::vector<float>& rev_weights, const double p_stop);
+	double getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop);
 
 };
 
@@ -168,15 +168,14 @@ class RandomReversalScenario {
 
 public:
 
-	std::vector<float> rev_weights;  // Weight of each type of reversal.
-	float p_stop{0.99};
+	std::vector<double> rev_weights;  // Weight of each type of reversal.
+	double p_stop{0.99};
 
 	bool debug{false};
-
-	RandomReversalScenario(const bool debug=false, const float p_good=1.0, const float p_neutralgood=0.025, const float p_neutral=0.020, const float p_bad=0.015, const float p_stop=0.99):rev_weights(ReversalType_COUNT, 0),p_stop(p_stop),debug(debug){
-		rev_weights = {p_good, p_neutralgood, p_neutral, p_bad};
+		
+	RandomReversalScenario(std::vector<double>& rev_weights_, const double p_stop, const bool debug):rev_weights(rev_weights_),p_stop(p_stop),debug(debug){
 	}
-	
+
 	std::vector<ReversalRandom> getSubpath(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
 
 	std::vector<ReversalRandom> sampleScenario(GenomeMultichrom<int>& genome_B, std::mt19937& rng);
@@ -184,7 +183,7 @@ public:
 
 	std::vector<ReversalRandom> updateReversalScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom> reversals, std::vector<ReversalRandom> reversals_new, const int pos_beg, const int pos_end);
 
-	int samplePathLength(std::mt19937& rng, const int N, const float alpha=0.65, const float epsilon=8);
+	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.65, const double epsilon=8);
 	int samplePathStart(std::mt19937& rng, const int N, const int l);
 
 	std::pair<std::vector<int>,std::vector<int>> getPathEnds(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
@@ -209,12 +208,16 @@ public:
 
 	int rev_dist{-1}; // It makes sure that estimated nb. of reversals is equal or above the reversal distance.
 	double rev_mean_range; // Parameter used to propose new values for the mean based on the current value.
+	std::vector<double>& rev_weights;  // Weight of each type of reversal.
+	double p_stop{0.99};
 
 	// It stores the current state of all chains.
 	std::vector<std::vector<ReversalRandom>> currentState_revHists;
 	std::vector<double> currentState_revMeans;
 
 	// Convergence measures.
+	double max_steps;
+	double pre_burnin_steps;
 	double cur_step{0}; // It stores the current step.
 	std::vector<double> rev_path_avgsize; // Position i stores the average path size in chain i so far.
 
@@ -228,7 +231,7 @@ public:
 	ProposalReversalMean proposalMean;
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(nb_chains_){
+	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const int max_steps_, const int pre_burnin_steps_, std::vector<double>& rev_weights_, double p_stop_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(nb_chains_),rev_weights(rev_weights_),p_stop(p_stop_){
 
 		// Compute reversal distance.
 		SortByReversals sortGenome(genome_A_,genome_B_,false);
@@ -244,7 +247,7 @@ public:
 	}
 
 	void initializeChains();
-	void runSingleChain(const int chainIdx);
+	std::string runSingleChain(const int chainIdx);
 	void run();
 
 	double computeWithinChainVariance();
