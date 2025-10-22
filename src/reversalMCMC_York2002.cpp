@@ -184,24 +184,38 @@ void ReversalMCMC::run(){
 		++cur_step;
 
 		std::cout << "Step " << cur_step << std::endl;
+		std::vector<std::string> status_all(nb_chains);
 
 		// Run current step for all chains in parallel.
 		#pragma omp parallel for
 		for (int idx=0; idx<nb_chains; ++idx){
-			std::string status = runSingleChain(idx);
+			status_all[idx] = runSingleChain(idx);
 			// Update average path size for each chain (L_j).
 			if(cur_step > pre_burnin_steps) {
 				const int steps_after_burnin = cur_step-pre_burnin_steps;
 				// Initial step.
 				if(steps_after_burnin == 1){
 					rev_path_avgsize[idx] = currentState_revHists[idx].size();
-					std::cout << "  [ini] Avg. path size: cur= " << currentState_revHists[idx].size() << "; " << std::endl;
 				// General step.
 				} else {
-					std::cout << "  Avg. path size: cur= " << rev_path_avgsize[idx] << "; ";
 					rev_path_avgsize[idx] = ((steps_after_burnin-1.0)/steps_after_burnin)*rev_path_avgsize[idx] + static_cast<double>(currentState_revHists[idx].size())/steps_after_burnin;
-					std::cout << " new= " << rev_path_avgsize[idx] << " / cur. path = " << currentState_revHists[idx].size() << " / cur mean = " << currentState_revMeans[idx] << " / " << status << std::endl;
 				}
+			}
+		}
+		
+		// Print sorted average path sizes (one value per chain).
+		if(cur_step > pre_burnin_steps) {
+			const int steps_after_burnin = cur_step-pre_burnin_steps;			
+			std::vector<std::pair<int,double>> path_averages(nb_chains);
+			for (int idx=0; idx<nb_chains; ++idx){
+				path_averages[idx] = std::make_pair(idx, currentState_revHists[idx].size());
+			}
+			// Sort the vector by descending order.
+			std::sort(path_averages.begin(), path_averages.end(), [](const auto& a, const auto& b) {return a.second > b.second;});
+			// Print values.
+			for (const auto& p : path_averages) {
+				const int idx = p.first;
+				std::cout << " [Chain " << idx << "] Avg. path size: " << rev_path_avgsize[idx] << "; cur. path = " << currentState_revHists[idx].size() << " ; cur lambda = " << currentState_revMeans[idx] << " / " << status_all[idx] << std::endl;
 			}
 		}
 
@@ -258,9 +272,9 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 		// Reversal types without any reversals associated with have weight = 0.
 		double w_total = 0.0;
 		for (int revtype_idx = 0; revtype_idx < ReversalType_COUNT; ++revtype_idx) {
-			if(rev.rev_totals[revtype_idx] > 0){w_total += rev_weights[revtype_idx];}
+			w_total += (rev.rev_totals[revtype_idx]*rev_weights[revtype_idx]);
 		}
-		const double w_revtype = rev_weights[rev.type];
+		const double w_revtype = rev.rev_totals[rev.type]*rev_weights[rev.type];
 
 		// Number of inversions of a certain type.
 		// For now all inversions have the same chance to be sampled. 
@@ -269,6 +283,7 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 
 		if(w_revtype > 0.0){
 			factors.emplace_back((w_total/w_revtype)*(N_revtype/1.0));
+			//factors.emplace_back(w_total/w_revtype);
 
 		// It is a reversal that is not allowed in the walk (e.g. a bad reversal), but it occurred in the path.
 		} else {
@@ -279,7 +294,7 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 			exit(1);
 		}
 
-		if(debug){std::cout << " - Factors : Type=" << rev.type << "; W=" << w_total << "; N_revtype=" << N_revtype  << "; prod=" << (w_total/w_revtype)*(N_revtype/1.0) << std::endl;}
+		if(debug){std::cout << " - Factors : Type=" << rev.type << "; W=" << w_total << "; W_type=" << w_revtype << "; N_revtype=" << N_revtype  << "; prod=" << (w_total/w_revtype) << std::endl;}
 
 	}
 	return factors;
@@ -302,8 +317,6 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 	// The factors from the common parts cancel out.
 	std::vector<ReversalRandom> p_cur( currentReversalScenario.begin() + path_beg, currentReversalScenario.begin()  + (path_beg + l_cur));
 	std::vector<ReversalRandom> p_new(proposedReversalScenario.begin() + path_beg, proposedReversalScenario.begin() + (path_beg + l_new));
-
-	// debug=true;
 	if(debug){std::cout << "\n\n - Current Factors " << std::endl;}
 	std::vector<double> q_cur = q_path_factors(p_cur, rev_weights, p_stop);
 
@@ -331,7 +344,6 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 		++factors_idx;
 	}
 	if(debug){std::cout << " - Proposal ratio : " << proposalRatio << std::endl;}
-	// debug=false;
 	return proposalRatio;
 }
 
@@ -363,7 +375,7 @@ double ProposalReversalScenario::getPosteriorRatio(const double rev_mean){
 	// P(X_new|lambda) / P(X_cur|lambda)
 	// P(X|lambda) is defined in York, Durrett, and Nielsen (2002)
 	posteriorRatio = std::pow(nb_rev_step, -L_new+L_cur) * factorial;
-	if(debug){std::cout << " - Posterior ratio : " << posteriorRatio << std::endl;}
+	if(debug){std::cout << " - Posterior ratio : " << posteriorRatio << "; Comb=" << std::pow(nb_rev_step, -L_new+L_cur) << "; Fact=" << factorial << std::endl;}
 	return posteriorRatio;
 }
 
@@ -413,7 +425,9 @@ std::vector<ReversalRandom> RandomReversalScenario::getSubpath(GenomeMultichrom<
 
 		// Get the type of reversal and probability in the subpath.
 		std::pair<int,int> rev_extremities = std::make_pair(getGeneExtremity(rev.g_beg, genperm),getGeneExtremity(rev.g_end, genperm));
+		// debug=true;
 		ReversalSampler sampler(genperm,debug);
+		// debug=false;
 		sampler.updateComponents();
 		sampler.countReversals();
 
@@ -462,13 +476,16 @@ std::vector<ReversalRandom> RandomReversalScenario::sampleScenario(GenomeMultich
 
 		// Apply reversal.
 		//genperm.debug = false;
+		// const int nb_breakpoints_before = genperm.getBreakpoints();
 		applyReversal(genperm, rev.g_beg, rev.g_end);
 		genperm.clearBlockStatus();
+		// const int nb_breakpoints_after  = genperm.getBreakpoints();
 		
 		// Add reversal to list of reversals.
 		reversals.emplace_back(rev);
 		// Sample probability of stopping if genome is sorted.
 		if(genperm.getBreakpoints() == 0){prob_rdm = distr(rng);}
+		
 	}
 	if(debug){printGenome(genperm.getExtendedPerm());}
 	return reversals;
@@ -504,7 +521,7 @@ int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N, con
 			break;
 		}
 	}
-	return 10;//l_chosen;
+	return l_chosen;
 }
 
 int RandomReversalScenario::samplePathStart(std::mt19937& rng, const int N, const int l) {
@@ -604,14 +621,13 @@ ProposalReversalScenario RandomReversalScenario::sampleModifiedScenario(GenomeMu
 	const int N = reversals.size();
 	const int l = samplePathLength(rng, N);
 	const int j = samplePathStart(rng, N, l);
-
+	
 	if(debug) {std::cout << " Total path size (nb. of reversals) = " << N << "; length modified path = " << l << "; Start modified path: " << j << std::endl;}
 
 	// Get genomes at these positions in the path.
 	GenomeMultichrom<int> genome_B_new = getGenomes(genome_B, reversals, j, j+l);
 
 	// Get current subpath.
-	//debug = false;
 	std::vector<ReversalRandom> reversals_sub_cur = getSubpath(genome_B_new, reversals, j, j+l);
 
 	// Integrate probabilities of the subpath to the current path.
@@ -624,7 +640,6 @@ ProposalReversalScenario RandomReversalScenario::sampleModifiedScenario(GenomeMu
 	// Integrate new reversals to the current path.
 	std::vector<ReversalRandom> reversals_new = updateReversalScenario(genome_B_new, reversals, reversals_sub_new, j, j+l);
 	const int N_new = reversals_new.size();
-
 	if(debug) {
 		std::cout << "\nOld scenario: " << std::endl;
 		printSortingScenario(genome_B, reversals, j, j+l);

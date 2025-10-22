@@ -213,10 +213,10 @@ void ReversalSampler::initializeRevProbs(std::vector<double>& probs){
 void ReversalSampler::updateRevProbs() {
 	// Make sure that reversal types without any 
 	// reversals associated have 0 chance to be sampled.
-	double rev_weight_cur = (rev_totals[0] == 0) ? 0.0 : rev_weights[0];
-	rev_weights_cum[0]   = rev_weight_cur;
+	double rev_weight_cur = rev_totals[0]*rev_weights[0];
+	rev_weights_cum[0]    = rev_weight_cur;
 	for (int i=1; i<ReversalType_COUNT; ++i) {
-		rev_weight_cur     = (rev_totals[i] == 0) ? 0.0 : rev_weights[i];
+		rev_weight_cur     = rev_totals[i]*rev_weights[i];
 		rev_weights_cum[i] = rev_weights_cum[i-1] + rev_weight_cur;
 	}
 	rev_weights_total = rev_weights_cum[ReversalType_COUNT-1];
@@ -1058,23 +1058,29 @@ ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const 
 	bool isHurdle   = false;
 	bool sameHurdle = false;
 	bool adjHurdle  = false;
-	if (!sameCycle){
+
+	if(sameCycle) {
+		isHurdle   = true;
+		sameHurdle = true;
+	} else {
 		// Check if extremity is in a hurdle.
 		std::vector<int> hurdle_exts_all = getAllHurdleExtremities();
-		isHurdle = (std::find(hurdle_exts_all.begin(), hurdle_exts_all.end(), cycleIdx_end) != hurdle_exts_all.end());
+		isHurdle = (std::find(hurdle_exts_all.begin(), hurdle_exts_all.end(), rev.second) != hurdle_exts_all.end());
 		if(isHurdle){
 
 			// Check if extremity is in the own hurdle.
 			std::vector<int> hurdle_exts_own = getGeneExtremitiesComponent(cycles_info[cycle_idx].hurdle_idx);
-			sameHurdle = (std::find(hurdle_exts_own.begin(), hurdle_exts_own.end(), cycleIdx_end) != hurdle_exts_own.end());
+			sameHurdle = (std::find(hurdle_exts_own.begin(), hurdle_exts_own.end(), rev.second) != hurdle_exts_own.end());
 
 			if(!sameHurdle){
 				// Check if extremity is in an adjacent hurdle.
 				std::vector<int> hurdle_exts_adj = getAdjacentHurdleExtremities(cycle_idx);
-				adjHurdle = (std::find(hurdle_exts_adj.begin(), hurdle_exts_adj.end(), cycleIdx_end) != hurdle_exts_adj.end());
+				adjHurdle = (std::find(hurdle_exts_adj.begin(), hurdle_exts_adj.end(), rev.second) != hurdle_exts_adj.end());
 			}
 		}
 	}
+
+	//std::cout << " Nb. hurdles=" << hurdles.size() << "; isHurdle=" << isHurdle << "; sameHurdle=" << sameHurdle << "; adjHurdle=" << adjHurdle << "; sameCycle=" << sameCycle << ";" << std::endl;
 
 	// Case: Many hurdles (h > 3).
 	if(hurdles.size() > 3){
