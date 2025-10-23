@@ -154,9 +154,12 @@ double ReversalMCMC::computeWithinChainVariance(){
 	// W = 1/m * [ sum_j (1/(n-1)) * (L_ij - L_j)^2 ]
 	double W = 0.0; 
 	for (int idx=0; idx<nb_chains; ++idx){
-		const int L_ij   = currentState_revHists[idx].size(); // Size of the current path.
 		const double L_j = rev_path_avgsize[idx]; // Avg. path size in chain j.
-		W += std::pow((L_ij-L_j), 2.0);
+		for (auto L_hist : hist_chains[idx]){
+			const int L_ij = L_hist.first;  // Size of the reversal path.
+			const int freq = L_hist.second; // Frequency that a paths of a certain size were visited.
+			W += (freq*std::pow((L_ij-L_j), 2.0));
+		}
 	}
 	return W/(nb_chains*(cur_step-1.0));
 }
@@ -183,7 +186,7 @@ void ReversalMCMC::run(){
 		// Update current step.
 		++cur_step;
 
-		std::cout << "Step " << cur_step << std::endl;
+		std::cout << "\nStep " << cur_step << std::endl;
 		std::vector<std::string> status_all(nb_chains);
 
 		// Run current step for all chains in parallel.
@@ -203,30 +206,42 @@ void ReversalMCMC::run(){
 			}
 		}
 		
-		// Print sorted average path sizes (one value per chain).
 		if(cur_step > pre_burnin_steps) {
-			const int steps_after_burnin = cur_step-pre_burnin_steps;			
+
+			const int steps_after_burnin = cur_step-pre_burnin_steps;
+
+			// Print sorted average path sizes (one value per chain).
 			std::vector<std::pair<int,double>> path_averages(nb_chains);
 			for (int idx=0; idx<nb_chains; ++idx){
-				path_averages[idx] = std::make_pair(idx, currentState_revHists[idx].size());
+				path_averages[idx] = std::make_pair(idx, rev_path_avgsize[idx]);
 			}
 			// Sort the vector by descending order.
 			std::sort(path_averages.begin(), path_averages.end(), [](const auto& a, const auto& b) {return a.second > b.second;});
 			// Print values.
+			double avg_revMean_cur = 0.0;
+			double avg_revPath_cur = 0.0;
 			for (const auto& p : path_averages) {
 				const int idx = p.first;
+				avg_revMean_cur += currentState_revMeans[idx];
+				avg_revPath_cur += currentState_revHists[idx].size();
 				std::cout << " [Chain " << idx << "] Avg. path size: " << rev_path_avgsize[idx] << "; cur. path = " << currentState_revHists[idx].size() << " ; cur lambda = " << currentState_revMeans[idx] << " / " << status_all[idx] << std::endl;
 			}
-		}
+			std::cout << " Avg. lambda = " << (avg_revMean_cur/nb_chains) << "; Avg. path size=" << (avg_revPath_cur/nb_chains) << std::endl;
 
-		// Measures used to assess convergence [York, Durrett, Nielsen (2002)].
-		// Compute between chain variance and within-chain variance.
-		if(cur_step > pre_burnin_steps) {
-			const int steps_after_burnin = cur_step-pre_burnin_steps;
+			// It stores the history of a chain (visited states so far).
+			for (int idx=0; idx<nb_chains; ++idx){
+				const int curSize = currentState_revHists[idx].size();
+				hist_chains[idx][curSize] += 1;
+			}
+			
+			// Measures used to assess convergence [York, Durrett, Nielsen (2002)].
+			// Compute between chain variance and within-chain variance.
 			const double W = computeWithinChainVariance();
 			const double B = computeBetweenChainVariance();
+			// Method of Gelman and Rubin (1992).
 			const double R = std::sqrt((steps_after_burnin-1.0)/steps_after_burnin + B/W);
 			std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
+
 		}
 	}
 }
@@ -272,9 +287,11 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 		// Reversal types without any reversals associated with have weight = 0.
 		double w_total = 0.0;
 		for (int revtype_idx = 0; revtype_idx < ReversalType_COUNT; ++revtype_idx) {
-			w_total += (rev.rev_totals[revtype_idx]*rev_weights[revtype_idx]);
+			if(rev.rev_totals[revtype_idx] > 0){w_total += rev_weights[revtype_idx];}
+			//w_total += (rev.rev_totals[revtype_idx]*rev_weights[revtype_idx]);
 		}
-		const double w_revtype = rev.rev_totals[rev.type]*rev_weights[rev.type];
+		const double w_revtype = rev_weights[rev.type];
+		//const double w_revtype = rev.rev_totals[rev.type]*rev_weights[rev.type];
 
 		// Number of inversions of a certain type.
 		// For now all inversions have the same chance to be sampled. 
@@ -283,7 +300,7 @@ std::vector<double> ProposalReversalScenario::q_path_factors(const std::vector<R
 
 		if(w_revtype > 0.0){
 			factors.emplace_back((w_total/w_revtype)*(N_revtype/1.0));
-			//factors.emplace_back(w_total/w_revtype);
+			// factors.emplace_back(w_total/w_revtype);
 
 		// It is a reversal that is not allowed in the walk (e.g. a bad reversal), but it occurred in the path.
 		} else {
@@ -317,6 +334,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 	// The factors from the common parts cancel out.
 	std::vector<ReversalRandom> p_cur( currentReversalScenario.begin() + path_beg, currentReversalScenario.begin()  + (path_beg + l_cur));
 	std::vector<ReversalRandom> p_new(proposedReversalScenario.begin() + path_beg, proposedReversalScenario.begin() + (path_beg + l_new));
+	// debug=true;
 	if(debug){std::cout << "\n\n - Current Factors " << std::endl;}
 	std::vector<double> q_cur = q_path_factors(p_cur, rev_weights, p_stop);
 
@@ -344,6 +362,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 		++factors_idx;
 	}
 	if(debug){std::cout << " - Proposal ratio : " << proposalRatio << std::endl;}
+	// debug=false;
 	return proposalRatio;
 }
 
@@ -383,9 +402,7 @@ double ProposalReversalScenario::getPosteriorRatio(const double rev_mean){
 // the product of the posterior ratio and the proposal ratio.
 double ProposalReversalScenario::getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop){
 	double acceptanceProb = std::min(1.0, getProposalRatio(rev_weights, p_stop)*getPosteriorRatio(rev_mean));
-	// std::cout << " - Proposal ratio : " << proposalRatio << std::endl;
-	// std::cout << " - Posterior ratio : " << posteriorRatio << std::endl;
-	// std::cout << " - Acceptance : " << acceptanceProb << std::endl << std::endl;
+	// std::cout << " > Acceptance : " << acceptanceProb << "; Proposal ratio : " << proposalRatio << "; Posterior ratio : " << posteriorRatio << std::endl;
 	return acceptanceProb;
 }
 
@@ -497,7 +514,6 @@ int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N, con
 	//          For example, alpha=0.65, means that there is more or less the same 
 	//          chance to sample a size between 0 and 65% of the total size of the 
 	//          path (N). From this point on, the probability drops to almost 0.
-
 	// Compute CDF of q(l).
 	std::vector<double> lprobs_cum(N,0.0);
 	double l_total = 0;

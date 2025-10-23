@@ -183,7 +183,8 @@ public:
 
 	std::vector<ReversalRandom> updateReversalScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom> reversals, std::vector<ReversalRandom> reversals_new, const int pos_beg, const int pos_end);
 
-	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.65, const double epsilon=8);
+	//int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.65, const double epsilon=8);
+	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.85, const double epsilon=8);
 	int samplePathStart(std::mt19937& rng, const int N, const int l);
 
 	std::pair<std::vector<int>,std::vector<int>> getPathEnds(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
@@ -215,6 +216,13 @@ public:
 	std::vector<std::vector<ReversalRandom>> currentState_revHists;
 	std::vector<double> currentState_revMeans;
 
+	// It stores the history of a chain, i.e., all the states visited 
+	// so far. More specifically, given a chain i, the length of all reversal paths 
+	// visited by chain i are the keys of the map stored at position i,
+	// whereas the frequency of the path lengths are the values of map i.
+	// To save space, the order in which the states are visited is not saved.
+	std::vector<std::unordered_map<int,int>> hist_chains;
+
 	// Convergence measures.
 	double max_steps;
 	double pre_burnin_steps;
@@ -231,7 +239,7 @@ public:
 	ProposalReversalMean proposalMean;
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const int max_steps_, const int pre_burnin_steps_, std::vector<double>& rev_weights_, double p_stop_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(nb_chains_),rev_weights(rev_weights_),p_stop(p_stop_){
+	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const int max_steps_, const int pre_burnin_steps_, std::vector<double>& rev_weights_, double p_stop_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(nb_chains_),rev_weights(rev_weights_),p_stop(p_stop_),hist_chains(nb_chains_){
 
 		// Compute reversal distance.
 		SortByReversals sortGenome(genome_A_,genome_B_,false);
@@ -241,7 +249,7 @@ public:
 		// Initialize proposal mean.
 		proposalMean.rev_mean_min = rev_dist;
 		proposalMean.rev_mean_range = rev_mean_range;
-
+		
 		// Initialize reversal histories/means.
 		initializeChains();
 	}

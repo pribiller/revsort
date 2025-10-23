@@ -213,10 +213,12 @@ void ReversalSampler::initializeRevProbs(std::vector<double>& probs){
 void ReversalSampler::updateRevProbs() {
 	// Make sure that reversal types without any 
 	// reversals associated have 0 chance to be sampled.
-	double rev_weight_cur = rev_totals[0]*rev_weights[0];
+	//double rev_weight_cur = rev_totals[0]*rev_weights[0];
+	double rev_weight_cur = (rev_totals[0] == 0) ? 0.0 : rev_weights[0];
 	rev_weights_cum[0]    = rev_weight_cur;
 	for (int i=1; i<ReversalType_COUNT; ++i) {
-		rev_weight_cur     = rev_totals[i]*rev_weights[i];
+		//rev_weight_cur     = rev_totals[i]*rev_weights[i];
+		rev_weight_cur     = (rev_totals[i] == 0) ? 0.0 : rev_weights[i];
 		rev_weights_cum[i] = rev_weights_cum[i-1] + rev_weight_cur;
 	}
 	rev_weights_total = rev_weights_cum[ReversalType_COUNT-1];
