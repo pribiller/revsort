@@ -83,7 +83,7 @@ GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const 
 		genome_B_signs.reserve(genome_B_perm.size());
 		// std::cout << " - Genome B: ";
 		for(int const &gene_id : genome_B_perm){
-			genome_B_signs.emplace_back((gene_id < 0));
+			genome_B_signs.emplace_back((genome_A.gene_labels_map.getAdjustedId(gene_id) < 0));
 			genome_B_labels.emplace_back(genome_A.gene_labels_map.getLabel(gene_id));
 			// std::cout << gene_id << " [" << genome_A.gene_labels_map.getLabel(gene_id) << "] ";
 		}

@@ -250,7 +250,7 @@ public:
 		// Initialize proposal mean.
 		proposalMean.rev_mean_min   = rev_dist;
 		proposalMean.rev_mean_range = rev_mean_range;
-		
+
 		// Initialize reversal histories/means.
 		initializeChains();
 	}
@@ -266,6 +266,8 @@ public:
 		// Initialize proposal mean.
 		proposalMean.rev_mean_min   = rev_dist;
 		proposalMean.rev_mean_range = rev_mean_range;
+		
+		std::cout << "- Reversal distance = " << rev_dist << std::endl;
 		
 		// Initialize reversal histories/means.
 		initializeChains();
