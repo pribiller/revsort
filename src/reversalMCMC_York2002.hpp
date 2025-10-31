@@ -90,6 +90,7 @@
 
 #include "sortByReversals.hpp"
 #include "sampleReversal_York2002.hpp"
+#include "inputParameters.hpp"
 
 class ProposalReversalMean {
 public:
@@ -173,7 +174,7 @@ public:
 
 	bool debug{false};
 		
-	RandomReversalScenario(std::vector<double>& rev_weights_, const double p_stop, const bool debug):rev_weights(rev_weights_),p_stop(p_stop),debug(debug){
+	RandomReversalScenario(const std::vector<double>& rev_weights_, const double p_stop, const bool debug):rev_weights(rev_weights_),p_stop(p_stop),debug(debug){
 	}
 
 	std::vector<ReversalRandom> getSubpath(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
@@ -209,7 +210,7 @@ public:
 
 	int rev_dist{-1}; // It makes sure that estimated nb. of reversals is equal or above the reversal distance.
 	double rev_mean_range; // Parameter used to propose new values for the mean based on the current value.
-	std::vector<double>& rev_weights;  // Weight of each type of reversal.
+	const std::vector<double>& rev_weights;  // Weight of each type of reversal.
 	double p_stop{0.99};
 
 	// It stores the current state of all chains.
@@ -247,7 +248,23 @@ public:
 		rev_dist = sortGenome.obs_distance;
 
 		// Initialize proposal mean.
-		proposalMean.rev_mean_min = rev_dist;
+		proposalMean.rev_mean_min   = rev_dist;
+		proposalMean.rev_mean_range = rev_mean_range;
+		
+		// Initialize reversal histories/means.
+		initializeChains();
+	}
+
+	// The occurrence of inversions is a Poisson process with unknown mean lambda.
+	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const McmcOptions& parameters, const bool debug_):nb_chains(parameters.nb_chains),genome_B(genome_B_),rng(rng_),max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),debug(debug_),rev_mean_range(parameters.rev_mean_range),currentState_revHists(parameters.nb_chains),currentState_revMeans(parameters.nb_chains),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(parameters.nb_chains),rev_weights(parameters.probs),p_stop(parameters.p_stop),hist_chains(parameters.nb_chains){
+
+		// Compute reversal distance.
+		SortByReversals sortGenome(genome_A_,genome_B_,false);
+		sortGenome.sort(rng);
+		rev_dist = sortGenome.obs_distance;
+
+		// Initialize proposal mean.
+		proposalMean.rev_mean_min   = rev_dist;
 		proposalMean.rev_mean_range = rev_mean_range;
 		
 		// Initialize reversal histories/means.

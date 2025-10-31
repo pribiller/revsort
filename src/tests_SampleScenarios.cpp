@@ -40,22 +40,23 @@ void testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int
 
 	std::cout << "Starting MCMC..." << std::endl;
 
-	const int nb_chains=10; //10
-	const double rev_mean_range=10;
+	const int nb_chains=10;
 	const int max_steps=100000;
-	const int pre_burnin_steps=10;
+	const int pre_burnin_steps=1000;
+
+	const double rev_mean_range=10; // TODO: currently not used.
 
 	// If the probability of bad reversals is too low, then the proposal ratio of better paths decreases:
 	// - Proposal ratio increases as P(old|new) / P(new|old).
 	// If the old path is composed of one or more bad reversals, and the probability of bad reversals is very low,
 	// then the probability of coming back from a better new path to the old path reduces.
-	
+
 	// My values.
 	const double p_good=1.0; 
 	const double p_neutralgood=0.0276; 
 	const double p_neutral=0.0276;
 	const double p_bad=0.001;
-	
+
 	// Larget (2004)'s values.
 	// They converge too fast to the minimum number.
 	// const double p_good=1.0; 
@@ -77,7 +78,6 @@ void testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int
 	// const double p_bad=0.015;
 
 	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
-
 	const double p_stop=0.999; //0.99;
 
 	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,max_steps,pre_burnin_steps,probs,p_stop,false);

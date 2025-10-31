@@ -93,7 +93,9 @@ void ReversalMCMC::initializeChains(){
 	
 	// Varying the probability of sampling neutral reversals allows 
 	// the sampling of shorter and longer paths.
-	const double p_neutral = sampler.rev_weights[ReversalType::GOOD]/2.0;
+	// - p_neutral used in initial paths in York, Durrett, and Nielsen:
+	// [0.025 (short initial inversions paths), 0.7 (long initial inversion paths)]
+	const double p_neutral     = sampler.rev_weights[ReversalType::GOOD]/2.0;
 	const double p_neutral_min = sampler.rev_weights[ReversalType::BAD];
 	const double p_delta = (nb_chains > 1) ? (p_neutral-p_neutral_min)/(nb_chains-1) : 0.0;
 
@@ -233,7 +235,7 @@ void ReversalMCMC::run(){
 				const int curSize = currentState_revHists[idx].size();
 				hist_chains[idx][curSize] += 1;
 			}
-			
+
 			// Measures used to assess convergence [York, Durrett, Nielsen (2002)].
 			// Compute between chain variance and within-chain variance.
 			const double W = computeWithinChainVariance();

@@ -46,7 +46,7 @@
  * -2 -1 -5 4 6
  * 
  * Compile:
- * g++ tests_InputFile.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_input
+ * g++ run_InputFile.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_input
  * 
  * Run:
  * ./revsort_input 42 1 inputFile.txt
@@ -124,15 +124,15 @@ std::vector<std::pair<std::string, std::pair<GenomeMultichrom<int>, GenomeMultic
 					// Check if input genomes are properly defined.
 					if (genome_multichrom_A.size() != genome_orientation_A.size()) {
 						std::cout << "[" << testId << "] ERROR! Reference genome: The number of genes and signs must be the same (Found: genes= " << genome_multichrom_A.size() << "; signs= " << genome_orientation_A.size() << ")." << std::endl;
-						exit(1);						
+						exit(1);
 					}
 					if (genome_multichrom_B.size() != genome_orientation_B.size()) {
 						std::cout << "[" << testId << "] ERROR! Query genome: The number of genes and signs must be the same (Found: genes= " << genome_multichrom_B.size() << "; signs= " << genome_orientation_B.size() << ")." << std::endl;
-						exit(1);						
+						exit(1);
 					}
 					if (genome_multichrom_A.size() != genome_multichrom_B.size()) {
 						std::cout << "[" << testId << "] ERROR! Reference and query genomes must have the same number of genes (Found: genes ref.= " << genome_multichrom_A.size() << "; genes qry.= " << genome_multichrom_B.size() << ")." << std::endl;
-						exit(1);						
+						exit(1);
 					}
 					// Create genomes.
 					GenomeMultichrom<int> genome_A(genome_multichrom_A, genome_orientation_A);

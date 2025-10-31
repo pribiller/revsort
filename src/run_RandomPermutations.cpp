@@ -13,17 +13,19 @@
  * Specifically, it checks if a sequence of reversals
  * provided by the method transforms the input permutation
  * into the identity permutation and if the number of 
- * reversals corresponds to the minimum number expected.
+ * reversals corresponds exactly to (method "opt"), 
+ * or at least (method "mcmc"), the minimum number expected.
  * 
  * In addition to check the correctness of the method, it also 
  * saves many stats about the permutations (number of breakpoints,
  * number of cycles, etc.) and the time needed to run the method.
  * 
  * Compile:
- * g++ -O3 tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_random
+ * g++ -O3 run_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp utils.cpp -o revsort_random
  * 
  * Run:
- * ./revsort_random 42 10 4 3 2
+ * ./revsort_random opt 42 10 4 3 2
+ * ./revsort_random mcmc.in 42 10 4 1 2
  * 
  *******************************************************/
 
@@ -33,6 +35,9 @@
 #include <cmath>	 // abs
 
 #include "sortByReversals.hpp"
+#include "reversalMCMC_York2002.hpp"
+
+#include "inputParameters.hpp"
 
 /*******************************************************
  * Some basic tests.
@@ -56,6 +61,14 @@ SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMult
 		exit(1);
 	}
 	return sortGenome;
+}
+
+ReversalMCMC testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, int verbose, McmcOptions* parameters){
+	const bool debug = (verbose > 2);	
+	std::cout << "Starting " << parameters->print() << "..." << std::endl;
+	ReversalMCMC mcmc(genome_A,genome_B,rng,(*parameters),false);
+	mcmc.run();
+	return mcmc;
 }
 
 GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const int nb_reversals, const double probRev, std::mt19937& rng){
@@ -82,9 +95,13 @@ GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const 
 }
 
 void printHelper() {
-	std::cout << "Use: ./revsort_random [seed] [genes] [reversals] [tests] [verbose]" << std::endl;
-	std::cout << "Example: ./revsort_random 42 10 4 3 2" << std::endl;
+	std::cout << "Use: ./revsort_random [method] [seed] [genes] [reversals] [tests] [verbose]" << std::endl;
+	std::cout << "Example: ./revsort_random opt 42 10 4 3 2" << std::endl;
 	std::cout << "Parameters:" << std::endl;
+	std::cout << "- [method]: which method will be used to find an evolutionary path with reversals connecting the two genomes. Three options are available:" << std::endl;
+	std::cout << "  - [method=opt]:  Implementation based on Tannier et al. (2007). It computes a scenario with the minimum number of inversions." << std::endl;
+	std::cout << "  - [method=mcmc]: Implementation based on York, Durrett, and Nielsen. (2002). It samples reversal scenarios with possibly different number of inversions. The average size of the sampled paths should correspond to the expected number of inversions." << std::endl;
+	std::cout << "  - [method=file.in]: The path to a file containing details of the selected method, which allows for more flexibility in setting parameter values specific to each method (see examples in the repository)." << std::endl;
 	std::cout << "- [seed]: any positive integer number greater than 0;" << std::endl;
 	std::cout << "- [genes]: the number of genes. In the example above, all random genomes will have 1 chromosome and 10 genes;" << std::endl;
 	std::cout << "- [reversals]: the number of reversals separating two genomes. If this value is equal to 0, two random independent permutations will be created. If this value is greater than 0, the second genome is obtained from the first genome by applying the specified number of random reversals. In the example above, all pairs of random genomes will be separated by 4 reversals. Notice that, if the number of reversals is too high, the reversal distance (minimum number of reversals that separates two genomes) will be lower than the actual number of reversals;" << std::endl;
@@ -96,30 +113,44 @@ void printHelper() {
 	std::cout << "  - [verbose=3][for developer]: very detailed messages, useful for debugging;" << std::endl;
 }
 
+RevMethodOptions* checkParameters(std::string& method){
+	InputPars inputPars = InputPars();
+	if (!inputPars.isValidMethod(method)){
+		std::cout << "ERROR! Invalid method (Found: '" << method << "'). Valid options: 'opt'; 'mcmc'. Program is aborting." << std::endl;
+		printHelper();
+		exit(1);
+	}
+	return inputPars.getMethodPars(method);
+}
+
 int main(int argc, char* argv[]) {
 	
 	if (argc < 2) {
 		std::cout << "ERROR! No extra command line argument passed other than program name. Program is aborting." << std::endl;
 		printHelper();
 		exit(1);
-	} else if (argc != 6) {
+	} else if (argc != 7) {
 		std::cout << "ERROR! Wrong number of arguments. Program is aborting." << std::endl;
 		printHelper();
 		exit(1);
 	}
 
 	// Parameters.
-	int const seed    = std::stoi(argv[1]); // input (command line argument): seed random number generator.
-	int const nbgenes = std::stoi(argv[2]); // input (command line argument): number of genes.
-	int const nbreversals = std::stoi(argv[3]); // input (command line argument): number of reversals.
-	int const nbtests = std::stoi(argv[4]); // input (command line argument): how many random permutations will be generated.
-	int const verbose = std::stoi(argv[5]); // input (command line argument): verbose mode (0: [cluster] only basic stats are printed; 1: [user] basic messages; 2: [user] basic messages+replay of the sorting scenario (not recommended if the genome is too big); 3: [developer] very detailed debugging messages.
+	std::string method  = argv[1];            // input (command line argument): method to find evolutionary path (optimal or MCMC).
+	int const seed      = std::stoi(argv[2]); // input (command line argument): seed random number generator.
+	int const nbgenes   = std::stoi(argv[3]); // input (command line argument): number of genes.
+	int const nbreversals = std::stoi(argv[4]); // input (command line argument): number of reversals.
+	int const nbtests   = std::stoi(argv[5]); // input (command line argument): how many random permutations will be generated.
+	int const verbose   = std::stoi(argv[6]); // input (command line argument): verbose mode (0: [cluster] only basic stats are printed; 1: [user] basic messages; 2: [user] basic messages+replay of the sorting scenario (not recommended if the genome is too big); 3: [developer] very detailed debugging messages.
 	int const nbchrom   = 1; // For now only unichromosomal genomes.
+
+	RevMethodOptions* methodPars = checkParameters(method);
 	
 	if(verbose > 0) {
 		std::cout << "**********************************************" << std::endl;
 		std::cout << "* Sort by reversals with random permutations *" << std::endl;
 		std::cout << "**********************************************" << std::endl << std::endl;
+		std::cout << "- Method: "                     << methodPars->print() << std::endl;
 		std::cout << "- Seed to reproduce tests: "    << seed    << std::endl;
 		std::cout << "- Genome size (nb. of genes): " << nbgenes << std::endl;
 		std::cout << "- Nb. reversals: " << nbreversals << ((nbreversals < 1) ? " (two random independent permutations will be created for each test)" : "") << std::endl;
@@ -144,9 +175,15 @@ int main(int argc, char* argv[]) {
 		GenomeMultichrom<int> genome_A(rng, nbgenes, nbchrom, probRev);
 		GenomeMultichrom<int> genome_B = createRandomGenome(genome_A, nbreversals, probRev, rng);
 
+		// Sort genomes using the expected number of reversals.
+		if(methodPars->method == RevMethodType::MCMC){
+			ReversalMCMC solution = testCase_reversalMCMC(genome_A, genome_B, rng, verbose, dynamic_cast<McmcOptions*>(methodPars));
 		// Sort genomes using the minimum number of reversals.
-		SortByReversals solution = testCase_generalSort(genome_A, genome_B, rng, verbose);
-		if(verbose < 1) {std::cout << (i+1) << ";" << solution.t << ";" << solution.obs_distance << ";" << solution.exp_distance << ";" << solution.nb_breakpoints << ";" << solution.nb_hurdles << ";" << solution.nb_cycles_nontrivial << ";" << solution.nb_cycles << ";" << solution.nb_components << ";" << solution.nb_components_oriented << ";" << solution.nb_components_unoriented << ";" << std::endl;}
+		} else {
+			SortByReversals solution = testCase_generalSort(genome_A, genome_B, rng, verbose);
+			if(verbose < 1) {std::cout << (i+1) << ";" << solution.t << ";" << solution.obs_distance << ";" << solution.exp_distance << ";" << solution.nb_breakpoints << ";" << solution.nb_hurdles << ";" << solution.nb_cycles_nontrivial << ";" << solution.nb_cycles << ";" << solution.nb_components << ";" << solution.nb_components_oriented << ";" << solution.nb_components_unoriented << ";" << std::endl;}
+		}
+
 	} 
 	if(verbose > 0) {std::cout << std::endl << "Bye bye" << std::endl;}
 	return 0;

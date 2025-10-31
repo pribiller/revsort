@@ -28,7 +28,7 @@ Here I focus on the usage of the two last cases. Information about the first cas
 
 #### Compile
 ```
-g++ tests_InputFile.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_input
+g++ -O3 run_InputFile.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_input
 ```
 #### Run
 ```
@@ -74,7 +74,7 @@ inputFile.txt:
 
 #### Compile
 ```
-g++ -O3 tests_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_random
+g++ -O3 run_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_random
 ```
 
 #### Run
