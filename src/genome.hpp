@@ -40,6 +40,13 @@
 #include <random>
 #include <algorithm> // shuffle
 
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+
+#include <boost/serialization/shared_ptr.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/unordered_map.hpp>
+
 /*******************************************************
  *  Auxiliary functions to create random genomes.
 *******************************************************/
@@ -80,6 +87,19 @@ public:
 
 	GeneLabelMap(std::unordered_map<GeneLabelT, int>* gene_labels, std::vector<GeneLabelT>* gene_ids_to_labels):labels(gene_labels),ids_to_labels(gene_ids_to_labels){
 
+	}
+	// Serialization with Boost.
+	// An archive is a sequence of bytes that represent serialized C++ objects. 
+	// In order to serialize objects of user-defined types, you must define the 
+	// member function serialize(). This function is called when the object is 
+	// serialized to or restored from a byte stream. Because serialize() is used 
+	// for both serializing and restoring, Boost.Serialization supports the operator 
+	// operator& in addition to operator<< and operator>>. 
+	// With operator& there is no need to distinguish between serializing and restoring within serialize().
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version) {
+		ar & labels;
+		ar & ids_to_labels;
 	}
 	int add(const GeneLabelT& gene_label, const bool reversed){
 		const int gene_id = (reversed ? -(ids_to_labels->size()+1) : (ids_to_labels->size()+1));
@@ -197,6 +217,15 @@ public:
 		std::pair<std::vector<std::vector<int>>,std::vector<std::vector<bool>>> rdmgen = initializeRandomGenome(rng, n, m, probRev);
 		// Create chromosomes **without** creating a new mapping between gene labels and internal gene ids.
 		createPermutation(rdmgen.first, rdmgen.second, true);
+	}
+
+	// Serialization with Boost.
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version) {
+		ar & gene_labels_map;
+		ar & genome;
+		ar & n;
+		ar & m;
 	}
 
 	// Creates an extended signed permutation, where two 

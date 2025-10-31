@@ -21,7 +21,7 @@
  * number of cycles, etc.) and the time needed to run the method.
  * 
  * Compile:
- * g++ -O3 run_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp utils.cpp -o revsort_random
+ * g++ -O3 -fopenmp run_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp utils.cpp -o revsort_random -lboost_serialization
  * 
  * Run:
  * ./revsort_random opt 42 10 4 3 2

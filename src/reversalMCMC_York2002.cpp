@@ -86,8 +86,6 @@
 
 void ReversalMCMC::initializeChains(){
 	
-	RandomReversalScenario sampler(rev_weights,p_stop,false);
-
 	std::cout << "Initializing chains..." << std::endl;
 	cur_step = 1;
 	
@@ -95,11 +93,14 @@ void ReversalMCMC::initializeChains(){
 	// the sampling of shorter and longer paths.
 	// - p_neutral used in initial paths in York, Durrett, and Nielsen:
 	// [0.025 (short initial inversions paths), 0.7 (long initial inversion paths)]
-	const double p_neutral     = sampler.rev_weights[ReversalType::GOOD]/2.0;
-	const double p_neutral_min = sampler.rev_weights[ReversalType::BAD];
+	RandomReversalScenario sampler_std(rev_weights,p_stop,false);
+	const double p_neutral     = sampler_std.rev_weights[ReversalType::GOOD]/2.0;
+	const double p_neutral_min = sampler_std.rev_weights[ReversalType::BAD];
 	const double p_delta = (nb_chains > 1) ? (p_neutral-p_neutral_min)/(nb_chains-1) : 0.0;
 
+	#pragma omp parallel for
 	for (int idx=0; idx<nb_chains; ++idx){
+		RandomReversalScenario sampler(rev_weights,p_stop,false);
 		sampler.rev_weights[ReversalType::NEUTRAL] = p_neutral-idx*p_delta;
 		currentState_revHists[idx] = sampler.sampleScenario(genome_B,rng);
 		currentState_revMeans[idx] = proposalMean.sampleReversalMean(currentState_revHists[idx].size());
@@ -243,7 +244,6 @@ void ReversalMCMC::run(){
 			// Method of Gelman and Rubin (1992).
 			const double R = std::sqrt((steps_after_burnin-1.0)/steps_after_burnin + B/W);
 			std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
-
 		}
 	}
 }
@@ -575,10 +575,9 @@ GenomeMultichrom<int> RandomReversalScenario::getGenomes(GenomeMultichrom<int>& 
 
 	std::pair<std::vector<int>,std::vector<bool>> genomeInfo_beg = permToGenome(pathEnds_perm.first);
 	std::pair<std::vector<int>,std::vector<bool>> genomeInfo_end = permToGenome(pathEnds_perm.second); // new 'identity' genome
-
+	
 	GenomeMultichrom<int> genome_id(genomeInfo_end.first, genomeInfo_end.second);
 	GenomeMultichrom<int> genome_other(genomeInfo_beg.first, genomeInfo_beg.second, genome_id.gene_labels_map);
-
 	return genome_other;
 }
 

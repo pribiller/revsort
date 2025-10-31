@@ -10,8 +10,8 @@
  * These small examples are used for testing the 
  * implementation of the sorting by reversals method.
  * 
- * Compile:
- * g++ -fopenmp tests_SampleScenarios.cpp sortByReversals.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler
+ * Compile (the option -lboost_serialization *must* be in the end):
+ * g++ -fopenmp tests_SampleScenarios.cpp sortByReversals.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler -lboost_serialization
  * 
  * Run:
  * ./revsampler 42 1
@@ -36,7 +36,36 @@
  * Some basic tests.
 *******************************************************/
 
-void testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+
+	std::cout << "Starting MCMC..." << std::endl;
+
+	const int nb_chains=1;
+	const int max_steps=20;
+	const int pre_burnin_steps=10;
+
+	const double rev_mean_range=10; // TODO: currently not used.
+
+	// My values.
+	const double p_good=1.0; 
+	const double p_neutralgood=0.0276; 
+	const double p_neutral=0.0276;
+	const double p_bad=0.001;
+
+	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+	const double p_stop=0.999; //0.99;
+
+	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,max_steps,pre_burnin_steps,probs,p_stop,false);
+	const std::string filename = "/home/priscila/Code/reversals/src/test_serialize.dat";
+	mcmc.saveState(filename);
+	mcmc.run();
+	
+	ReversalMCMC mcmc_saved(genome_B,rng,probs);
+	mcmc_saved.loadState(filename);
+	mcmc_saved.run();
+}
+
+void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
 
 	std::cout << "Starting MCMC..." << std::endl;
 
@@ -191,7 +220,7 @@ void testCase_Garg2019(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Garg et al.(2019)\n";
-	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC_serialization(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Bader et al. (2001).
@@ -215,7 +244,7 @@ void testCase_Bader2001(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Bader et al.(2001)\n";
-	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC_serialization(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Tannier et al. (2007) (Figure 4).
@@ -231,7 +260,7 @@ void testCase_Tannier2007_Figure4(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Tannier et al. (2007) (Figure 4)\n";
-	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC_serialization(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(a)).
@@ -247,7 +276,7 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(a)\n";
-	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC_serialization(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
@@ -263,7 +292,7 @@ void testCase_Hannehalli1999_Fig4b(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from Hannehalli and Pevzner (1999) - Figure 4(b)\n";
-	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC_serialization(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
@@ -279,7 +308,7 @@ void testCase_Bergeron2005_Sec10_4_2(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (Section 10.4.2)\n";
-	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC_serialization(genome_A, genome_B, rng, debug);
 }
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Figure 10.6).
@@ -296,7 +325,7 @@ void testCase_Bergeron2005_Fig10_6(std::mt19937& rng, bool debug){
 	GenomeMultichrom<int> genome_B(genome_multichrom_B, genome_orientation_B, genome_A.gene_labels_map);
 
 	std::cout << "\n\nTest: Example from the book 'Mathematics of Evolution and Phylogeny' (2005) (permutation P_2, Figure 10.6)\n";
-	testCase_reversalMCMC(genome_A, genome_B, rng, debug);
+	testCase_reversalMCMC_serialization(genome_A, genome_B, rng, debug);
 }
 
 int main(int argc, char* argv[]) {

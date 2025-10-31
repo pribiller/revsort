@@ -118,6 +118,11 @@
 #include <chrono>
 #include <utility>   // swap 
 
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/vector.hpp>
+
 #include "genome.hpp"
 #include "reversal.hpp"
 #include "findComponents_Bader2001.hpp"
@@ -159,6 +164,17 @@ public:
 		const int g_end_next_, const ReversalType type_, const CycleType cycle_,
 		const std::vector<double>& rev_totals_):Reversal(g_beg_, g_end_, g_beg_next_, g_end_next_), type(type_),cycle(cycle_),rev_totals(rev_totals_){
 		// std::cout << " " << g_beg << " " << g_end << " " << g_beg_next << " " << g_end_next << std::endl;
+	}
+	// Serialization with Boost.
+	template<class Archive>
+	void serialize(Archive& ar, const unsigned int version) {
+		ar & g_beg; 
+		ar & g_end;
+		ar & g_beg_next; 
+		ar & g_end_next;
+		ar & type;
+		ar & cycle;
+		ar & rev_totals;
 	}
 };
 
