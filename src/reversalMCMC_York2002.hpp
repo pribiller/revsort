@@ -83,8 +83,8 @@
 #include <chrono>
 #include <utility>   // swap 
 
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
 
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
@@ -92,6 +92,7 @@
 #include <boost/serialization/shared_ptr.hpp>
 #include <boost/serialization/optional.hpp>
 
+#include "utils.hpp"
 #include "genome.hpp"
 #include "reversal.hpp"
 #include "findComponents_Bader2001.hpp"
@@ -106,38 +107,21 @@ public:
 	std::mt19937& rng;
 
 	double rev_mean_min;
-	double rev_mean_range; // Proposed values are uniformly sampled from the range [cur-range, cur+range].
 
 	double acceptanceProb{0.0};
 	double rev_mean_new{0.0};
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ProposalReversalMean(std::mt19937& rng_, double rev_mean_min_, double rev_mean_range_):rng(rng_),rev_mean_min(rev_mean_min_),rev_mean_range(rev_mean_range_){}
+	ProposalReversalMean(std::mt19937& rng_, double rev_mean_min_):rng(rng_),rev_mean_min(rev_mean_min_){}
 	ProposalReversalMean(std::mt19937& rng_):rng(rng_){}
 
 	// Serialization with Boost.
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
 		ar & rev_mean_min;
-		ar & rev_mean_range;
 		ar & acceptanceProb;
 		ar & rev_mean_new;
-		// Special way to serialize the random number generator.
-		if (typename Archive::is_saving()){
-			std::ostringstream oss;
-			if (!(oss << rng)){
-				throw std::invalid_argument("ERROR! Problem to save the random number generator.");
-			}
-			std::string text = oss.str();
-			ar & text;
-		} else {
-			std::string text;
-			ar & text;
-			std::istringstream iss(text);
-			if (!(iss >> rng)){
-				throw std::invalid_argument("ERROR! Problem to load the random number generator.");
-			}
-		}
+		ar & rng;
 	}
 
 	double sampleReversalMean(const double rev_mean_cur);
@@ -236,6 +220,7 @@ public:
 class ReversalMCMC {
 public:
 
+	std::string id_run;
 	int nb_chains;
 
 	GenomeMultichrom<int>& genome_B;
@@ -243,8 +228,7 @@ public:
 	bool debug;
 
 	int rev_dist{-1}; // It makes sure that estimated nb. of reversals is equal or above the reversal distance.
-	double rev_mean_range; // Parameter used to propose new values for the mean based on the current value.
-	std::vector<double>& rev_weights;  // Weight of each type of reversal.
+	std::vector<double>& rev_weights; // Weight of each type of reversal.
 	double p_stop{0.99};
 
 	// It stores the current state of all chains.
@@ -258,15 +242,34 @@ public:
 	// To save space, the order in which the states are visited is not saved.
 	std::vector<std::unordered_map<int,int>> hist_chains;
 
-	// Convergence measures.
-	double max_steps;
-	double pre_burnin_steps;
-	double cur_step{0}; // It stores the current step.
-	std::vector<double> rev_path_avgsize; // Position i stores the average path size in chain i so far.
+	// Convergence evaluation: Same method as in York, Durrett, and Nielsen (2002).
+	// We use the method of Gelman and Rubin (1992) to decide when the Markov chain has converged.
+	// If this flag is true,  sampling starts after convergence criteria is satisfied.
+	// If this flag is false, sampling starts after the end of the pre-burn-in phase (mode used for tests).
+	bool check_convergence{true}; // Criteria: sqrt(R) <= 1.1
+
+	// Test parameters.
+	// In case the flag 'check_convergence' is false,
+	// then these parameters are used instead. 
+	// Sampling starts directly after pre_burning_steps.
+	int max_steps{100000};
+	int pre_burnin_steps{1000};
+
+	// Sampling parameters.
+	int sample_interval{1000}; // Based on Larget et al. (2004)
+	int sample_amount{10000};  // 10 million steps. Based on Miklos and Darling (2009).
+
+	// Steps in which the whole state of the MCMC is saved.
+	// This allows the program to recover in case of crash, time out, 
+	// or any other problem.
+	int backup_interval{500};
 
 	// It stores sampled values.
 	std::vector<std::vector<ReversalRandom>> sampled_revHists;
 	std::vector<double> sampled_revMeans;
+
+	double cur_step{0}; // It stores the current step.
+	std::vector<double> rev_path_avgsize; // Position i stores the average path size in chain i so far.
 
 	// Distribution used for computing acceptance probabilities.
 	std::uniform_real_distribution<double> distr_accept;
@@ -276,7 +279,15 @@ public:
 	ReversalMCMC(GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, std::vector<double>& rev_weights_):genome_B(genome_B_),rng(rng_),rev_weights(rev_weights_),proposalMean(rng_){}
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, const int nb_chains_, const double rev_mean_range_, const int max_steps_, const int pre_burnin_steps_, std::vector<double>& rev_weights_, double p_stop_, const bool debug_):nb_chains(nb_chains_),genome_B(genome_B_),rng(rng_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),debug(debug_),rev_mean_range(rev_mean_range_),currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(nb_chains_),rev_weights(rev_weights_),p_stop(p_stop_),hist_chains(nb_chains_){
+	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
+		const int nb_chains_, const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
+		const int sample_interval_, const int sample_amount_, int backup_interval_,
+		std::vector<double>& rev_weights_, double p_stop_, const bool debug_):genome_B(genome_B_),rng(rng_),
+		nb_chains(nb_chains_),check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
+		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),
+		rev_weights(rev_weights_),p_stop(p_stop_),debug(debug_),
+		currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),rev_path_avgsize(nb_chains_),hist_chains(nb_chains_),
+		distr_accept(0.0, 1.0),proposalMean(rng_){
 
 		// Compute reversal distance.
 		SortByReversals sortGenome(genome_A_,genome_B_,false);
@@ -285,14 +296,21 @@ public:
 
 		// Initialize proposal mean.
 		proposalMean.rev_mean_min   = rev_dist;
-		proposalMean.rev_mean_range = rev_mean_range;
 
 		// Initialize reversal histories/means.
 		initializeChains();
 	}
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, McmcOptions& parameters, const bool debug_):nb_chains(parameters.nb_chains),genome_B(genome_B_),rng(rng_),max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),debug(debug_),rev_mean_range(parameters.rev_mean_range),currentState_revHists(parameters.nb_chains),currentState_revMeans(parameters.nb_chains),distr_accept(0.0, 1.0),proposalMean(rng_),rev_path_avgsize(parameters.nb_chains),rev_weights(parameters.probs),p_stop(parameters.p_stop),hist_chains(parameters.nb_chains){
+	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
+		McmcOptions& parameters, const bool debug_):genome_B(genome_B_),rng(rng_),
+		nb_chains(parameters.nb_chains),check_convergence(parameters.check_convergence),
+		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),
+		sample_interval(parameters.sample_interval),sample_amount(parameters.sample_amount),backup_interval(parameters.backup_interval),
+		rev_weights(parameters.probs),p_stop(parameters.p_stop),debug(debug_),
+		currentState_revHists(parameters.nb_chains),currentState_revMeans(parameters.nb_chains),
+		rev_path_avgsize(parameters.nb_chains),hist_chains(parameters.nb_chains),
+		distr_accept(0.0, 1.0),proposalMean(rng_){
 
 		// Compute reversal distance.
 		SortByReversals sortGenome(genome_A_,genome_B_,false);
@@ -301,7 +319,6 @@ public:
 
 		// Initialize proposal mean.
 		proposalMean.rev_mean_min   = rev_dist;
-		proposalMean.rev_mean_range = rev_mean_range;
 		
 		std::cout << "- Reversal distance = " << rev_dist << std::endl;
 
@@ -314,39 +331,27 @@ public:
 	void serialize(Archive& ar, const unsigned int version) {
 		ar & nb_chains;
 		ar & genome_B;
-		ar & debug;        
+		ar & rng;
+		ar & debug;
 		ar & rev_dist;
-		ar & rev_mean_range;
 		ar & rev_weights;
 		ar & p_stop;
 		ar & currentState_revHists;
 		ar & currentState_revMeans;
 		ar & hist_chains;
+		ar & check_convergence;
 		ar & max_steps;
 		ar & pre_burnin_steps;
-		ar & cur_step;
-		ar & rev_path_avgsize;
+		ar & sample_interval;
+		ar & sample_amount;
+		ar & backup_interval;
 		ar & sampled_revHists;
 		ar & sampled_revMeans;
+		ar & cur_step;
+		ar & rev_path_avgsize;
 		ar & proposalMean;
-		// Special way to serialize the random number generator.
+		// Special to serialize std::uniform_real_distribution<double>.
 		if (typename Archive::is_saving()){
-			std::ostringstream oss;
-			if (!(oss << rng)){
-				throw std::invalid_argument("ERROR! Problem to save the random number generator.");
-			}
-			std::string text = oss.str();
-			ar & text;
-		} else {
-			std::string text;
-			ar & text;
-			std::istringstream iss(text);
-			if (!(iss >> rng)){
-				throw std::invalid_argument("ERROR! Problem to load the random number generator.");
-			}
-		}
-        // Special to serialize std::uniform_real_distribution<double>.
-        if (typename Archive::is_saving()){
 			double lower_bound = distr_accept.a(); // Get lower bound
 			double upper_bound = distr_accept.b(); // Get upper bound
 			ar & lower_bound;
@@ -367,46 +372,18 @@ public:
 
 	// Save the state of the object to a file
 	void saveState(const std::string& filename) const {
-		genome_B.printGenome();
-		std::cout << "Gene labels map: " << std::endl;
-		std::vector<int> ids = genome_B.getExtendedGenome();
-		for(int id : ids){
-			std::cout << id << ": " << genome_B.gene_labels_map.getLabelStr(id) << "; ";
-		}
-		std::cout << std::endl;
-
 		std::ofstream ofs(filename);
-		boost::archive::text_oarchive oa(ofs);
+		boost::archive::binary_oarchive oa(ofs);
 		oa << *this; // Serialize the object
 	}
 
 	// Load the state of the object from a file
 	void loadState(const std::string& filename) {
 		std::ifstream ifs(filename);
-		boost::archive::text_iarchive ia(ifs);
+		boost::archive::binary_iarchive ia(ifs);
 		ia >> *this; // Deserialize the object
-
-		genome_B.printGenome();
-		std::cout << "Gene labels map: " << std::endl;
-		std::vector<int> ids = genome_B.getExtendedGenome();
-		for(int id : ids){
-			std::cout << id << ": " << genome_B.gene_labels_map.getLabelStr(id) << "; ";
-		}
-		std::cout << std::endl;
 	}
 
 	double computeWithinChainVariance();
 	double computeBetweenChainVariance();
 };
-
-// void saveState_ReversalMCMC(const ReversalMCMC& obj, const std::string& filename) {
-// 	std::ofstream ofs(filename);
-// 	boost::archive::text_oarchive oa(ofs);
-// 	oa << obj; // Serialize the object
-// }
-
-// void loadState_ReversalMCMC(ReversalMCMC& obj, const std::string& filename) {
-// 	std::ifstream ifs(filename);
-// 	boost::archive::text_iarchive ia(ifs);
-// 	ia >> obj; // Deserialize the object
-// }

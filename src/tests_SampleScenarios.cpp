@@ -41,10 +41,13 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	std::cout << "Starting MCMC..." << std::endl;
 
 	const int nb_chains=1;
+	const bool check_convergence=false;
 	const int max_steps=20;
 	const int pre_burnin_steps=10;
-
-	const double rev_mean_range=10; // TODO: currently not used.
+	
+	const int sample_interval=2;
+	const int sample_amount  =10;
+	const int backup_interval=5;
 
 	// My values.
 	const double p_good=1.0; 
@@ -55,7 +58,8 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
 	const double p_stop=0.999; //0.99;
 
-	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,max_steps,pre_burnin_steps,probs,p_stop,false);
+	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,check_convergence,max_steps,pre_burnin_steps,
+		sample_interval,sample_amount,backup_interval,probs,p_stop,false);
 	const std::string filename = "/home/priscila/Code/reversals/src/test_serialize.dat";
 	mcmc.saveState(filename);
 	mcmc.run();
@@ -70,10 +74,13 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 	std::cout << "Starting MCMC..." << std::endl;
 
 	const int nb_chains=10;
+	const bool check_convergence=false;
 	const int max_steps=100000;
 	const int pre_burnin_steps=1000;
 
-	const double rev_mean_range=10; // TODO: currently not used.
+	const int sample_interval=20;
+	const int sample_amount  =10;
+	const int backup_interval=100;
 
 	// If the probability of bad reversals is too low, then the proposal ratio of better paths decreases:
 	// - Proposal ratio increases as P(old|new) / P(new|old).
@@ -109,7 +116,8 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
 	const double p_stop=0.999; //0.99;
 
-	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,rev_mean_range,max_steps,pre_burnin_steps,probs,p_stop,false);
+	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,check_convergence,max_steps,pre_burnin_steps,
+		sample_interval,sample_amount,backup_interval,probs,p_stop,false);
 	mcmc.run();
 }
 
@@ -155,9 +163,7 @@ void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	std::cout << "\nAcceptance prob. = " << acceptanceProb << std::endl;
 
 	std::cout << "\nSampling new mean..." << std::endl;
-	// rev_mean_range how far from the current value the new sampled value can be.
-	const double rev_mean_range = 10.0;
-	ProposalReversalMean proposalMean(rng, rev_mean, rev_mean_range);
+	ProposalReversalMean proposalMean(rng, rev_mean);
 	double rev_mean_prop = proposalMean.sampleReversalMean(rev_mean);
 	double acceptanceProb_mean = proposalMean.getAcceptanceProb(proposalHist.L_new, rev_mean, rev_mean_prop);
 	std::cout << "\nCur. mean= " << rev_mean << "; New mean=" << rev_mean_prop << "; Acceptance prob.=" << acceptanceProb_mean << std::endl;

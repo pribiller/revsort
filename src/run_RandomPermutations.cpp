@@ -20,7 +20,7 @@
  * saves many stats about the permutations (number of breakpoints,
  * number of cycles, etc.) and the time needed to run the method.
  * 
- * Compile:
+ * Compile (the option -lboost_serialization *must* be in the end):
  * g++ -O3 -fopenmp run_RandomPermutations.cpp sortByReversals.cpp findComponents_Bader2001.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp utils.cpp -o revsort_random -lboost_serialization
  * 
  * Run:

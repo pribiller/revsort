@@ -184,7 +184,12 @@ double ReversalMCMC::computeBetweenChainVariance(){
 }
 
 void ReversalMCMC::run(){
-	while(cur_step < max_steps){
+	
+	bool sample_state     = false;
+	int last_sampled_step = 0;
+	std::uniform_int_distribution distr_sample(0, nb_chains-1);
+
+	while((cur_step < max_steps) && (sampled_revMeans.size() < sample_amount)){
 
 		// Update current step.
 		++cur_step;
@@ -196,22 +201,24 @@ void ReversalMCMC::run(){
 		#pragma omp parallel for
 		for (int idx=0; idx<nb_chains; ++idx){
 			status_all[idx] = runSingleChain(idx);
+			
 			// Update average path size for each chain (L_j).
 			if(cur_step > pre_burnin_steps) {
-				const int steps_after_burnin = cur_step-pre_burnin_steps;
+				const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
 				// Initial step.
-				if(steps_after_burnin == 1){
+				if(steps_after_pre_burnin == 1){
 					rev_path_avgsize[idx] = currentState_revHists[idx].size();
 				// General step.
 				} else {
-					rev_path_avgsize[idx] = ((steps_after_burnin-1.0)/steps_after_burnin)*rev_path_avgsize[idx] + static_cast<double>(currentState_revHists[idx].size())/steps_after_burnin;
+					rev_path_avgsize[idx] = ((steps_after_pre_burnin-1.0)/steps_after_pre_burnin)*rev_path_avgsize[idx] + static_cast<double>(currentState_revHists[idx].size())/steps_after_pre_burnin;
 				}
 			}
 		}
 		
+		// Pre-burn-in phase: convergence measure are ignored.
 		if(cur_step > pre_burnin_steps) {
 
-			const int steps_after_burnin = cur_step-pre_burnin_steps;
+			const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
 
 			// Print sorted average path sizes (one value per chain).
 			std::vector<std::pair<int,double>> path_averages(nb_chains);
@@ -242,10 +249,31 @@ void ReversalMCMC::run(){
 			const double W = computeWithinChainVariance();
 			const double B = computeBetweenChainVariance();
 			// Method of Gelman and Rubin (1992).
-			const double R = std::sqrt((steps_after_burnin-1.0)/steps_after_burnin + B/W);
+			const double R = std::sqrt((steps_after_pre_burnin-1.0)/steps_after_pre_burnin + B/W);
 			std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
 		}
+
+		// Sample state.
+		sample_state = (sample_state || ((check_convergence && (R <= 1.1)) || (!check_convergence && (cur_step > pre_burnin_steps))));
+		if (sample_state){
+			if((last_sampled_step % sample_interval) == 0){
+				const int rdmidx = distr_sample(rng);
+				sampled_revHists.emplace_back(currentState_revHists[rdmidx]);
+				sampled_revMeans.emplace_back(currentState_revMeans[rdmidx]);
+			}
+			++last_sampled_step;
+		}
+
+		// Backup state.
+		if((int(cur_step) % backup_interval) == 0){
+			// TODO: Change directory and ID for the run.
+			const std::string filename = "revMCMC_bkp_step_" + std::to_string(int(cur_step)) + ".dat";
+			saveState(filename);
+		}
 	}
+	// Save last state.
+	const std::string filename = "revMCMC_bkp_step_" + std::to_string(int(cur_step)) + ".dat";
+	saveState(filename);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -575,7 +603,7 @@ GenomeMultichrom<int> RandomReversalScenario::getGenomes(GenomeMultichrom<int>& 
 
 	std::pair<std::vector<int>,std::vector<bool>> genomeInfo_beg = permToGenome(pathEnds_perm.first);
 	std::pair<std::vector<int>,std::vector<bool>> genomeInfo_end = permToGenome(pathEnds_perm.second); // new 'identity' genome
-	
+
 	GenomeMultichrom<int> genome_id(genomeInfo_end.first, genomeInfo_end.second);
 	GenomeMultichrom<int> genome_other(genomeInfo_beg.first, genomeInfo_beg.second, genome_id.gene_labels_map);
 	return genome_other;

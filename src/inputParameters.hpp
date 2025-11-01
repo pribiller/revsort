@@ -50,10 +50,28 @@ class McmcOptions : public RevMethodOptions {
 public:
 
 	int nb_chains{1};
+
+	// Convergence evaluation: Same method as in York, Durrett, and Nielsen (2002).
+	// We use the method of Gelman and Rubin (1992) to decide when the Markov chain has converged.
+	// If this flag is true,  sampling starts after convergence criteria is satisfied.
+	// If this flag is false, sampling starts after the end of the pre-burn-in phase (mode used for tests).
+	bool check_convergence{true}; // Criteria: sqrt(R) <= 1.1
+
+	// Test parameters.
+	// In case the flag 'check_convergence' is false,
+	// then these parameters are used instead. 
+	// Sampling starts directly after pre_burning_steps.
 	int max_steps{100000};
 	int pre_burnin_steps{1000};
 
-	double rev_mean_range{10}; // TODO: currently not used.
+	// Sampling parameters.
+	int sample_interval{1000}; // Based on Larget et al. (2004)
+	int sample_amount{10000};  // 10 million steps. Based on Miklos and Darling (2009).
+
+	// Steps in which the whole state of the MCMC is saved.
+	// This allows the program to recover in case of crash, time out, 
+	// or any other problem.
+	int backup_interval{500};
 
 	// If the probability of bad reversals is too low, then the proposal ratio of better paths decreases:
 	// - Proposal ratio increases as P(old|new) / P(new|old).
@@ -71,7 +89,10 @@ public:
 	
 	McmcOptions(){method = RevMethodType::MCMC;}
 
-	McmcOptions(const int nb_chains_, const double rev_mean_range_, const int max_steps_, const int pre_burnin_steps_, const double p_good_, const double p_neutralgood_, const double p_neutral_, const double p_bad_, const double p_stop_):nb_chains(nb_chains_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),rev_mean_range(rev_mean_range_),p_good(p_good_),p_neutralgood(p_neutralgood_),p_neutral(p_neutral_),p_bad(p_bad_),p_stop(p_stop_){
+	McmcOptions(const int nb_chains_, const int max_steps_, const int pre_burnin_steps_, 
+		const double p_good_, const double p_neutralgood_, const double p_neutral_, const double p_bad_, 
+		const double p_stop_):nb_chains(nb_chains_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
+		p_good(p_good_),p_neutralgood(p_neutralgood_),p_neutral(p_neutral_),p_bad(p_bad_),p_stop(p_stop_){
 		method = RevMethodType::MCMC;
 		probs  = {p_good, p_neutralgood, p_neutral, p_bad};
 	}
@@ -82,14 +103,23 @@ public:
 		if (parvalues_map.find("nb_chains") != parvalues_map.end()) {
 			nb_chains = std::stoi(parvalues_map["nb_chains"]);
 		}
+		if (parvalues_map.find("check_convergence") != parvalues_map.end()) {
+			check_convergence = (parvalues_map["check_convergence"] == "true");
+		}
 		if (parvalues_map.find("max_steps") != parvalues_map.end()) {
 			max_steps = std::stoi(parvalues_map["max_steps"]);
 		}
 		if (parvalues_map.find("pre_burnin_steps") != parvalues_map.end()) {
 			pre_burnin_steps = std::stoi(parvalues_map["pre_burnin_steps"]);
 		}
-		if (parvalues_map.find("rev_mean_range") != parvalues_map.end()) {
-			rev_mean_range = std::stod(parvalues_map["rev_mean_range"]);
+		if (parvalues_map.find("sample_interval") != parvalues_map.end()) {
+			sample_interval = std::stoi(parvalues_map["sample_interval"]);
+		}
+		if (parvalues_map.find("sample_amount") != parvalues_map.end()) {
+			sample_amount = std::stoi(parvalues_map["sample_amount"]);
+		}
+		if (parvalues_map.find("backup_interval") != parvalues_map.end()) {
+			backup_interval = std::stoi(parvalues_map["backup_interval"]);
 		}
 		if (parvalues_map.find("p_good") != parvalues_map.end()) {
 			p_good = std::stod(parvalues_map["p_good"]);
@@ -111,13 +141,16 @@ public:
 
 	std::string print() override {
 		return "MCMC; nb_chains=" + std::to_string(nb_chains) 
+			+ ", check_convergence=" + std::to_string(check_convergence)
 			+ ", max_steps=" + std::to_string(max_steps) 
 			+ ", pre_burnin_steps=" + std::to_string(pre_burnin_steps)
-			+ ", rev_mean_range=" + std::to_string(rev_mean_range)
+			+ ", sample_interval="  + std::to_string(sample_interval)
+			+ ", sample_amount="    + std::to_string(sample_amount)
+			+ ", backup_interval="  + std::to_string(backup_interval)
 			+ ", p_good=" + std::to_string(p_good)
 			+ ", p_neutralgood=" + std::to_string(p_neutralgood)
 			+ ", p_neutral=" + std::to_string(p_neutral)
-			+ ", p_bad=" + std::to_string(p_bad)
+			+ ", p_bad="  + std::to_string(p_bad)
 			+ ", p_stop=" + std::to_string(p_stop);
 	}
 };
