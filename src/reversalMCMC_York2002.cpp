@@ -74,8 +74,11 @@
 #include <stack>
 #include <list>
 #include <cstdlib> // exit
-#include <cmath>	 // abs, tanh
-#include <memory>	 // shared_ptr
+#include <cmath>   // abs, tanh
+#include <memory>  // shared_ptr
+#include <iomanip> // put_time
+#include <ctime>
+#include <sstream>
 
 #include "reversalMCMC_York2002.hpp"
 
@@ -83,6 +86,14 @@
 //////////////////////////////////////////////////////////////////////
 // MCMC Metropolis-Hastings
 //////////////////////////////////////////////////////////////////////
+
+void ReversalMCMC::initializeIdRun(){
+	std::time_t t = std::time(nullptr); 
+	std::tm tm = *std::localtime(&t);
+	std::ostringstream oss;
+	oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+	id_run = "revMCMC_" + oss.str();
+}
 
 void ReversalMCMC::initializeChains(){
 	
@@ -185,6 +196,9 @@ double ReversalMCMC::computeBetweenChainVariance(){
 
 void ReversalMCMC::run(){
 	
+	// TODO: Change directory for the run.
+	const std::string bkp_filename = id_run + ".bkp";
+
 	bool sample_state     = false;
 	int last_sampled_step = 0;
 	std::uniform_int_distribution distr_sample(0, nb_chains-1);
@@ -193,8 +207,6 @@ void ReversalMCMC::run(){
 
 		// Update current step.
 		++cur_step;
-
-		std::cout << "\nStep " << cur_step << std::endl;
 		std::vector<std::string> status_all(nb_chains);
 
 		// Run current step for all chains in parallel.
@@ -215,11 +227,39 @@ void ReversalMCMC::run(){
 			}
 		}
 		
-		// Pre-burn-in phase: convergence measure are ignored.
-		if(cur_step > pre_burnin_steps) {
-
+		// Compute convergence measures if pre burn-in phase is over.
+		if((cur_step > pre_burnin_steps) && (nb_chains > 1)){
 			const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
+			// It stores the history of a chain (visited states so far).
+			for (int idx=0; idx<nb_chains; ++idx){
+				const int curSize = currentState_revHists[idx].size();
+				hist_chains[idx][curSize] += 1;
+			}
+			// Measures used to assess convergence [York, Durrett, Nielsen (2002)].
+			// Compute between chain variance and within-chain variance.
+			W = computeWithinChainVariance();
+			B = computeBetweenChainVariance();
+			// Method of Gelman and Rubin (1992).
+			R = std::sqrt((steps_after_pre_burnin-1.0)/steps_after_pre_burnin + B/W);
+		}
 
+		// Sample one of the current states.
+		sample_state = (sample_state || ((check_convergence && (R <= 1.1)) || (!check_convergence && (cur_step > pre_burnin_steps))));
+		if (sample_state){
+			if((last_sampled_step % sample_interval) == 0){
+				const int rdmidx = distr_sample(rng);
+				sampled_revHists.emplace_back(currentState_revHists[rdmidx]);
+				sampled_revMeans.emplace_back(currentState_revMeans[rdmidx]);
+			}
+			++last_sampled_step;
+		}
+
+		// Save a checkpoint, in case the run crashes later.
+		if((int(cur_step) % backup_interval) == 0){saveState(bkp_filename);}
+
+		// Print stats about the chains and their convergence.
+		if((int(cur_step) % print_interval) == 0){
+			std::cout << "\nStep " << cur_step << std::endl;
 			// Print sorted average path sizes (one value per chain).
 			std::vector<std::pair<int,double>> path_averages(nb_chains);
 			for (int idx=0; idx<nb_chains; ++idx){
@@ -237,43 +277,15 @@ void ReversalMCMC::run(){
 				std::cout << " [Chain " << idx << "] Avg. path size: " << rev_path_avgsize[idx] << "; cur. path = " << currentState_revHists[idx].size() << " ; cur lambda = " << currentState_revMeans[idx] << " / " << status_all[idx] << std::endl;
 			}
 			std::cout << " Avg. lambda = " << (avg_revMean_cur/nb_chains) << "; Avg. path size=" << (avg_revPath_cur/nb_chains) << std::endl;
-
-			// It stores the history of a chain (visited states so far).
-			for (int idx=0; idx<nb_chains; ++idx){
-				const int curSize = currentState_revHists[idx].size();
-				hist_chains[idx][curSize] += 1;
+			if ((cur_step > pre_burnin_steps) && (nb_chains > 1)) {
+				std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
+			} else {
+				std::cout << "  R=N/A; W=N/A; B=N/A " << ((nb_chains > 1) ? "[Pre burn in phase]" : "[Available only if nb. chains > 1]") << std::endl;
 			}
-
-			// Measures used to assess convergence [York, Durrett, Nielsen (2002)].
-			// Compute between chain variance and within-chain variance.
-			const double W = computeWithinChainVariance();
-			const double B = computeBetweenChainVariance();
-			// Method of Gelman and Rubin (1992).
-			const double R = std::sqrt((steps_after_pre_burnin-1.0)/steps_after_pre_burnin + B/W);
-			std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
-		}
-
-		// Sample state.
-		sample_state = (sample_state || ((check_convergence && (R <= 1.1)) || (!check_convergence && (cur_step > pre_burnin_steps))));
-		if (sample_state){
-			if((last_sampled_step % sample_interval) == 0){
-				const int rdmidx = distr_sample(rng);
-				sampled_revHists.emplace_back(currentState_revHists[rdmidx]);
-				sampled_revMeans.emplace_back(currentState_revMeans[rdmidx]);
-			}
-			++last_sampled_step;
-		}
-
-		// Backup state.
-		if((int(cur_step) % backup_interval) == 0){
-			// TODO: Change directory and ID for the run.
-			const std::string filename = "revMCMC_bkp_step_" + std::to_string(int(cur_step)) + ".dat";
-			saveState(filename);
 		}
 	}
-	// Save last state.
-	const std::string filename = "revMCMC_bkp_step_" + std::to_string(int(cur_step)) + ".dat";
-	saveState(filename);
+	// Save the last state.
+	saveState(bkp_filename);
 }
 
 //////////////////////////////////////////////////////////////////////

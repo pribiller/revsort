@@ -73,6 +73,9 @@ public:
 	// or any other problem.
 	int backup_interval{500};
 
+	// Steps in which stats about the chains are printed.
+	int print_interval{50};
+
 	// If the probability of bad reversals is too low, then the proposal ratio of better paths decreases:
 	// - Proposal ratio increases as P(old|new) / P(new|old).
 	// If the old path is composed of one or more bad reversals, and the probability of bad reversals is very low,
@@ -121,6 +124,9 @@ public:
 		if (parvalues_map.find("backup_interval") != parvalues_map.end()) {
 			backup_interval = std::stoi(parvalues_map["backup_interval"]);
 		}
+		if (parvalues_map.find("print_interval") != parvalues_map.end()) {
+			print_interval = std::stoi(parvalues_map["print_interval"]);
+		}
 		if (parvalues_map.find("p_good") != parvalues_map.end()) {
 			p_good = std::stod(parvalues_map["p_good"]);
 		}
@@ -147,6 +153,7 @@ public:
 			+ ", sample_interval="  + std::to_string(sample_interval)
 			+ ", sample_amount="    + std::to_string(sample_amount)
 			+ ", backup_interval="  + std::to_string(backup_interval)
+			+ ", print_interval="  + std::to_string(print_interval)
 			+ ", p_good=" + std::to_string(p_good)
 			+ ", p_neutralgood=" + std::to_string(p_neutralgood)
 			+ ", p_neutral=" + std::to_string(p_neutral)

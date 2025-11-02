@@ -48,6 +48,7 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	const int sample_interval=2;
 	const int sample_amount  =10;
 	const int backup_interval=5;
+	const int print_interval =2;
 
 	// My values.
 	const double p_good=1.0; 
@@ -59,8 +60,8 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	const double p_stop=0.999; //0.99;
 
 	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,check_convergence,max_steps,pre_burnin_steps,
-		sample_interval,sample_amount,backup_interval,probs,p_stop,false);
-	const std::string filename = "/home/priscila/Code/reversals/src/test_serialize.dat";
+		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,false);
+	const std::string filename = "test_serialize.dat";
 	mcmc.saveState(filename);
 	mcmc.run();
 	
@@ -81,6 +82,7 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 	const int sample_interval=20;
 	const int sample_amount  =10;
 	const int backup_interval=100;
+	const int print_interval =50;
 
 	// If the probability of bad reversals is too low, then the proposal ratio of better paths decreases:
 	// - Proposal ratio increases as P(old|new) / P(new|old).
@@ -117,7 +119,7 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 	const double p_stop=0.999; //0.99;
 
 	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,check_convergence,max_steps,pre_burnin_steps,
-		sample_interval,sample_amount,backup_interval,probs,p_stop,false);
+		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,false);
 	mcmc.run();
 }
 

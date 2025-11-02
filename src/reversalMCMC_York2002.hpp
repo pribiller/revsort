@@ -87,6 +87,7 @@
 #include <boost/archive/binary_iarchive.hpp>
 
 #include <boost/serialization/serialization.hpp>
+#include <boost/serialization/string.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/unordered_map.hpp>
 #include <boost/serialization/shared_ptr.hpp>
@@ -248,6 +249,11 @@ public:
 	// If this flag is false, sampling starts after the end of the pre-burn-in phase (mode used for tests).
 	bool check_convergence{true}; // Criteria: sqrt(R) <= 1.1
 
+	// Method of Gelman and Rubin (1992).
+	double W{1000}; // within-chain variance.
+	double B{1000}; // between chain variance.
+	double R{1000}; // convergence measure. Initialize w/a value higher than 1.1.
+
 	// Test parameters.
 	// In case the flag 'check_convergence' is false,
 	// then these parameters are used instead. 
@@ -263,6 +269,7 @@ public:
 	// This allows the program to recover in case of crash, time out, 
 	// or any other problem.
 	int backup_interval{500};
+	int print_interval{50};
 
 	// It stores sampled values.
 	std::vector<std::vector<ReversalRandom>> sampled_revHists;
@@ -281,10 +288,10 @@ public:
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
 		const int nb_chains_, const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
-		const int sample_interval_, const int sample_amount_, int backup_interval_,
+		const int sample_interval_, const int sample_amount_, int backup_interval_, int print_interval_,
 		std::vector<double>& rev_weights_, double p_stop_, const bool debug_):genome_B(genome_B_),rng(rng_),
 		nb_chains(nb_chains_),check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
-		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),
+		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),print_interval(print_interval_),
 		rev_weights(rev_weights_),p_stop(p_stop_),debug(debug_),
 		currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),rev_path_avgsize(nb_chains_),hist_chains(nb_chains_),
 		distr_accept(0.0, 1.0),proposalMean(rng_){
@@ -299,6 +306,7 @@ public:
 
 		// Initialize reversal histories/means.
 		initializeChains();
+		initializeIdRun();
 	}
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
@@ -306,7 +314,8 @@ public:
 		McmcOptions& parameters, const bool debug_):genome_B(genome_B_),rng(rng_),
 		nb_chains(parameters.nb_chains),check_convergence(parameters.check_convergence),
 		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),
-		sample_interval(parameters.sample_interval),sample_amount(parameters.sample_amount),backup_interval(parameters.backup_interval),
+		sample_interval(parameters.sample_interval),sample_amount(parameters.sample_amount),
+		backup_interval(parameters.backup_interval),print_interval(parameters.print_interval),
 		rev_weights(parameters.probs),p_stop(parameters.p_stop),debug(debug_),
 		currentState_revHists(parameters.nb_chains),currentState_revMeans(parameters.nb_chains),
 		rev_path_avgsize(parameters.nb_chains),hist_chains(parameters.nb_chains),
@@ -324,11 +333,13 @@ public:
 
 		// Initialize reversal histories/means.
 		initializeChains();
+		initializeIdRun();
 	}
 
 	// Serialization with Boost.
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
+		ar & id_run;
 		ar & nb_chains;
 		ar & genome_B;
 		ar & rng;
@@ -340,11 +351,15 @@ public:
 		ar & currentState_revMeans;
 		ar & hist_chains;
 		ar & check_convergence;
+		ar & W;
+		ar & B;
+		ar & R;
 		ar & max_steps;
 		ar & pre_burnin_steps;
 		ar & sample_interval;
 		ar & sample_amount;
 		ar & backup_interval;
+		ar & print_interval;
 		ar & sampled_revHists;
 		ar & sampled_revMeans;
 		ar & cur_step;
@@ -366,6 +381,7 @@ public:
 		}
 	}
 
+	void initializeIdRun();
 	void initializeChains();
 	std::string runSingleChain(const int chainIdx);
 	void run();

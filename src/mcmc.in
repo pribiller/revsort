@@ -6,6 +6,7 @@ pre_burnin_steps=10
 sample_interval=1000
 sample_amount=10000
 backup_interval=500
+print_interval=20
 p_good=1.0
 p_neutralgood=0.0276
 p_neutral=0.0276
