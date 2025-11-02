@@ -49,6 +49,7 @@ public:
 class McmcOptions : public RevMethodOptions {
 public:
 
+	std::string id_run{"revMCMC"};
 	int nb_chains{1};
 
 	// Convergence evaluation: Same method as in York, Durrett, and Nielsen (2002).
@@ -103,6 +104,9 @@ public:
 	McmcOptions(std::unordered_map<std::string,std::string>& parvalues_map){
 		method = RevMethodType::MCMC;
 
+		if (parvalues_map.find("id_run") != parvalues_map.end()) {
+			id_run = parvalues_map["id_run"];
+		}
 		if (parvalues_map.find("nb_chains") != parvalues_map.end()) {
 			nb_chains = std::stoi(parvalues_map["nb_chains"]);
 		}
@@ -146,7 +150,8 @@ public:
 	}
 
 	std::string print() override {
-		return "MCMC; nb_chains=" + std::to_string(nb_chains) 
+		return "MCMC; id_run=" + id_run
+			+ ", nb_chains=" + std::to_string(nb_chains) 
 			+ ", check_convergence=" + std::to_string(check_convergence)
 			+ ", max_steps=" + std::to_string(max_steps) 
 			+ ", pre_burnin_steps=" + std::to_string(pre_burnin_steps)

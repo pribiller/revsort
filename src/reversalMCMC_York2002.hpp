@@ -221,7 +221,7 @@ public:
 class ReversalMCMC {
 public:
 
-	std::string id_run;
+	std::string id_run{"revMCMC"};
 	int nb_chains;
 
 	GenomeMultichrom<int>& genome_B;
@@ -287,10 +287,10 @@ public:
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
-		const int nb_chains_, const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
+		const std::string id_run_, const int nb_chains_, const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
 		const int sample_interval_, const int sample_amount_, int backup_interval_, int print_interval_,
 		std::vector<double>& rev_weights_, double p_stop_, const bool debug_):genome_B(genome_B_),rng(rng_),
-		nb_chains(nb_chains_),check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
+		id_run(id_run_),nb_chains(nb_chains_),check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
 		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),print_interval(print_interval_),
 		rev_weights(rev_weights_),p_stop(p_stop_),debug(debug_),
 		currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),rev_path_avgsize(nb_chains_),hist_chains(nb_chains_),
@@ -306,13 +306,12 @@ public:
 
 		// Initialize reversal histories/means.
 		initializeChains();
-		initializeIdRun();
 	}
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
 		McmcOptions& parameters, const bool debug_):genome_B(genome_B_),rng(rng_),
-		nb_chains(parameters.nb_chains),check_convergence(parameters.check_convergence),
+		id_run(parameters.id_run),nb_chains(parameters.nb_chains),check_convergence(parameters.check_convergence),
 		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),
 		sample_interval(parameters.sample_interval),sample_amount(parameters.sample_amount),
 		backup_interval(parameters.backup_interval),print_interval(parameters.print_interval),
@@ -333,7 +332,6 @@ public:
 
 		// Initialize reversal histories/means.
 		initializeChains();
-		initializeIdRun();
 	}
 
 	// Serialization with Boost.
@@ -381,7 +379,7 @@ public:
 		}
 	}
 
-	void initializeIdRun();
+	void initializeIdRun(); // TODO: Currently not used.
 	void initializeChains();
 	std::string runSingleChain(const int chainIdx);
 	void run();

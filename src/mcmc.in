@@ -1,5 +1,6 @@
 method=mcmc
 nb_chains=8
+id_run=rev_mcmc
 check_convergence=true
 max_steps=1000
 pre_burnin_steps=10

@@ -204,7 +204,6 @@ void ReversalMCMC::run(){
 	std::uniform_int_distribution distr_sample(0, nb_chains-1);
 
 	while((cur_step < max_steps) && (sampled_revMeans.size() < sample_amount)){
-
 		// Update current step.
 		++cur_step;
 		std::vector<std::string> status_all(nb_chains);

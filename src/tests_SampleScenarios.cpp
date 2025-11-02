@@ -11,7 +11,7 @@
  * implementation of the sorting by reversals method.
  * 
  * Compile (the option -lboost_serialization *must* be in the end):
- * g++ -fopenmp tests_SampleScenarios.cpp sortByReversals.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler -lboost_serialization
+ * g++ -O3 -fopenmp tests_SampleScenarios.cpp sortByReversals.cpp reversalMCMC_York2002.cpp sampleReversal_York2002.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsampler -lboost_serialization
  * 
  * Run:
  * ./revsampler 42 1
@@ -40,6 +40,7 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 
 	std::cout << "Starting MCMC..." << std::endl;
 
+	const std::string id_run="revMCMC_testSerialization";
 	const int nb_chains=1;
 	const bool check_convergence=false;
 	const int max_steps=20;
@@ -59,7 +60,7 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
 	const double p_stop=0.999; //0.99;
 
-	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,check_convergence,max_steps,pre_burnin_steps,
+	ReversalMCMC mcmc(genome_A,genome_B,rng,id_run,nb_chains,check_convergence,max_steps,pre_burnin_steps,
 		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,false);
 	const std::string filename = "test_serialize.dat";
 	mcmc.saveState(filename);
@@ -74,6 +75,7 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 
 	std::cout << "Starting MCMC..." << std::endl;
 
+	const std::string id_run="revMCMC_testConvergence";
 	const int nb_chains=10;
 	const bool check_convergence=false;
 	const int max_steps=100000;
@@ -118,7 +120,7 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
 	const double p_stop=0.999; //0.99;
 
-	ReversalMCMC mcmc(genome_A,genome_B,rng,nb_chains,check_convergence,max_steps,pre_burnin_steps,
+	ReversalMCMC mcmc(genome_A,genome_B,rng,id_run,nb_chains,check_convergence,max_steps,pre_burnin_steps,
 		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,false);
 	mcmc.run();
 }
