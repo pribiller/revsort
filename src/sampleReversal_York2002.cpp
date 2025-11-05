@@ -362,11 +362,11 @@ double ReversalSampler::countReversalsCycle_unoriented(CycleCounters& counters, 
 }
 
 // Hurdles - General case (i.e. #hurdles > 3).
-// Good reversals: a black edge from the cycle and a black edge from 
-//                 any other cycle belonging to a non-adjacent hurdle.
 // Neutral reversals: 
-//    (1) Two black edges from the cycle; 
-//    (2) A black edge from the cycle and another black edge belonging to its own hurdle or an adjacent hurdle.
+//    (1) A black edge from the cycle and a black edge from 
+//        any other cycle belonging to a non-adjacent hurdle (previously considered "Good reversals").
+//    (2) Two black edges from the cycle; 
+//    (3) A black edge from the cycle and another black edge belonging to its own hurdle or an adjacent hurdle.
 double ReversalSampler::countReversalsCycle_manyHurdles(CycleCounters& counters, const int cycle_size, 
 							const int hurdles_total_size, const int hurdle_cur_size, const int hurdles_adj_size) {
 
@@ -374,47 +374,51 @@ double ReversalSampler::countReversalsCycle_manyHurdles(CycleCounters& counters,
 	const int black_edges_own_hurdle = cycle_size*(hurdle_cur_size-cycle_size);
 	const int black_edges_adj_hurdle = cycle_size*hurdles_adj_size;
 
-	counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size));
-	counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
+	counters.counts[ReversalType::GOOD]         = 0;
+	counters.counts[ReversalType::NEUTRAL]      = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size))
+												+ black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
 	counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
-	rev_totals[ReversalType::GOOD]         += counters.counts[ReversalType::GOOD]/2.0;
-	rev_totals[ReversalType::NEUTRAL]      += (black_edges_same_cycle + (black_edges_own_hurdle + black_edges_adj_hurdle)/2.0);
+	rev_totals[ReversalType::GOOD]         += 0;
+	rev_totals[ReversalType::NEUTRAL]      += (((cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size)))/2.0) 
+											+ black_edges_same_cycle + (black_edges_own_hurdle + black_edges_adj_hurdle)/2.0);
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
-	return (counters.counts[ReversalType::GOOD]/2.0 
+	return (((cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size)))/2.0)
 			+ black_edges_same_cycle + (black_edges_own_hurdle + black_edges_adj_hurdle)/2.0 
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
 
 // Hurdle - Base case.
 // 2 or 3 hurdles. All hurdles are adjacent to each other.
-// Good reversals: a black edge from the cycle and a black edge from the other hurdle.
 // Neutral reversals: 
-//    (1) Two black edges from the cycle; 
-//    (2) A black edge from the cycle and another black edge belonging to its own hurdle.
+//    (1) A black edge from the cycle and a black edge from the other hurdle (previously considered "Good reversals").
+//    (2) Two black edges from the cycle; 
+//    (3) A black edge from the cycle and another black edge belonging to its own hurdle.
 double ReversalSampler::countReversalsCycle_fewHurdles(CycleCounters& counters, const int cycle_size, 
 							const int hurdles_total_size, const int hurdle_cur_size) {
 
 	const int black_edges_same_cycle = (cycle_size*(cycle_size-1))/2;
 	const int black_edges_own_hurdle = cycle_size*(hurdle_cur_size-cycle_size);
 
-	counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-hurdle_cur_size);
-	counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
+	counters.counts[ReversalType::GOOD]         = 0;
+	counters.counts[ReversalType::NEUTRAL]      = cycle_size*(hurdles_total_size-hurdle_cur_size)
+												+ black_edges_same_cycle + black_edges_own_hurdle;
 	counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
-	rev_totals[ReversalType::GOOD]         += counters.counts[ReversalType::GOOD]/2.0;
-	rev_totals[ReversalType::NEUTRAL]      += (black_edges_same_cycle + black_edges_own_hurdle/2.0);
+	rev_totals[ReversalType::GOOD]         += 0;
+	rev_totals[ReversalType::NEUTRAL]      += (((cycle_size*(hurdles_total_size-hurdle_cur_size))/2.0)
+											+ (black_edges_same_cycle + black_edges_own_hurdle/2.0));
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
-	return (counters.counts[ReversalType::GOOD]/2.0 
+	return ((cycle_size*(hurdles_total_size-hurdle_cur_size))/2.0
 			+ black_edges_same_cycle + black_edges_own_hurdle/2.0 
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
 
 // Hurdle - Base case.
 // A single hurdle.
-// Good reversals:
+// Neutral reversals (previously considered "Good reversals"):
 //    (1) Two black edges from the cycle; 
 //    (2) A black edge from the cycle and another black edge belonging to its own hurdle.
 double ReversalSampler::countReversalsCycle_oneHurdle(CycleCounters& counters, const int cycle_size, 
@@ -423,16 +427,15 @@ double ReversalSampler::countReversalsCycle_oneHurdle(CycleCounters& counters, c
 	const int black_edges_same_cycle = (cycle_size*(cycle_size-1))/2;
 	const int black_edges_own_hurdle = cycle_size*(hurdle_cur_size-cycle_size);
 
-	counters.counts[ReversalType::GOOD]         = black_edges_same_cycle + black_edges_own_hurdle;
-	counters.counts[ReversalType::NEUTRAL]      = 0;
+	counters.counts[ReversalType::GOOD]         = 0;
+	counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
 	counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
-	rev_totals[ReversalType::GOOD]         += black_edges_same_cycle + black_edges_own_hurdle/2.0;
-	rev_totals[ReversalType::NEUTRAL]      += 0;
+	rev_totals[ReversalType::GOOD]         += 0;
+	rev_totals[ReversalType::NEUTRAL]      += black_edges_same_cycle + black_edges_own_hurdle/2.0;
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
-	return (black_edges_same_cycle + black_edges_own_hurdle/2.0 
-			+ counters.counts[ReversalType::NEUTRAL] 
+	return (black_edges_same_cycle + black_edges_own_hurdle/2.0
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
 
@@ -787,18 +790,18 @@ std::vector<int> ReversalSampler::getAllHurdleExtremities(){
 std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const ReversalType revtype, std::mt19937& rng){
 
 	// MANY HURDLES
-	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size));
-	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = (cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size))) + black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// FEW HURDLES
-	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-hurdle_cur_size);
-	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = (cycle_size*(hurdles_total_size-hurdle_cur_size)) + black_edges_same_cycle + black_edges_own_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// ONE HURDLE
-	// counters.counts[ReversalType::GOOD]         = black_edges_same_cycle + black_edges_own_hurdle;
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	std::vector<int> cycle_exts      = comps.getGeneExtremities(comps.forest[cycle_idx], true);
@@ -810,57 +813,60 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 	switch(revtype) {
 		case ReversalType::GOOD: {
 			if(debug){std::cout << " --- Good ";}
-			std::vector<std::pair<int,int>> goodReversals;
+			std::cout << "ERROR! Cycles in hurdles do not have 'good' reversals." << std::endl;
+			break;
+		}
+		case ReversalType::NEUTRAL: {
+			if(debug){std::cout << " --- Neutral ";}
+			
+			std::vector<std::pair<int,int>> neutralReversals;
 
-			// Case: Many hurdles (h > 3).
-			if(hurdles.size() > 3){
-				if(debug){std::cout << " --- Many hurdles ";}
+			// Case: many hurdles or few hurdles.
+			if(hurdles.size() > 1){
 
-				std::vector<int> hurdle_exts_notadj = getDifference(hurdle_exts_all, hurdle_exts_adj);
-				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_notadj);
+				std::vector<int> hurdle_exts_own_diff = getDifference(hurdle_exts_own, cycle_exts);
+				neutralReversals = makeAllCombinations(cycle_exts, hurdle_exts_own_diff);
+				
+				std::vector<std::pair<int,int>> cycReversals = getReversalsFromCycle(cycle_idx);
+				neutralReversals.insert(neutralReversals.end(), cycReversals.begin(), cycReversals.end());
 
-			// Case: Few hurdles (h=2 or 3).
-			} else if(hurdles.size() > 1){ 
-				if(debug){std::cout << " --- Few hurdles ";}
+				// Reversals below were previously considered "Good reversals".
 
-				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_adj);
+				// Case: Many hurdles (h > 3).
+				if(hurdles.size() > 3){
+					if(debug){std::cout << " --- Many hurdles ";}
+
+					std::vector<int> hurdle_exts_notadj = getDifference(hurdle_exts_all, hurdle_exts_adj);
+					std::vector<std::pair<int,int>> rev_notadj = makeAllCombinations(cycle_exts, hurdle_exts_notadj);
+
+					neutralReversals.insert(neutralReversals.end(), rev_notadj.begin(), rev_notadj.end());
+
+				// Case: Few hurdles (h=2 or 3).
+				} else { 
+					if(debug){std::cout << " --- Few hurdles ";}
+
+					std::vector<std::pair<int,int>> rev_adj = makeAllCombinations(cycle_exts, hurdle_exts_adj);
+
+					neutralReversals.insert(neutralReversals.end(), rev_adj.begin(), rev_adj.end());
+				}
 
 			// Case: Single hurdle (h=1).
 			} else {
 				if(debug){std::cout << " --- Single hurdle ";}
 
+				// Reversals below were previously considered "Good reversals".
+
 				std::vector<int> hurdle_exts_own_diff = getDifference(hurdle_exts_own, cycle_exts);
-				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_own_diff);
+				neutralReversals = makeAllCombinations(cycle_exts, hurdle_exts_own_diff);
 				std::vector<std::pair<int,int>> cycReversals = getReversalsFromCycle(cycle_idx);
-				goodReversals.insert(goodReversals.end(), cycReversals.begin(), cycReversals.end());
+				neutralReversals.insert(neutralReversals.end(), cycReversals.begin(), cycReversals.end());
 			}
 
 			if(debug){std::cout << std::endl;}
 
-			std::uniform_int_distribution distr(0, static_cast<int>(goodReversals.size()) - 1);
+			std::uniform_int_distribution distr(0, static_cast<int>(neutralReversals.size()) - 1);
 			const int rdmidx = distr(rng);
-			reversal = goodReversals[rdmidx];
-			break;
-		}
-		case ReversalType::NEUTRAL: {
-			if(debug){std::cout << " --- Neutral " << std::endl;}
-			
-			// Case: many hurdles or few hurdles.
-			if(hurdles.size() > 1){
-				std::vector<int> hurdle_exts_own_diff = getDifference(hurdle_exts_own, cycle_exts);
-				std::vector<std::pair<int,int>> neutralGoodReversals = makeAllCombinations(cycle_exts, hurdle_exts_own_diff);
-				
-				std::vector<std::pair<int,int>> cycReversals = getReversalsFromCycle(cycle_idx);
-				neutralGoodReversals.insert(neutralGoodReversals.end(), cycReversals.begin(), cycReversals.end());
-
-				std::uniform_int_distribution distr(0, static_cast<int>(neutralGoodReversals.size()) - 1);
-				const int rdmidx = distr(rng);
-				reversal = neutralGoodReversals[rdmidx];
-
-			// Case: Single hurdle (h=1).
-			} else {
-				std::cout << "ERROR! Cycles in a single hurdle do not have 'neutral' reversals." << std::endl;
-			}
+			reversal = neutralReversals[rdmidx];
 			break;
 		}
 		case ReversalType::BAD: {
@@ -923,10 +929,24 @@ ReversalRandom ReversalSampler::sampleReversal(std::mt19937& rng, bool updateCom
 	}
 	// Sample reversal type.
 	ReversalType revtype = sampleReversalType(rng);
-	if(debug){std::cout << "\n > Sampled type " << revtype << " : nb. rev=" << rev_totals[revtype] << "; prob.=" << rev_weights[revtype] << std::endl;}
+	if(debug){
+		std::cout << "\n > Sampled type " << revtype << " : nb. rev=" << rev_totals[revtype] << "; prob.=" << rev_weights[revtype] << std::endl;
+		for (int revtype_idx = 0; revtype_idx < ReversalType_COUNT; ++revtype_idx) {
+			std::cout << "\tType = " << revtype_idx << "; Count= " << rev_totals[revtype_idx] << std::endl;
+		}
+	}
 
 	// Sample a cycle based on how many reversals of the chosen reversal type each cycle has.
 	int cycle_idx = sampleCycle(revtype, rng);
+	if(debug){
+		std::cout << " - Sampled cycle " << cycle_idx << " : nb. reversals of chosen type = " << rev_counters[cycle_idx].counts[revtype] << std::endl;
+		
+		// Gene extremities in the cycle.
+		std::vector<int> gene_exts_cyc = comps.getGeneExtremities(comps.forest[cycle_idx], true);
+		std::cout << " - Sampled cycle extremities: ";
+		for(int ext : gene_exts_cyc){std::cout << " " << ext;}
+		std::cout << std::endl;
+	}
 
 	// Sample a reversal given the chosen cycle and the chosen type.
 	std::pair<int,int> blackEdges = sampleReversalFromCycle(cycle_idx, revtype, rng);
@@ -992,18 +1012,18 @@ ReversalType ReversalSampler::getReversalType_Trivial(const int cycle_idx, const
 ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const std::pair<int,int>& rev){
 
 	// MANY HURDLES
-	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size));
-	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size)) + black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// FEW HURDLES
-	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-hurdle_cur_size);
-	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = cycle_size*(hurdles_total_size-hurdle_cur_size) + black_edges_same_cycle + black_edges_own_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// ONE HURDLE
-	// counters.counts[ReversalType::GOOD]         = black_edges_same_cycle + black_edges_own_hurdle;
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::GOOD]         = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	const int cycleIdx_end = comps.getCycleIdx(rev.second);
@@ -1044,7 +1064,7 @@ ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const 
 			if(sameCycle || sameHurdle || adjHurdle) {
 				revtype   = ReversalType::NEUTRAL;
 			} else {
-				revtype   = ReversalType::GOOD;
+				revtype   = ReversalType::NEUTRAL; //ReversalType::GOOD;
 			}
 		} else {
 			revtype   = ReversalType::BAD;
@@ -1056,7 +1076,7 @@ ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const 
 			if(sameCycle || sameHurdle) {
 				revtype   = ReversalType::NEUTRAL;
 			} else {
-				revtype   = ReversalType::GOOD;
+				revtype   = ReversalType::NEUTRAL; // ReversalType::GOOD;
 			}
 		} else {
 			revtype   = ReversalType::BAD;
@@ -1065,7 +1085,7 @@ ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const 
 	// Case: Single hurdle (h=1).
 	} else {
 		if(isHurdle){
-			revtype   = ReversalType::GOOD;
+			revtype   = ReversalType::NEUTRAL; // ReversalType::GOOD;
 		} else {
 			revtype   = ReversalType::BAD;
 		}

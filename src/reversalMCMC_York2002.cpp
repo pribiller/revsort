@@ -429,7 +429,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 	if(debug){std::cout << " - q_L'(l',j)=" << q_lj_new << "; q_L(l,j)=" << q_lj_cur << "; ratio=" << proposalRatio << std::endl;}
 	int factors_max = std::max(q_cur.size(), q_new.size());
 	int factors_idx = 0;
-	debug=true;
+	// debug=true;
 	while(factors_idx < factors_max){
 		// Instead of doing (1/q_old) / (1/q_new) = q_new / q_old
 		const double num = (factors_idx < q_new.size()) ? q_new[factors_idx] : 1.0;
@@ -439,7 +439,7 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 		++factors_idx;
 	}
 	if(debug){std::cout << " - Proposal ratio : " << proposalRatio << std::endl;}
-	debug=false;
+	// debug=false;
 	return proposalRatio;
 }
 
@@ -559,7 +559,7 @@ std::vector<ReversalRandom> RandomReversalScenario::sampleScenario(GenomeMultich
 
 		// Sample a random reversal.
 		ReversalSampler sampler(genperm,rev_weights,debug);
-		//sampler.debug      = true;
+		// sampler.debug      = true;
 		ReversalRandom rev = sampler.sampleReversal(rng,true);
 		//if(debug){printGenome(genperm.getExtendedPerm());}
 
