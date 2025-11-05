@@ -57,7 +57,7 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	const double p_neutral=0.0276;
 	const double p_bad=0.001;
 
-	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+	std::vector<double> probs = {p_good, p_neutral, p_bad};
 	const double p_stop=0.999; //0.99;
 
 	ReversalMCMC mcmc(genome_A,genome_B,rng,id_run,nb_chains,check_convergence,max_steps,pre_burnin_steps,
@@ -117,7 +117,7 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 	// const double p_neutral=0.030;
 	// const double p_bad=0.015;
 
-	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+	std::vector<double> probs = {p_good, p_neutral, p_bad};
 	const double p_stop=0.999; //0.99;
 
 	ReversalMCMC mcmc(genome_A,genome_B,rng,id_run,nb_chains,check_convergence,max_steps,pre_burnin_steps,
@@ -136,7 +136,7 @@ void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	const double p_neutralgood=0.025; 
 	const double p_neutral=0.020;
 	const double p_bad=0.015; 
-	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+	std::vector<double> probs = {p_good, p_neutral, p_bad};
 
 	const double p_stop=0.99; //0.99;
 	RandomReversalScenario sampler(probs,p_stop,false);
@@ -183,7 +183,7 @@ void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	const double p_neutralgood=0.025; 
 	const double p_neutral=0.020;
 	const double p_bad=0.015; 
-	std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+	std::vector<double> probs = {p_good, p_neutral, p_bad};
 
 	const double p_stop=0.99; //0.99;
 	RandomReversalScenario sampler(probs,p_stop,true);

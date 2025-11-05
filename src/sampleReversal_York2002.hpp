@@ -131,17 +131,16 @@
 
 // Types of reversals
 enum ReversalType : int {
-	GOOD = 0,         // GOOD is assigned the value 0
-	              // Reversals that increase the number of cycles by 1.
-	NEUTRAL_GOOD, // NEUTRAL_GOOD is assigned the value 1
-				  // Reversals that do not change the number of cycles, but help to approach the target in future steps.
-	NEUTRAL,      // NEUTRAL is assigned the value 2
-				  // Reversals that do not change the number of cycles, and do not help to approach the target in future steps.
-	BAD,          // BAD is assigned the value 3
+	GOOD = 0,     // GOOD is assigned the value 0
+	              // Reversals that increase the number of cycles by 1.				  
+	NEUTRAL,      // NEUTRAL is assigned the value 1
+				  // Reversals that do not change the number of cycles. 
+				  // They might help or not to approach the target in future steps.
+	BAD,          // BAD is assigned the value 2
 				  // Reversals that decrease the number of cycles by 1.
 	// Count
 };
-const int ReversalType_COUNT = 4;
+const int ReversalType_COUNT = 3;
 
 // Types of cycles
 enum CycleType : int {
@@ -233,12 +232,12 @@ public:
 
 	bool debug{false};
 
-	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, bool debug=false, double p_good=1.0, double p_neutralgood=0.025, double p_neutral=0.020, double p_bad=0.015):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
+	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, bool debug=false, double p_good=1.0, double p_neutral=0.020, double p_bad=0.015):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
 		initializeComponents();
 		initializeCounts();
-		std::vector<double> probs = {p_good, p_neutralgood, p_neutral, p_bad};
+		std::vector<double> probs = {p_good, p_neutral, p_bad};
 		// For testing:
-		// std::vector<double> probs = {1.0, 0.030, 0.030, 0.015};
+		// std::vector<double> probs = {1.0, 0.030, 0.015};
 		initializeRevProbs(probs);
 	}
 

@@ -25,7 +25,7 @@
 enum RevMethodType : int {
 	OPT = 0, // OPT is assigned the value 0
 	         // Scenario with minimum number of inversions.
-	MCMC     // NEUTRAL_GOOD is assigned the value 1
+	MCMC     // MCMC is assigned the value 1
 			 // Sampled scenario with minimum number of inversions or more.
 	// Count
 };
@@ -84,7 +84,6 @@ public:
 
 	// Probability values.
 	double p_good{1.0};            // Based on Larget et al. (2004) value.
-	double p_neutralgood{0.0276};  // Based on Larget et al. (2004) value. [new category]
 	double p_neutral{0.0276};      // Based on Larget et al. (2004) value.
 	double p_bad{0.001};           // Based on Miklos (2003) value.
 	double p_stop{0.999};
@@ -94,11 +93,11 @@ public:
 	McmcOptions(){method = RevMethodType::MCMC;}
 
 	McmcOptions(const int nb_chains_, const int max_steps_, const int pre_burnin_steps_, 
-		const double p_good_, const double p_neutralgood_, const double p_neutral_, const double p_bad_, 
+		const double p_good_, const double p_neutral_, const double p_bad_, 
 		const double p_stop_):nb_chains(nb_chains_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
-		p_good(p_good_),p_neutralgood(p_neutralgood_),p_neutral(p_neutral_),p_bad(p_bad_),p_stop(p_stop_){
+		p_good(p_good_),p_neutral(p_neutral_),p_bad(p_bad_),p_stop(p_stop_){
 		method = RevMethodType::MCMC;
-		probs  = {p_good, p_neutralgood, p_neutral, p_bad};
+		probs  = {p_good, p_neutral, p_bad};
 	}
 
 	McmcOptions(std::unordered_map<std::string,std::string>& parvalues_map){
@@ -134,9 +133,6 @@ public:
 		if (parvalues_map.find("p_good") != parvalues_map.end()) {
 			p_good = std::stod(parvalues_map["p_good"]);
 		}
-		if (parvalues_map.find("p_neutralgood") != parvalues_map.end()) {
-			p_neutralgood = std::stod(parvalues_map["p_neutralgood"]);
-		}
 		if (parvalues_map.find("p_neutral") != parvalues_map.end()) {
 			p_neutral = std::stod(parvalues_map["p_neutral"]);
 		}
@@ -146,7 +142,7 @@ public:
 		if (parvalues_map.find("p_stop") != parvalues_map.end()) {
 			p_stop = std::stod(parvalues_map["p_stop"]);
 		}
-		probs = {p_good, p_neutralgood, p_neutral, p_bad};
+		probs = {p_good, p_neutral, p_bad};
 	}
 
 	std::string print() override {
@@ -160,7 +156,6 @@ public:
 			+ ", backup_interval="  + std::to_string(backup_interval)
 			+ ", print_interval="  + std::to_string(print_interval)
 			+ ", p_good=" + std::to_string(p_good)
-			+ ", p_neutralgood=" + std::to_string(p_neutralgood)
 			+ ", p_neutral=" + std::to_string(p_neutral)
 			+ ", p_bad="  + std::to_string(p_bad)
 			+ ", p_stop=" + std::to_string(p_stop);

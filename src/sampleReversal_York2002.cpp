@@ -276,7 +276,7 @@ std::vector<std::pair<int,int>> ReversalSampler::getGoodReversalsOriented(Cycle&
 }
 
 void ReversalSampler::debugPrintRevTotals(){
-	std::cout << " good = " << rev_totals[ReversalType::GOOD] << "; neutral good = " << rev_totals[ReversalType::NEUTRAL_GOOD] << "; neutral = " << rev_totals[ReversalType::NEUTRAL] << "; bad = " << rev_totals[ReversalType::BAD] << std::endl;
+	std::cout << " good = " << rev_totals[ReversalType::GOOD] << "; neutral = " << rev_totals[ReversalType::NEUTRAL] << "; bad = " << rev_totals[ReversalType::BAD] << std::endl;
 }
 
 double ReversalSampler::countReversalsOrientedComponents(){
@@ -310,21 +310,18 @@ double ReversalSampler::countReversalsOrientedComponents(){
 			for (int const& cycle_idx : cycles) {
 				const int cycle_size      = cycles_info[cycle_idx].size;
 				
-				rev_counters[cycle_idx].counts[ReversalType::NEUTRAL_GOOD] = 0;
 				rev_counters[cycle_idx].counts[ReversalType::NEUTRAL]      = ((cycle_size*(cycle_size-1))/2) - rev_counters[cycle_idx].counts[ReversalType::GOOD];
 				rev_counters[cycle_idx].counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
 
 				rev_totals[ReversalType::GOOD]         += rev_counters[cycle_idx].counts[ReversalType::GOOD];
-				rev_totals[ReversalType::NEUTRAL_GOOD] += rev_counters[cycle_idx].counts[ReversalType::NEUTRAL_GOOD];
 				rev_totals[ReversalType::NEUTRAL]      += rev_counters[cycle_idx].counts[ReversalType::NEUTRAL];
 				rev_totals[ReversalType::BAD]          += rev_counters[cycle_idx].counts[ReversalType::BAD]/2.0;
 
 				// Update count of observed reversals.
 				// As bad reversals are counted twice in two different cycles, their value is divided by 2.
-				obs_nb_reversals += (  rev_counters[cycle_idx].counts[ReversalType::GOOD]
-											+ rev_counters[cycle_idx].counts[ReversalType::NEUTRAL_GOOD] 
-											+ rev_counters[cycle_idx].counts[ReversalType::NEUTRAL] 
-											+ rev_counters[cycle_idx].counts[ReversalType::BAD]/2.0);
+				obs_nb_reversals += ( rev_counters[cycle_idx].counts[ReversalType::GOOD]
+									+ rev_counters[cycle_idx].counts[ReversalType::NEUTRAL] 
+									+ rev_counters[cycle_idx].counts[ReversalType::BAD]/2.0);
 			}
 		}
 	}
@@ -335,19 +332,16 @@ double ReversalSampler::countReversalsOrientedComponents(){
 // There are no neutral or good reversals in this case (the component is already sorted).
 double ReversalSampler::countReversalsCycle_trivial(CycleCounters& counters) {
 	counters.counts[ReversalType::GOOD]         = 0;
-	counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
 	counters.counts[ReversalType::NEUTRAL]      = 0;
 	counters.counts[ReversalType::BAD]          = (nb_genes-1);
 
 	rev_totals[ReversalType::GOOD]         += 0;
-	rev_totals[ReversalType::NEUTRAL_GOOD] += 0;
 	rev_totals[ReversalType::NEUTRAL]      += 0;
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
 	// Return count of observed reversals.
 	// As bad reversals are counted twice in two different cycles, their value is divided by 2.
 	return (counters.counts[ReversalType::GOOD] 
-			+ counters.counts[ReversalType::NEUTRAL_GOOD] 
 			+ counters.counts[ReversalType::NEUTRAL] 
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
@@ -355,17 +349,14 @@ double ReversalSampler::countReversalsCycle_trivial(CycleCounters& counters) {
 // "Normal" unoriented component (not a hurdle, not trivial).
 double ReversalSampler::countReversalsCycle_unoriented(CycleCounters& counters, const int cycle_size) {
 	counters.counts[ReversalType::GOOD]         = 0;
-	counters.counts[ReversalType::NEUTRAL_GOOD] = ((cycle_size*(cycle_size-1))/2);
-	counters.counts[ReversalType::NEUTRAL]      = 0;
+	counters.counts[ReversalType::NEUTRAL]      = ((cycle_size*(cycle_size-1))/2);
 	counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
 
 	rev_totals[ReversalType::GOOD]         += 0;
-	rev_totals[ReversalType::NEUTRAL_GOOD] += counters.counts[ReversalType::NEUTRAL_GOOD];
-	rev_totals[ReversalType::NEUTRAL]      += 0;
+	rev_totals[ReversalType::NEUTRAL]      += counters.counts[ReversalType::NEUTRAL];
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
 	return (counters.counts[ReversalType::GOOD] 
-			+ counters.counts[ReversalType::NEUTRAL_GOOD] 
 			+ counters.counts[ReversalType::NEUTRAL] 
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
@@ -373,7 +364,7 @@ double ReversalSampler::countReversalsCycle_unoriented(CycleCounters& counters, 
 // Hurdles - General case (i.e. #hurdles > 3).
 // Good reversals: a black edge from the cycle and a black edge from 
 //                 any other cycle belonging to a non-adjacent hurdle.
-// Good neutral reversals: 
+// Neutral reversals: 
 //    (1) Two black edges from the cycle; 
 //    (2) A black edge from the cycle and another black edge belonging to its own hurdle or an adjacent hurdle.
 double ReversalSampler::countReversalsCycle_manyHurdles(CycleCounters& counters, const int cycle_size, 
@@ -384,25 +375,22 @@ double ReversalSampler::countReversalsCycle_manyHurdles(CycleCounters& counters,
 	const int black_edges_adj_hurdle = cycle_size*hurdles_adj_size;
 
 	counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size));
-	counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
-	counters.counts[ReversalType::NEUTRAL]      = 0;
+	counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
 	counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	rev_totals[ReversalType::GOOD]         += counters.counts[ReversalType::GOOD]/2.0;
-	rev_totals[ReversalType::NEUTRAL_GOOD] += (black_edges_same_cycle + (black_edges_own_hurdle + black_edges_adj_hurdle)/2.0);
-	rev_totals[ReversalType::NEUTRAL]      += 0;
+	rev_totals[ReversalType::NEUTRAL]      += (black_edges_same_cycle + (black_edges_own_hurdle + black_edges_adj_hurdle)/2.0);
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
 	return (counters.counts[ReversalType::GOOD]/2.0 
 			+ black_edges_same_cycle + (black_edges_own_hurdle + black_edges_adj_hurdle)/2.0 
-			+ counters.counts[ReversalType::NEUTRAL] 
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
 
 // Hurdle - Base case.
 // 2 or 3 hurdles. All hurdles are adjacent to each other.
 // Good reversals: a black edge from the cycle and a black edge from the other hurdle.
-// Good neutral reversals: 
+// Neutral reversals: 
 //    (1) Two black edges from the cycle; 
 //    (2) A black edge from the cycle and another black edge belonging to its own hurdle.
 double ReversalSampler::countReversalsCycle_fewHurdles(CycleCounters& counters, const int cycle_size, 
@@ -412,18 +400,15 @@ double ReversalSampler::countReversalsCycle_fewHurdles(CycleCounters& counters, 
 	const int black_edges_own_hurdle = cycle_size*(hurdle_cur_size-cycle_size);
 
 	counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-hurdle_cur_size);
-	counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle;
-	counters.counts[ReversalType::NEUTRAL]      = 0;
+	counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
 	counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	rev_totals[ReversalType::GOOD]         += counters.counts[ReversalType::GOOD]/2.0;
-	rev_totals[ReversalType::NEUTRAL_GOOD] += (black_edges_same_cycle + black_edges_own_hurdle/2.0);
-	rev_totals[ReversalType::NEUTRAL]      += 0;
+	rev_totals[ReversalType::NEUTRAL]      += (black_edges_same_cycle + black_edges_own_hurdle/2.0);
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
 	return (counters.counts[ReversalType::GOOD]/2.0 
 			+ black_edges_same_cycle + black_edges_own_hurdle/2.0 
-			+ counters.counts[ReversalType::NEUTRAL] 
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
 
@@ -439,17 +424,14 @@ double ReversalSampler::countReversalsCycle_oneHurdle(CycleCounters& counters, c
 	const int black_edges_own_hurdle = cycle_size*(hurdle_cur_size-cycle_size);
 
 	counters.counts[ReversalType::GOOD]         = black_edges_same_cycle + black_edges_own_hurdle;
-	counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
 	counters.counts[ReversalType::NEUTRAL]      = 0;
 	counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	rev_totals[ReversalType::GOOD]         += black_edges_same_cycle + black_edges_own_hurdle/2.0;
-	rev_totals[ReversalType::NEUTRAL_GOOD] += 0;
 	rev_totals[ReversalType::NEUTRAL]      += 0;
 	rev_totals[ReversalType::BAD]          += counters.counts[ReversalType::BAD]/2.0;
 
 	return (black_edges_same_cycle + black_edges_own_hurdle/2.0 
-			+ counters.counts[ReversalType::NEUTRAL_GOOD]
 			+ counters.counts[ReversalType::NEUTRAL] 
 			+ counters.counts[ReversalType::BAD]/2.0);
 }
@@ -659,7 +641,6 @@ std::vector<int> ReversalSampler::getGeneExtNotInCycle(const int cycle_idx){
 
 std::pair<int,int> ReversalSampler::sampleOriented(const int cycle_idx, const ReversalType revtype, std::mt19937& rng){
 
-	// rev_counters[cycle_idx].counts[ReversalType::NEUTRAL_GOOD] = 0;
 	// rev_counters[cycle_idx].counts[ReversalType::NEUTRAL]      = ((cycle_size*(cycle_size-1))/2) - rev_counters[cycle_idx].counts[ReversalType::GOOD];
 	// rev_counters[cycle_idx].counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
 	//std::vector<std::pair<int,int>>& goodReversals = rev_counters[cycle_idx].reversals[ReversalType::GOOD];
@@ -672,10 +653,6 @@ std::pair<int,int> ReversalSampler::sampleOriented(const int cycle_idx, const Re
 			std::uniform_int_distribution distr(0, static_cast<int>(goodReversals.size()) - 1);
 			const int rdmidx = distr(rng);
 			reversal = goodReversals[rdmidx];
-			break;
-		}
-		case ReversalType::NEUTRAL_GOOD: {
-			std::cout << "ERROR! Oriented cycles do not have 'neutral good' reversals." << std::endl;
 			break;
 		}
 		case ReversalType::NEUTRAL: {
@@ -716,8 +693,7 @@ std::pair<int,int> ReversalSampler::sampleUnoriented(const int cycle_idx, const 
 
 	// UNORIENTED
 	// counters.counts[ReversalType::GOOD]         = 0;
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = ((cycle_size*(cycle_size-1))/2);
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = ((cycle_size*(cycle_size-1))/2);
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
 
 	std::pair<int, int> reversal{-1, -1};
@@ -726,16 +702,12 @@ std::pair<int,int> ReversalSampler::sampleUnoriented(const int cycle_idx, const 
 			std::cout << "ERROR! Unoriented cycles do not have 'good' reversals." << std::endl;
 			break;
 		}
-		case ReversalType::NEUTRAL_GOOD: {
-			if(debug){std::cout << "\t It is neutral good" << std::endl;}
+		case ReversalType::NEUTRAL: {
+			if(debug){std::cout << "\t It is neutral" << std::endl;}
 			std::vector<std::pair<int,int>> allReversals = getReversalsFromCycle(cycle_idx);
 			std::uniform_int_distribution distr(0, static_cast<int>(allReversals.size()) - 1);
 			const int rdmidx = distr(rng);
 			reversal = allReversals[rdmidx];
-			break;
-		}
-		case ReversalType::NEUTRAL: {
-			std::cout << "ERROR! Unoriented cycles do not have 'neutral' reversals." << std::endl;
 			break;
 		}
 		case ReversalType::BAD: {
@@ -754,7 +726,6 @@ std::pair<int,int> ReversalSampler::sampleTrivial(const int cycle_idx, const Rev
 
 	// TRIVIAL
 	// counters.counts[ReversalType::GOOD]         = 0;
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
 	// counters.counts[ReversalType::NEUTRAL]      = 0;
 	// counters.counts[ReversalType::BAD]          = (nb_genes-1);
 
@@ -762,10 +733,6 @@ std::pair<int,int> ReversalSampler::sampleTrivial(const int cycle_idx, const Rev
 	switch(revtype) {
 		case ReversalType::GOOD: {
 			std::cout << "ERROR! Trivial cycles do not have 'good' reversals." << std::endl;
-			break;
-		}
-		case ReversalType::NEUTRAL_GOOD: {
-			std::cout << "ERROR! Trivial cycles do not have 'neutral good' reversals." << std::endl;
 			break;
 		}
 		case ReversalType::NEUTRAL: {
@@ -821,19 +788,16 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 
 	// MANY HURDLES
 	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size));
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// FEW HURDLES
 	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-hurdle_cur_size);
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle;
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// ONE HURDLE
 	// counters.counts[ReversalType::GOOD]         = black_edges_same_cycle + black_edges_own_hurdle;
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
 	// counters.counts[ReversalType::NEUTRAL]      = 0;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
@@ -878,8 +842,8 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 			reversal = goodReversals[rdmidx];
 			break;
 		}
-		case ReversalType::NEUTRAL_GOOD: {
-			if(debug){std::cout << " --- Neutral good " << std::endl;}
+		case ReversalType::NEUTRAL: {
+			if(debug){std::cout << " --- Neutral " << std::endl;}
 			
 			// Case: many hurdles or few hurdles.
 			if(hurdles.size() > 1){
@@ -895,12 +859,8 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 
 			// Case: Single hurdle (h=1).
 			} else {
-				std::cout << "ERROR! Cycles in a single hurdle do not have 'neutral good' reversals." << std::endl;
+				std::cout << "ERROR! Cycles in a single hurdle do not have 'neutral' reversals." << std::endl;
 			}
-			break;
-		}
-		case ReversalType::NEUTRAL: {
-			std::cout << "ERROR! Cycles in hurdles do not have 'neutral' reversals." << std::endl;
 			break;
 		}
 		case ReversalType::BAD: {
@@ -981,7 +941,6 @@ ReversalRandom ReversalSampler::sampleReversal(std::mt19937& rng, bool updateCom
 
 
 ReversalType ReversalSampler::getReversalType_Oriented(const int cycle_idx, const std::pair<int,int>& rev){
-	// rev_counters[cycle_idx].counts[ReversalType::NEUTRAL_GOOD] = 0;
 	// rev_counters[cycle_idx].counts[ReversalType::NEUTRAL]      = ((cycle_size*(cycle_size-1))/2) - rev_counters[cycle_idx].counts[ReversalType::GOOD];
 	// rev_counters[cycle_idx].counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
 	//std::vector<std::pair<int,int>>& goodReversals = rev_counters[cycle_idx].reversals[ReversalType::GOOD];
@@ -1008,12 +967,11 @@ ReversalType ReversalSampler::getReversalType_Unoriented(const int cycle_idx, co
 
 	// UNORIENTED
 	// counters.counts[ReversalType::GOOD]         = 0;
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = ((cycle_size*(cycle_size-1))/2);
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = ((cycle_size*(cycle_size-1))/2);
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-cycle_size);
 
 	const int cycleIdx_end = comps.getCycleIdx(rev.second);
-	ReversalType revtype   = ReversalType::NEUTRAL_GOOD;
+	ReversalType revtype   = ReversalType::NEUTRAL;
 	// Extremities are in the same cycle.
 	if(cycle_idx != cycleIdx_end){
 		revtype = ReversalType::BAD;
@@ -1025,7 +983,6 @@ ReversalType ReversalSampler::getReversalType_Trivial(const int cycle_idx, const
 
 	// TRIVIAL
 	// counters.counts[ReversalType::GOOD]         = 0;
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
 	// counters.counts[ReversalType::NEUTRAL]      = 0;
 	// counters.counts[ReversalType::BAD]          = (nb_genes-1);
 
@@ -1036,19 +993,16 @@ ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const 
 
 	// MANY HURDLES
 	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-(hurdles_adj_size+hurdle_cur_size));
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle + black_edges_adj_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// FEW HURDLES
 	// counters.counts[ReversalType::GOOD]         = cycle_size*(hurdles_total_size-hurdle_cur_size);
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = black_edges_same_cycle + black_edges_own_hurdle;
-	// counters.counts[ReversalType::NEUTRAL]      = 0;
+	// counters.counts[ReversalType::NEUTRAL]      = black_edges_same_cycle + black_edges_own_hurdle;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
 	// ONE HURDLE
 	// counters.counts[ReversalType::GOOD]         = black_edges_same_cycle + black_edges_own_hurdle;
-	// counters.counts[ReversalType::NEUTRAL_GOOD] = 0;
 	// counters.counts[ReversalType::NEUTRAL]      = 0;
 	// counters.counts[ReversalType::BAD]          = cycle_size*(nb_genes-hurdles_total_size);
 
@@ -1088,7 +1042,7 @@ ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const 
 	if(hurdles.size() > 3){
 		if(isHurdle){
 			if(sameCycle || sameHurdle || adjHurdle) {
-				revtype   = ReversalType::NEUTRAL_GOOD;
+				revtype   = ReversalType::NEUTRAL;
 			} else {
 				revtype   = ReversalType::GOOD;
 			}
@@ -1100,7 +1054,7 @@ ReversalType ReversalSampler::getReversalType_Hurdle(const int cycle_idx, const 
 	} else if(hurdles.size() > 1){ 
 		if(isHurdle){
 			if(sameCycle || sameHurdle) {
-				revtype   = ReversalType::NEUTRAL_GOOD;
+				revtype   = ReversalType::NEUTRAL;
 			} else {
 				revtype   = ReversalType::GOOD;
 			}

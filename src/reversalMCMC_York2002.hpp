@@ -108,26 +108,28 @@ public:
 	std::mt19937& rng;
 
 	double rev_mean_min;
+	double rev_mean_max;
 
 	double acceptanceProb{0.0};
 	double rev_mean_new{0.0};
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
-	ProposalReversalMean(std::mt19937& rng_, double rev_mean_min_):rng(rng_),rev_mean_min(rev_mean_min_){}
+	ProposalReversalMean(std::mt19937& rng_, double rev_mean_min_, double rev_mean_max_):rng(rng_),rev_mean_min(rev_mean_min_),rev_mean_max(rev_mean_max_){}
 	ProposalReversalMean(std::mt19937& rng_):rng(rng_){}
 
 	// Serialization with Boost.
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
 		ar & rev_mean_min;
+		ar & rev_mean_max;
 		ar & acceptanceProb;
 		ar & rev_mean_new;
 		ar & rng;
 	}
 
-	double sampleReversalMean(const double rev_mean_cur);
+	double sampleReversalMean(const double rev_path_len_cur);
 	double getAcceptanceProb(const int rev_path_len, const double rev_mean_cur, const double rev_mean_prop);
-	inline double proposeNewValue(const int rev_path_len, const double rev_mean_cur) {return getAcceptanceProb(rev_path_len, rev_mean_cur, sampleReversalMean(rev_mean_cur));}
+	inline double proposeNewValue(const int rev_path_len, const double rev_mean_cur) {return getAcceptanceProb(rev_path_len, rev_mean_cur, sampleReversalMean(rev_path_len));}
 };
 
 class ProposalReversalScenario {
@@ -142,6 +144,9 @@ public:
 
 	int L_new; // Length of the proposed reversal scenario (total number of reversals).
 	int l_new; // Length of the new sub-path in the proposed reversal scenario (number of new reversals).
+
+	std::vector<int> P_cur_revtypes; // number of each type of inversion in the current reversal scenario.
+	std::vector<int> P_new_revtypes; // number of each type of inversion in the proposed reversal scenario.
 
 	int N; // Number of markers in the unextended uncapped permutation.
 
@@ -160,7 +165,7 @@ public:
 	bool debug{false};
 
 	ProposalReversalScenario(std::vector<ReversalRandom>& currentReversalScenario_, std::vector<ReversalRandom>& proposedReversalScenario_, 
-		const int path_beg_, const int L_cur_, const int l_cur_, const int L_new_, const int l_new_, const int N_):currentReversalScenario(currentReversalScenario_),proposedReversalScenario(proposedReversalScenario_),path_beg(path_beg_),L_cur(L_cur_),l_cur(l_cur_),L_new(L_new_),l_new(l_new_),N(N_){
+		const int path_beg_, const int L_cur_, const int l_cur_, const int L_new_, const int l_new_, const int N_):currentReversalScenario(currentReversalScenario_),proposedReversalScenario(proposedReversalScenario_),path_beg(path_beg_),L_cur(L_cur_),l_cur(l_cur_),L_new(L_new_),l_new(l_new_),N(N_),P_cur_revtypes(ReversalType_COUNT),P_new_revtypes(ReversalType_COUNT){
 	}
 
 	// Probability of sampling a subpath of size l from a path of total size L (size = number of reversals?).
@@ -170,7 +175,7 @@ public:
 	inline double q_lj(const int L, const int l, const int j) const {return q_L(L,l)/(L+1-l);}
 
 	// Probability of proposing a particular path with l inversions.
-	std::vector<double> q_path_factors(const std::vector<ReversalRandom>& path, const std::vector<double>& rev_weights, const double p_stop);
+	std::pair<std::vector<double>,std::vector<int>> q_path_factors(const std::vector<ReversalRandom>& path, const std::vector<double>& rev_weights, const double p_stop);
 
 	// Proposal ratio (Hastings ratio).
 	double getProposalRatio(const std::vector<double>& rev_weights, const double p_stop);
@@ -192,7 +197,9 @@ public:
 	double p_stop{0.99};
 
 	bool debug{false};
-		
+	
+	RandomReversalScenario(){}
+
 	RandomReversalScenario(const std::vector<double>& rev_weights_, const double p_stop, const bool debug):rev_weights(rev_weights_),p_stop(p_stop),debug(debug){
 	}
 
@@ -203,8 +210,9 @@ public:
 
 	std::vector<ReversalRandom> updateReversalScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom> reversals, std::vector<ReversalRandom> reversals_new, const int pos_beg, const int pos_end);
 
-	//int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.65, const double epsilon=8);
-	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.85, const double epsilon=8);
+	// alpha: lengths small than N*alpha are roughly equally likely represented.
+	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.20, const double epsilon=8);
+	//int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.85, const double epsilon=8);
 	int samplePathStart(std::mt19937& rng, const int N, const int l);
 
 	std::pair<std::vector<int>,std::vector<int>> getPathEnds(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
@@ -302,7 +310,8 @@ public:
 		rev_dist = sortGenome.obs_distance;
 
 		// Initialize proposal mean.
-		proposalMean.rev_mean_min   = rev_dist;
+		proposalMean.rev_mean_min = rev_dist;
+		proposalMean.rev_mean_max = 2.0*genome_A_.n;
 
 		// Initialize reversal histories/means.
 		initializeChains();
@@ -327,6 +336,7 @@ public:
 
 		// Initialize proposal mean.
 		proposalMean.rev_mean_min   = rev_dist;
+		proposalMean.rev_mean_max = 2.0*genome_A_.n;
 		
 		std::cout << "- Reversal distance = " << rev_dist << std::endl;
 

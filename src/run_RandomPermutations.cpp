@@ -74,7 +74,7 @@ ReversalMCMC testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultic
 GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const int nb_reversals, const double probRev, std::mt19937& rng){
 	if(nb_reversals > 0){
 		GenomePermutation<BlockSimple> genome_B(genome_A.getExtendedGenome());
-		applyRandomReversals(genome_B, nb_reversals, rng);
+		std::vector<Reversal> reversals = applyRandomReversals(genome_B, nb_reversals, rng);
 		// Convert labels in the random genome.
 		std::vector<int> genome_B_perm = genome_B.getUnextendedPerm();
 		std::vector<int> genome_B_labels;
@@ -88,7 +88,28 @@ GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const 
 			// std::cout << gene_id << " [" << genome_A.gene_labels_map.getLabel(gene_id) << "] ";
 		}
 		// std::cout << std::endl;
-		return GenomeMultichrom<int>(genome_B_labels, genome_B_signs, genome_A.gene_labels_map);
+
+		// Convert labels of reversal history.
+		GenomeMultichrom<int> genome_B_rdm(genome_B_labels, genome_B_signs, genome_A.gene_labels_map);
+
+		std::cout << "Random genomes" << std::endl;
+
+		std::cout << "Genome A: ";
+		for(int i : genome_A.getExtendedGenome()){std::cout << i << " ";}
+		std::cout << std::endl;
+
+		std::cout << "Genome B: ";
+		for(int i : genome_B_rdm.getExtendedGenome()){std::cout << i << " ";}
+		std::cout << std::endl;
+
+		std::cout << "Reversal history" << std::endl;
+		RandomReversalScenario rdmReversalScenario;
+		for (Reversal& rev : reversals){
+			std::cout << " Reversal (" << rev.g_beg << ", " << rev.g_end << "] becomes ";
+			std::cout << " (" << rev.g_beg << ", " << rev.g_beg_next << "]" << std::endl;
+		}
+
+		return genome_B_rdm;
 	} else {
 		return GenomeMultichrom<int>(rng, genome_A.n, genome_A.m, probRev, genome_A.gene_labels_map);
 	}

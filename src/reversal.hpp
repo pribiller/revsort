@@ -109,7 +109,9 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 
 // Apply d random reversals.
 template <typename BlockT>
-void applyRandomReversals(GenomePermutation<BlockT>& genperm, int nb_reversals, std::mt19937& rng) {
+std::vector<Reversal> applyRandomReversals(GenomePermutation<BlockT>& genperm, int nb_reversals, std::mt19937& rng) {
+	// Reversal format: extended permutation (not the original labels).
+	std::vector<Reversal> reversals;
 	// Two genes in the extended permutation are caps that shouldn't be reversed.
 	// The permutation needs to have at least another gene besides the caps to have random permutations.
 	if (genperm.n > 2) {
@@ -124,13 +126,20 @@ void applyRandomReversals(GenomePermutation<BlockT>& genperm, int nb_reversals, 
 			while(g_idx_beg == g_idx_end){g_idx_end = distr(rng);}
 
 			// Get their positions.
-			Gene<BlockT> g_beg = (*genperm.genes[g_idx_beg]);
-			Gene<BlockT> g_end = (*genperm.genes[g_idx_end]);
-			if(g_beg.block->genePosAbs(g_beg) > g_end.block->genePosAbs(g_end)){std::swap(g_beg,g_end);}
+			typename std::list<Gene<BlockT>>::iterator g_beg = genperm.genes[g_idx_beg];
+			typename std::list<Gene<BlockT>>::iterator g_end = genperm.genes[g_idx_end];
+			if(g_beg->block->genePosAbs((*g_beg)) > g_end->block->genePosAbs((*g_end))){std::swap(g_beg,g_end);}
 
-			// Apply reversals (g_beg,g_end].
-			applyReversal(genperm, g_beg.id, g_end.id);
+			typename std::list<Gene<BlockT>>::iterator g_beg_next = g_beg->block->getNextGene(g_beg);
+			typename std::list<Gene<BlockT>>::iterator g_end_next = g_end->block->getNextGene(g_end);
+
+			// Apply reversal (g_beg,g_end].
+			applyReversal(genperm, g_beg->id, g_end->id);
+
+			// Save reversal.
+			reversals.emplace_back(g_beg->id, g_end->id, g_beg_next->id, g_end_next->id);
 		}
 	}
+	return reversals;
 }
 
