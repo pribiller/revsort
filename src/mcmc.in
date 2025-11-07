@@ -1,5 +1,7 @@
 method=mcmc
 nb_chains=8
+nb_temperatures=4
+delta_temp=0.1
 id_run=rev_mcmc
 check_convergence=true
 max_steps=1000

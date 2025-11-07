@@ -29,10 +29,9 @@
  * 
  * To find a random reversal history, at each step
  * a random reversal is sampled. Reversals are categorized
- * in 4 types: "good reversals", "neutral good reversals",
- * "neutral reversals", and "bad reversals". These types are 
- * defined based on how close the genome gets to the target 
- * genome after they are applied.
+ * in 3 types: "good reversals", "neutral reversals", and 
+ * "bad reversals". These types are defined based on how 
+ * close the genome gets to the target genome after they are applied.
  * 
  * References
  * ----------
@@ -62,9 +61,10 @@
  * 1) The generation of a reversal history is similar to Miklos et al. (2009);
  * 
  * 2) The proposal probability, acceptance probability, etc., are computed in a 
- * similar way to the method of York et al. (2002).
+ * similar way to the method of York et al. (2002) [also similar to Miklos (2003)].
  * 
- * 3) The parallel tempering is similar to Larget et al. (2005).
+ * 3) The parallel tempering is similar to Larget et al. (2005), but a 
+ * clearer explanation is provided in Altekar (2004) (Mr.Bayes paper).
  * 
  *******************************************************/
 
@@ -156,7 +156,7 @@ public:
 	//          For example, alpha=0.65, means that there is more or less the same 
 	//          chance to sample a size between 0 and 65% of the total size of the 
 	//          path (N). From this point on, the probability drops to almost 0.
-	double alpha{0.65}; 
+	double alpha{0.30}; 
 	double epsilon{8};
 
 	double proposalRatio{0.0};  // Updated in getProposalRatio.
@@ -167,6 +167,8 @@ public:
 	ProposalReversalScenario(std::vector<ReversalRandom>& currentReversalScenario_, std::vector<ReversalRandom>& proposedReversalScenario_, 
 		const int path_beg_, const int L_cur_, const int l_cur_, const int L_new_, const int l_new_, const int N_):currentReversalScenario(currentReversalScenario_),proposedReversalScenario(proposedReversalScenario_),path_beg(path_beg_),L_cur(L_cur_),l_cur(l_cur_),L_new(L_new_),l_new(l_new_),N(N_),P_cur_revtypes(ReversalType_COUNT),P_new_revtypes(ReversalType_COUNT){
 	}
+
+	ProposalReversalScenario(){}
 
 	// Probability of sampling a subpath of size l from a path of total size L (size = number of reversals?).
 	inline double q_L(const int L, const int l) const {return 1.0-std::tanh(epsilon*(l/(alpha*L)-1));}
@@ -182,9 +184,10 @@ public:
 
 	// Posterior ratio.
 	double getPosteriorRatio(const double rev_mean);
+	double getPosteriorRatio(const double rev_mean, const int L_cur_, const int L_new_, const int N_);
 
 	// Acceptance probability.
-	double getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop);
+	double getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop, const double chain_temp);
 
 };
 
@@ -211,7 +214,7 @@ public:
 	std::vector<ReversalRandom> updateReversalScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom> reversals, std::vector<ReversalRandom> reversals_new, const int pos_beg, const int pos_end);
 
 	// alpha: lengths small than N*alpha are roughly equally likely represented.
-	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.20, const double epsilon=8);
+	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.30, const double epsilon=8);
 	//int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.85, const double epsilon=8);
 	int samplePathStart(std::mt19937& rng, const int N, const int l);
 
@@ -232,6 +235,15 @@ public:
 	std::string id_run{"revMCMC"};
 	int nb_chains;
 
+	// The MCMCMC method, also known as Parallel Tempering or MC^3, allows a 
+	// faster convergence of a chain by "flattening" the landscape.
+	// The "temperature" t of a chain is defined as a value between 0 and 1 
+	// such that (PostRate(X))^t is the posterior rate of chain heated at t.
+	// The cold chain is when t=1; this corresponds to the "normal" case. 
+	// The extreme heated chain is when t=0, where the whole landscape becomes flat.
+	int nb_temperatures; 
+	double delta_temp; // Parameter used to compute the difference in temperature between each chain.
+
 	GenomeMultichrom<int>& genome_B;
 	std::mt19937& rng;
 	bool debug;
@@ -240,7 +252,11 @@ public:
 	std::vector<double>& rev_weights; // Weight of each type of reversal.
 	double p_stop{0.99};
 
-	// It stores the current state of all chains.
+	// It stores the current state of all chains (including "heated" chains).
+	// Indices 0..nb_chains-1 : cold chains (normal chains, no change in their posterior rate).
+	// Indices >= nb_chains   : heated chains.
+	// Thus, to check a heated chain of a chain located in chain_idx:
+	// [desired temperature]*[nb_chains] + chain_idx 
 	std::vector<std::vector<ReversalRandom>> currentState_revHists;
 	std::vector<double> currentState_revMeans;
 
@@ -295,14 +311,16 @@ public:
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
-		const std::string id_run_, const int nb_chains_, const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
+		const std::string id_run_, const int nb_chains_, const int nb_temperatures_, const double delta_temp_,
+		const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
 		const int sample_interval_, const int sample_amount_, int backup_interval_, int print_interval_,
 		std::vector<double>& rev_weights_, double p_stop_, const bool debug_):genome_B(genome_B_),rng(rng_),
-		id_run(id_run_),nb_chains(nb_chains_),check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
+		id_run(id_run_),nb_chains(nb_chains_),nb_temperatures(nb_temperatures_),delta_temp(delta_temp_),
+		check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
 		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),print_interval(print_interval_),
 		rev_weights(rev_weights_),p_stop(p_stop_),debug(debug_),
-		currentState_revHists(nb_chains_),currentState_revMeans(nb_chains_),rev_path_avgsize(nb_chains_),hist_chains(nb_chains_),
-		distr_accept(0.0, 1.0),proposalMean(rng_){
+		currentState_revHists(nb_chains_*nb_temperatures_),currentState_revMeans(nb_chains_*nb_temperatures_),
+		rev_path_avgsize(nb_chains_*nb_temperatures_),hist_chains(nb_chains_), distr_accept(0.0, 1.0),proposalMean(rng_){
 
 		// Compute reversal distance.
 		SortByReversals sortGenome(genome_A_,genome_B_,false);
@@ -320,13 +338,14 @@ public:
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
 		McmcOptions& parameters, const bool debug_):genome_B(genome_B_),rng(rng_),
-		id_run(parameters.id_run),nb_chains(parameters.nb_chains),check_convergence(parameters.check_convergence),
+		id_run(parameters.id_run),nb_chains(parameters.nb_chains),nb_temperatures(parameters.nb_temperatures),delta_temp(parameters.delta_temp),
+		check_convergence(parameters.check_convergence),
 		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),
 		sample_interval(parameters.sample_interval),sample_amount(parameters.sample_amount),
 		backup_interval(parameters.backup_interval),print_interval(parameters.print_interval),
 		rev_weights(parameters.probs),p_stop(parameters.p_stop),debug(debug_),
-		currentState_revHists(parameters.nb_chains),currentState_revMeans(parameters.nb_chains),
-		rev_path_avgsize(parameters.nb_chains),hist_chains(parameters.nb_chains),
+		currentState_revHists(parameters.nb_chains*parameters.nb_temperatures),currentState_revMeans(parameters.nb_chains*parameters.nb_temperatures),
+		rev_path_avgsize(parameters.nb_chains*parameters.nb_temperatures),hist_chains(parameters.nb_chains),
 		distr_accept(0.0, 1.0),proposalMean(rng_){
 
 		// Compute reversal distance.
@@ -349,6 +368,8 @@ public:
 	void serialize(Archive& ar, const unsigned int version) {
 		ar & id_run;
 		ar & nb_chains;
+		ar & nb_temperatures;
+		ar & delta_temp;
 		ar & genome_B;
 		ar & rng;
 		ar & debug;
@@ -391,7 +412,7 @@ public:
 
 	void initializeIdRun(); // TODO: Currently not used.
 	void initializeChains();
-	std::string runSingleChain(const int chainIdx);
+	std::string runSingleChain(const int chainIdx, const double chainTemp);
 	void run();
 
 	// Save the state of the object to a file

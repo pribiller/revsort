@@ -52,6 +52,15 @@ public:
 	std::string id_run{"revMCMC"};
 	int nb_chains{1};
 
+	// The MCMCMC method, also known as Parallel Tempering or MC^3, allows a 
+	// faster convergence of a chain by "flattening" the landscape.
+	// The "temperature" t of a chain is defined as a value between 0 and 1 
+	// such that (PostRate(X))^t is the posterior rate of chain heated at t.
+	// The cold chain is when t=1; this corresponds to the "normal" case. 
+	// The extreme heated chain is when t=0, where the whole landscape becomes flat.
+	int nb_temperatures{1}; 
+	double delta_temp{0.1}; // Parameter used to compute the difference in temperature between each chain.
+
 	// Convergence evaluation: Same method as in York, Durrett, and Nielsen (2002).
 	// We use the method of Gelman and Rubin (1992) to decide when the Markov chain has converged.
 	// If this flag is true,  sampling starts after convergence criteria is satisfied.
@@ -92,9 +101,11 @@ public:
 	
 	McmcOptions(){method = RevMethodType::MCMC;}
 
-	McmcOptions(const int nb_chains_, const int max_steps_, const int pre_burnin_steps_, 
+	McmcOptions(const int nb_chains_, const int nb_temperatures_, const int delta_temp_, 
+		const int max_steps_, const int pre_burnin_steps_, 
 		const double p_good_, const double p_neutral_, const double p_bad_, 
-		const double p_stop_):nb_chains(nb_chains_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
+		const double p_stop_):nb_chains(nb_chains_),nb_temperatures(nb_temperatures_),delta_temp(delta_temp_),
+		max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
 		p_good(p_good_),p_neutral(p_neutral_),p_bad(p_bad_),p_stop(p_stop_){
 		method = RevMethodType::MCMC;
 		probs  = {p_good, p_neutral, p_bad};
@@ -108,6 +119,12 @@ public:
 		}
 		if (parvalues_map.find("nb_chains") != parvalues_map.end()) {
 			nb_chains = std::stoi(parvalues_map["nb_chains"]);
+		}
+		if (parvalues_map.find("nb_temperatures") != parvalues_map.end()) {
+			nb_temperatures = std::stoi(parvalues_map["nb_temperatures"]);
+		}
+		if (parvalues_map.find("delta_temp") != parvalues_map.end()) {
+			delta_temp = std::stod(parvalues_map["delta_temp"]);
 		}
 		if (parvalues_map.find("check_convergence") != parvalues_map.end()) {
 			check_convergence = (parvalues_map["check_convergence"] == "true");
@@ -148,6 +165,8 @@ public:
 	std::string print() override {
 		return "MCMC; id_run=" + id_run
 			+ ", nb_chains=" + std::to_string(nb_chains) 
+			+ ", nb_temperatures=" + std::to_string(nb_temperatures) 
+			+ ", delta_temp=" + std::to_string(delta_temp) 
 			+ ", check_convergence=" + std::to_string(check_convergence)
 			+ ", max_steps=" + std::to_string(max_steps) 
 			+ ", pre_burnin_steps=" + std::to_string(pre_burnin_steps)

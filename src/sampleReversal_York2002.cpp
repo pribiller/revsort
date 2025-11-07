@@ -478,35 +478,35 @@ double ReversalSampler::countReversalsUnorientedComponents(){
 			obs_nb_reversals += countReversalsCycle_trivial(rev_counters[root_idx]);
 
 		// Check if component is a hurdle.
-		} else if (root_idx == next_hurdle) {
+		// } else if (root_idx == next_hurdle) {
 
-			std::vector<int> cycles   = comps.getCycles(comps.forest[root_idx]);
-			const int hurdle_cur_size = sizes_hurdles[next_hurdle_idx];
+		// 	std::vector<int> cycles   = comps.getCycles(comps.forest[root_idx]);
+		// 	const int hurdle_cur_size = sizes_hurdles[next_hurdle_idx];
 
-			// Hurdle - General case (#hurdles > 3).
-			if(nb_hurdles > 3){ 
-				// Get sizes of adjacent hurdles.
-				int hurdles_adj_size = getSizesAdjacentHurdles(sizes_hurdles, next_hurdle_idx);
-				for (int const& cycle_idx : cycles) {
-					obs_nb_reversals += countReversalsCycle_manyHurdles(rev_counters[cycle_idx], cycles_info[cycle_idx].size, hurdles_total_size, hurdle_cur_size, hurdles_adj_size);
-				}
+		// 	// Hurdle - General case (#hurdles > 3).
+		// 	if(nb_hurdles > 3){ 
+		// 		// Get sizes of adjacent hurdles.
+		// 		int hurdles_adj_size = getSizesAdjacentHurdles(sizes_hurdles, next_hurdle_idx);
+		// 		for (int const& cycle_idx : cycles) {
+		// 			obs_nb_reversals += countReversalsCycle_manyHurdles(rev_counters[cycle_idx], cycles_info[cycle_idx].size, hurdles_total_size, hurdle_cur_size, hurdles_adj_size);
+		// 		}
 
-			// Hurdle - Base case (#hurdles = 2 or 3).
-			} else if(nb_hurdles > 1){
-				for (int const& cycle_idx : cycles) {
-					obs_nb_reversals += countReversalsCycle_fewHurdles(rev_counters[cycle_idx], cycles_info[cycle_idx].size, hurdles_total_size, hurdle_cur_size);
-				}
+		// 	// Hurdle - Base case (#hurdles = 2 or 3).
+		// 	} else if(nb_hurdles > 1){
+		// 		for (int const& cycle_idx : cycles) {
+		// 			obs_nb_reversals += countReversalsCycle_fewHurdles(rev_counters[cycle_idx], cycles_info[cycle_idx].size, hurdles_total_size, hurdle_cur_size);
+		// 		}
 
-			// Hurdle - Base case (#hurdles = 1).
-			} else {
-				for (int const& cycle_idx : cycles) {
-					obs_nb_reversals += countReversalsCycle_oneHurdle(rev_counters[cycle_idx], cycles_info[cycle_idx].size, hurdles_total_size, hurdle_cur_size);
-				}
-			}
+		// 	// Hurdle - Base case (#hurdles = 1).
+		// 	} else {
+		// 		for (int const& cycle_idx : cycles) {
+		// 			obs_nb_reversals += countReversalsCycle_oneHurdle(rev_counters[cycle_idx], cycles_info[cycle_idx].size, hurdles_total_size, hurdle_cur_size);
+		// 		}
+		// 	}
 
-			// Update hurdle.
-			next_hurdle_idx += 1;
-			next_hurdle = (nb_hurdles > next_hurdle_idx) ? hurdles[next_hurdle_idx] : -1;
+		// 	// Update hurdle.
+		// 	next_hurdle_idx += 1;
+		// 	next_hurdle = (nb_hurdles > next_hurdle_idx) ? hurdles[next_hurdle_idx] : -1;
 
 		// "Normal" unoriented component.
 		} else {
@@ -1106,6 +1106,7 @@ ReversalType ReversalSampler::getReversalType(const std::pair<int,int>& rev){
 			revtype = getReversalType_Oriented(cycle_idx, rev);
 			break;
 		}
+		case CycleType::HURDLE:
 		case CycleType::UNORIENTED: {
 			if(debug){std::cout << "It is unoriented ";}
 			revtype = getReversalType_Unoriented(cycle_idx, rev);
@@ -1116,11 +1117,11 @@ ReversalType ReversalSampler::getReversalType(const std::pair<int,int>& rev){
 			revtype = getReversalType_Trivial(cycle_idx, rev);
 			break;
 		}
-		case CycleType::HURDLE: {
-			if(debug){std::cout << "It is hurdle ";}
-			revtype = getReversalType_Hurdle(cycle_idx, rev);
-			break;
-		}
+		// case CycleType::HURDLE: {
+		// 	if(debug){std::cout << "It is hurdle ";}
+		// 	revtype = getReversalType_Hurdle(cycle_idx, rev);
+		// 	break;
+		// }
 	}
 	return revtype;
 }

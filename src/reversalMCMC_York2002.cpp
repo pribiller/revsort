@@ -29,10 +29,9 @@
  * 
  * To find a random reversal history, at each step
  * a random reversal is sampled. Reversals are categorized
- * in 4 types: "good reversals", "neutral good reversals",
- * "neutral reversals", and "bad reversals". These types are 
- * defined based on how close the genome gets to the target 
- * genome after they are applied.
+ * in 3 types: "good reversals", "neutral reversals", and 
+ * "bad reversals". These types are defined based on how 
+ * close the genome gets to the target genome after they are applied.
  * 
  * References
  * ----------
@@ -62,9 +61,10 @@
  * 1) The generation of a reversal history is similar to Miklos et al. (2009);
  * 
  * 2) The proposal probability, acceptance probability, etc., are computed in a 
- * similar way to the method of York et al. (2002).
+ * similar way to the method of York et al. (2002) [also similar to Miklos (2003)].
  * 
- * 3) The parallel tempering is similar to Larget et al. (2005).
+ * 3) The parallel tempering is similar to Larget et al. (2005), but a 
+ * clearer explanation is provided in Altekar (2004) (Mr.Bayes paper).
  * 
  *******************************************************/
 
@@ -110,24 +110,29 @@ void ReversalMCMC::initializeChains(){
 	const double p_neutral_min = sampler_std.rev_weights[ReversalType::BAD];
 	const double p_delta = (nb_chains > 1) ? (p_neutral-p_neutral_min)/(nb_chains-1) : 0.0;
 
-	#pragma omp parallel for
-	for (int idx=0; idx<nb_chains; ++idx){
-		RandomReversalScenario sampler(rev_weights,p_stop,false);
-		sampler.rev_weights[ReversalType::NEUTRAL] = p_neutral-idx*p_delta;
-		currentState_revHists[idx] = sampler.sampleScenario(genome_B,rng);
-		currentState_revMeans[idx] = proposalMean.sampleReversalMean(currentState_revHists[idx].size());
-		rev_path_avgsize[idx]      = currentState_revHists[idx].size();
-		std::cout << "- Chain " << idx << ": p_neutral=" << sampler.rev_weights[ReversalType::NEUTRAL] << "; size=" << currentState_revHists[idx].size() << "; size_min=" << rev_dist << std::endl;
+	#pragma omp parallel for collapse(2)
+	for (int chain_idx=0; chain_idx<nb_chains; ++chain_idx){
+		for (int temp_idx=0; temp_idx<nb_temperatures; ++temp_idx){
+
+			const int idx     = temp_idx*nb_chains + chain_idx;
+			const double temp = 1.0/(1.0+temp_idx*delta_temp);
+
+			RandomReversalScenario sampler(rev_weights,p_stop,false);
+			sampler.rev_weights[ReversalType::NEUTRAL] = p_neutral-chain_idx*p_delta;
+			currentState_revHists[idx] = sampler.sampleScenario(genome_B,rng);
+			currentState_revMeans[idx] = proposalMean.sampleReversalMean(currentState_revHists[idx].size());
+			rev_path_avgsize[idx]      = currentState_revHists[idx].size();
+			std::cout << "- Chain " << idx << ": p_neutral=" << sampler.rev_weights[ReversalType::NEUTRAL] << "; size=" << currentState_revHists[idx].size() << "; size_min=" << rev_dist << std::endl;
+		}
 	}
 }
 
-std::string ReversalMCMC::runSingleChain(const int chainIdx){
+std::string ReversalMCMC::runSingleChain(const int chainIdx, const double chainTemp){
 
 	std::vector<ReversalRandom>& reversals = currentState_revHists[chainIdx];
 	double rev_mean = currentState_revMeans[chainIdx];
-
 	// Sample a modified reversal history.
-	if(debug){std::cout << "\nSampling modified scenario..." << std::endl;}
+	if(debug){std::cout << "\nSampling modified scenario (chainTemp=" << chainTemp << ")..." << std::endl;}
 	RandomReversalScenario sampler(rev_weights, p_stop, debug);
 	ProposalReversalScenario proposalHist = sampler.sampleModifiedScenario(genome_B, reversals, rng);
 
@@ -138,7 +143,7 @@ std::string ReversalMCMC::runSingleChain(const int chainIdx){
 
 	// Compute the acceptance probability of the modified reversal history.
 	if(debug){std::cout << "\nComputing acceptance probability..." << std::endl;}
-	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop);
+	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop, chainTemp);
 	if(debug){std::cout << "Acceptance prob. = " << acceptanceProb << "; Posterior ratio = " << proposalHist.posteriorRatio << "; Proposal ratio = " << proposalHist.proposalRatio << std::endl;}
 
 	status = status + "; Rev.Types: Cur= ";
@@ -152,12 +157,12 @@ std::string ReversalMCMC::runSingleChain(const int chainIdx){
 
 	// Check if current reversal history should be updated or not based on the acceptance probability.
 	const double val = distr_accept(rng);
-	if(val < acceptanceProb){
-		if(debug){std::cout << "\nNew scenario: accepted..." << std::endl;}
+	if(val <= acceptanceProb){
+		if(debug){std::cout << "\nNew scenario: ACCEPTED" << std::endl;}
 		currentState_revHists[chainIdx] = proposalHist.proposedReversalScenario;
 		status = status + " [ACCEPTED] : " + std::to_string(currentState_revHists[chainIdx].size()) + "; rdm=" + std::to_string(val) + "; accepProb=" + boost::lexical_cast<std::string>(acceptanceProb) + "; postRatio=" + boost::lexical_cast<std::string>(proposalHist.posteriorRatio) + "; propRatio=" + boost::lexical_cast<std::string>(proposalHist.proposalRatio);
 	} else {
-		if(debug){std::cout << "\nNew scenario: rejected..." << std::endl;}
+		if(debug){std::cout << "\nNew scenario: REJECTED" << std::endl;}
 		status = status + " [REJECTED] : " + std::to_string(currentState_revHists[chainIdx].size()) + "; rdm=" + std::to_string(val) + "; accepProb=" + boost::lexical_cast<std::string>(acceptanceProb) + "; postRatio=" + boost::lexical_cast<std::string>(proposalHist.posteriorRatio) + "; propRatio=" + boost::lexical_cast<std::string>(proposalHist.proposalRatio);
 	}
 
@@ -165,10 +170,10 @@ std::string ReversalMCMC::runSingleChain(const int chainIdx){
 	proposalMean.proposeNewValue(currentState_revHists[chainIdx].size(), currentState_revMeans[chainIdx]);
 	if(debug){std::cout << "\nCur. mean= " << currentState_revMeans[chainIdx] << "; New mean=" << proposalMean.rev_mean_new << "; Acceptance prob.=" << proposalMean.acceptanceProb << std::endl;}
 	if(distr_accept(rng) < proposalMean.acceptanceProb){
-		if(debug){std::cout << "\nNew mean: accepted..." << std::endl;}
+		if(debug){std::cout << "\nNew mean (λ=" << proposalMean.rev_mean_new << "): ACCEPTED..." << std::endl;}
 		currentState_revMeans[chainIdx] = proposalMean.rev_mean_new;
 	} else {
-		if(debug){std::cout << "\nNew mean: rejected..." << std::endl;}
+		if(debug){std::cout << "\nNew mean (λ=" << proposalMean.rev_mean_new << "): REJECTED..." << std::endl;}
 	}
 	return status;
 }
@@ -212,30 +217,79 @@ void ReversalMCMC::run(){
 	bool sample_state     = false;
 	int last_sampled_step = 0;
 	std::uniform_int_distribution distr_sample(0, nb_chains-1);
+	const int N = genome_B.n;
 
 	while((cur_step < max_steps) && (sampled_revMeans.size() < sample_amount)){
 		// Update current step.
 		++cur_step;
-		std::vector<std::string> status_all(nb_chains);
+		std::vector<std::string> status_all(nb_chains*nb_temperatures);
+
+		// std::cout << "Running step " << cur_step << std::endl;
 
 		// Run current step for all chains in parallel.
-		#pragma omp parallel for
-		for (int idx=0; idx<nb_chains; ++idx){
-			status_all[idx] = runSingleChain(idx);
-			
-			// Update average path size for each chain (L_j).
-			if(cur_step > pre_burnin_steps) {
-				const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
-				// Initial step.
-				if(steps_after_pre_burnin == 1){
-					rev_path_avgsize[idx] = currentState_revHists[idx].size();
-				// General step.
-				} else {
-					rev_path_avgsize[idx] = ((steps_after_pre_burnin-1.0)/steps_after_pre_burnin)*rev_path_avgsize[idx] + static_cast<double>(currentState_revHists[idx].size())/steps_after_pre_burnin;
+		// std::cout << "Updating chains..." << std::endl;
+		#pragma omp parallel for collapse(2)
+		for (int chain_idx=0; chain_idx<nb_chains; ++chain_idx){
+			for (int temp_idx=0; temp_idx<nb_temperatures; ++temp_idx){
+
+				const int idx     = temp_idx*nb_chains + chain_idx;
+				const double temp = 1.0/(1.0+temp_idx*delta_temp);
+				status_all[idx]   = runSingleChain(idx, temp);
+				
+				// Update average path size for each chain (L_j).
+				if(cur_step > pre_burnin_steps) {
+					const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
+					// Initial step.
+					if(steps_after_pre_burnin == 1){
+						rev_path_avgsize[idx] = currentState_revHists[idx].size();
+					// General step.
+					} else {
+						rev_path_avgsize[idx] = ((steps_after_pre_burnin-1.0)/steps_after_pre_burnin)*rev_path_avgsize[idx] + static_cast<double>(currentState_revHists[idx].size())/steps_after_pre_burnin;
+					}
 				}
 			}
 		}
 		
+		// Swap chains.
+		if((int(cur_step) % print_interval) == 0){
+			std::cout << "\nStep " << cur_step << " - Swapping chains" << std::endl;
+		} 
+		// std::cout << "Swapping chains..." << std::endl;
+		ProposalReversalScenario propSwap;
+		for (int temp_idx=0; temp_idx<(nb_temperatures-1); ++temp_idx){
+			for (int chain_idx=0; chain_idx<nb_chains; ++chain_idx){
+
+				const int idx_cur  = temp_idx*nb_chains     + chain_idx;
+				const int idx_heat = (temp_idx+1)*nb_chains + chain_idx;
+				
+				const double temp_cur  = 1.0/(1.0+temp_idx*delta_temp);
+				const double temp_heat = 1.0/(1.0+(temp_idx+1)*delta_temp);
+
+				const int L_cur  = currentState_revHists[idx_cur].size();
+				const int L_heat = currentState_revHists[idx_heat].size();
+
+				double rev_mean_cur  = currentState_revMeans[idx_cur];
+				double rev_mean_heat = currentState_revMeans[idx_heat];
+				
+				// Check if states of chain i at temperature j and j+1 should be swaped.
+				// Swap of states is accepted with probability: min(1,[(post_i^temp_j)*(post_j^temp_i)]/[(post_j^temp_j)*(post_i^temp_i)])
+				const double acceptanceProb_swap = std::min(1.0, std::pow(propSwap.getPosteriorRatio(rev_mean_cur, L_cur, L_heat, N),temp_cur)*std::pow(propSwap.getPosteriorRatio(rev_mean_heat, L_heat, L_cur, N),temp_heat));
+
+				const double val = distr_accept(rng);
+				if(val <= acceptanceProb_swap){
+					if((int(cur_step) % print_interval) == 0){
+						std::cout << " [ACCEPTED] : Chains w/temps " << temp_idx << " (L=" << L_cur<< ") and " << (temp_idx+1) << " (L=" << L_heat << ") swaped; rdm=" << val << "; accepProb=" << boost::lexical_cast<std::string>(acceptanceProb_swap) << std::endl;
+					}
+					std::swap(currentState_revHists[idx_cur], currentState_revHists[idx_heat]);
+					std::swap(currentState_revMeans[idx_cur], currentState_revMeans[idx_heat]);					
+				} else {
+					if((int(cur_step) % print_interval) == 0){
+						std::cout << " [REJECTED] : Chains w/temps " << temp_idx << " (L=" << L_cur<< ") and " << (temp_idx+1) << " (L=" << L_heat << ") not swaped; rdm=" << val << "; accepProb=" << boost::lexical_cast<std::string>(acceptanceProb_swap) << std::endl;
+					}
+				}
+			}
+		}
+
 		// Compute convergence measures if pre burn-in phase is over.
 		if((cur_step > pre_burnin_steps) && (nb_chains > 1)){
 			const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
@@ -350,6 +404,8 @@ double ProposalReversalMean::getAcceptanceProb(const int rev_path_len, const dou
 // for actually stopping upon reaching the target genome 
 // [from York, Durrett, and Nielsen (2002)].
 std::pair<std::vector<double>,std::vector<int>> ProposalReversalScenario::q_path_factors(const std::vector<ReversalRandom>& path, const std::vector<double>& rev_weights, const double p_stop){
+	// std::cout << "Factors: " << std::endl;
+
 	std::vector<double> factors;
 	std::vector<int> path_rev_types(ReversalType_COUNT);
 	factors.reserve(path.size());
@@ -370,6 +426,7 @@ std::pair<std::vector<double>,std::vector<int>> ProposalReversalScenario::q_path
 		// For example, there is no bias depending on the reversal location or its size.
 		const int N_revtype = rev.rev_totals[rev.type];
 
+		// std::cout << "\t Type: " << rev.type << "; Nb: " << N_revtype << "; w= " << w_revtype << " /" << w_total  << "(" << w_total/w_revtype << ")" << std::endl;
 		if(w_revtype > 0.0){
 			factors.emplace_back((w_total/w_revtype)*(N_revtype/1.0));
 			// factors.emplace_back(w_total/w_revtype);
@@ -421,21 +478,21 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 	std::sort(q_cur.begin(), q_cur.end(), std::greater<double>());
 	std::sort(q_new.begin(), q_new.end(), std::greater<double>());
 
+	// debug=true;
 	// Compute the proposal ratio (Hastings ratio).
 	// Proposal ratio: q(X|Y) / q(Y|X)
 	// q(X|Y) = q_L'(l',j) * q_old
 	// q(Y|X) = q_L(l,j)   * q_new
 	proposalRatio = q_lj_new/q_lj_cur; // q_L'(l',j) / q_L(l,j)
-	if(debug){std::cout << " - q_L'(l',j)=" << q_lj_new << "; q_L(l,j)=" << q_lj_cur << "; ratio=" << proposalRatio << std::endl;}
+	if(debug){std::cout << " - q_L'(l',j)=" << q_lj_new << "; q_L(l,j)=" << q_lj_cur << "; ratio=" << proposalRatio  << " " << q_L(L_cur, l_cur)  << " " << q_L(L_new, l_new) << " " << std::endl;}
 	int factors_max = std::max(q_cur.size(), q_new.size());
 	int factors_idx = 0;
-	// debug=true;
 	while(factors_idx < factors_max){
 		// Instead of doing (1/q_old) / (1/q_new) = q_new / q_old
 		const double num = (factors_idx < q_new.size()) ? q_new[factors_idx] : 1.0;
 		const double den = (factors_idx < q_cur.size()) ? q_cur[factors_idx] : 1.0;
 		proposalRatio *= (num/den);
-		if(debug){std::cout << " - Factors : cur=" << q_cur[factors_idx] << "; prop=" << q_new[factors_idx] << std::endl;}
+		if(debug){std::cout << " - Factors : cur=" << ((factors_idx < q_cur.size()) ? q_cur[factors_idx] : 0.0) << "; prop=" << ((factors_idx < q_new.size()) ? q_new[factors_idx] : 0.0) << std::endl;}
 		++factors_idx;
 	}
 	if(debug){std::cout << " - Proposal ratio : " << proposalRatio << std::endl;}
@@ -446,22 +503,28 @@ double ProposalReversalScenario::getProposalRatio(const std::vector<double>& rev
 // The posterior ratio is the ratio of the posterior probability
 // of the proposed state over that of the current state. 
 double ProposalReversalScenario::getPosteriorRatio(const double rev_mean){
+	return getPosteriorRatio(rev_mean, L_cur, L_new, N);
+}
+
+// The posterior ratio is the ratio of the posterior probability
+// of the proposed state over that of the current state. 
+double ProposalReversalScenario::getPosteriorRatio(const double rev_mean, const int L_cur_, const int L_new_, const int N_){
 	
 	// Simple case: both paths have the same size.
 	// For now there is no bias towards small reversals or specific regions for example.
 	posteriorRatio = 1.0;
-	if (L_cur == L_new) {return 1.0;}
+	if (L_cur_ == L_new_) {return 1.0;}
 	
 	// Number of possible reversals that can be done in a certain step (including all types: good, bad, neutral).
-	const int nb_rev_step = N*(N+1)/2;
+	const int nb_rev_step = N_*(N_+1)/2;
 	
 	// Compute the term [lambda^(-L_cur + L_new) * L_cur! / L_new!]
 	// avoiding the calculation of factorials which can become large.
-	const int L_ub = std::max(L_cur, L_new);
-	const int L_lb = std::min(L_cur, L_new);
+	const int L_ub = std::max(L_cur_, L_new_);
+	const int L_lb = std::min(L_cur_, L_new_);
 	double factorial = 1.0;
 	for(int factor = L_lb; factor < L_ub; ++factor){
-		if(L_cur > L_new) {
+		if(L_cur_ > L_new_) {
 			factorial *= ((factor+1.0)/rev_mean);
 		} else {
 			factorial *= (rev_mean/(factor+1.0));
@@ -470,15 +533,15 @@ double ProposalReversalScenario::getPosteriorRatio(const double rev_mean){
 
 	// P(X_new|lambda) / P(X_cur|lambda)
 	// P(X|lambda) is defined in York, Durrett, and Nielsen (2002)
-	posteriorRatio = std::pow(nb_rev_step, -L_new+L_cur) * factorial;
-	if(debug){std::cout << " - Posterior ratio : " << posteriorRatio << "; Comb=" << std::pow(nb_rev_step, -L_new+L_cur) << "; Fact=" << factorial << std::endl;}
+	posteriorRatio = std::pow(nb_rev_step, -L_new_+L_cur_) * factorial;
+	if(debug){std::cout << " - Posterior ratio : " << posteriorRatio << "; Comb=" << std::pow(nb_rev_step, -L_new_+L_cur_) << "; Fact=" << factorial << std::endl;}
 	return posteriorRatio;
 }
 
 // The acceptance probability is the minimum of one and
 // the product of the posterior ratio and the proposal ratio.
-double ProposalReversalScenario::getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop){
-	double acceptanceProb = std::min(1.0, getProposalRatio(rev_weights, p_stop)*getPosteriorRatio(rev_mean));
+double ProposalReversalScenario::getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop, const double chain_temp){
+	double acceptanceProb = std::min(1.0, getProposalRatio(rev_weights, p_stop)*std::pow(getPosteriorRatio(rev_mean),chain_temp));
 	// std::cout << " > Acceptance : " << acceptanceProb << "; Proposal ratio : " << proposalRatio << "; Posterior ratio : " << posteriorRatio << std::endl;
 	return acceptanceProb;
 }
