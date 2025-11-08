@@ -165,7 +165,10 @@ public:
 	bool debug{false};
 
 	ProposalReversalScenario(std::vector<ReversalRandom>& currentReversalScenario_, std::vector<ReversalRandom>& proposedReversalScenario_, 
-		const int path_beg_, const int L_cur_, const int l_cur_, const int L_new_, const int l_new_, const int N_):currentReversalScenario(currentReversalScenario_),proposedReversalScenario(proposedReversalScenario_),path_beg(path_beg_),L_cur(L_cur_),l_cur(l_cur_),L_new(L_new_),l_new(l_new_),N(N_),P_cur_revtypes(ReversalType_COUNT),P_new_revtypes(ReversalType_COUNT){
+		const int path_beg_, const int L_cur_, const int l_cur_, const int L_new_, const int l_new_, const int N_,
+		const double alpha_, const double epsilon_):currentReversalScenario(currentReversalScenario_),proposedReversalScenario(proposedReversalScenario_),
+		path_beg(path_beg_),L_cur(L_cur_),l_cur(l_cur_),L_new(L_new_),l_new(l_new_),N(N_),
+		P_cur_revtypes(ReversalType_COUNT),P_new_revtypes(ReversalType_COUNT),alpha(alpha_),epsilon(epsilon_){
 	}
 
 	ProposalReversalScenario(){}
@@ -199,11 +202,20 @@ public:
 	std::vector<double> rev_weights;  // Weight of each type of reversal.
 	double p_stop{0.99};
 
+	// Sampling subpath parameters.
+	// q(l) ~ 1 - tanh(epsilon*(l/(alpha*N)-1))
+	// - alpha: lengths small than N*alpha are roughly equally likely represented.
+	//          For example, alpha=0.65, means that there is more or less the same 
+	//          chance to sample a size between 0 and 65% of the total size of the 
+	//          path (N). From this point on, the probability drops to almost 0.
+	double alpha{0.30}; 
+	double epsilon{8};
+
 	bool debug{false};
 	
 	RandomReversalScenario(){}
 
-	RandomReversalScenario(const std::vector<double>& rev_weights_, const double p_stop, const bool debug):rev_weights(rev_weights_),p_stop(p_stop),debug(debug){
+	RandomReversalScenario(const std::vector<double>& rev_weights_, const double p_stop_, const double alpha_, const double epsilon_, const bool debug_):rev_weights(rev_weights_),p_stop(p_stop_),alpha(alpha_),epsilon(epsilon_),debug(debug_){
 	}
 
 	std::vector<ReversalRandom> getSubpath(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
@@ -214,7 +226,7 @@ public:
 	std::vector<ReversalRandom> updateReversalScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom> reversals, std::vector<ReversalRandom> reversals_new, const int pos_beg, const int pos_end);
 
 	// alpha: lengths small than N*alpha are roughly equally likely represented.
-	int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.30, const double epsilon=8);
+	int samplePathLength(std::mt19937& rng, const int N);
 	//int samplePathLength(std::mt19937& rng, const int N, const double alpha=0.85, const double epsilon=8);
 	int samplePathStart(std::mt19937& rng, const int N, const int l);
 
@@ -251,6 +263,15 @@ public:
 	int rev_dist{-1}; // It makes sure that estimated nb. of reversals is equal or above the reversal distance.
 	std::vector<double>& rev_weights; // Weight of each type of reversal.
 	double p_stop{0.99};
+
+	// Sampling subpath parameters.
+	// q(l) ~ 1 - tanh(epsilon*(l/(alpha*N)-1))
+	// - alpha: lengths small than N*alpha are roughly equally likely represented.
+	//          For example, alpha=0.65, means that there is more or less the same 
+	//          chance to sample a size between 0 and 65% of the total size of the 
+	//          path (N). From this point on, the probability drops to almost 0.
+	double alpha{0.30}; 
+	double epsilon{8};
 
 	// It stores the current state of all chains (including "heated" chains).
 	// Indices 0..nb_chains-1 : cold chains (normal chains, no change in their posterior rate).
@@ -313,12 +334,12 @@ public:
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
 		const std::string id_run_, const int nb_chains_, const int nb_temperatures_, const double delta_temp_,
 		const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
-		const int sample_interval_, const int sample_amount_, int backup_interval_, int print_interval_,
-		std::vector<double>& rev_weights_, double p_stop_, const bool debug_):genome_B(genome_B_),rng(rng_),
+		const int sample_interval_, const int sample_amount_, const int backup_interval_, const int print_interval_,
+		std::vector<double>& rev_weights_, const double p_stop_, const double alpha_, const double epsilon_, const bool debug_):genome_B(genome_B_),rng(rng_),
 		id_run(id_run_),nb_chains(nb_chains_),nb_temperatures(nb_temperatures_),delta_temp(delta_temp_),
 		check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
 		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),print_interval(print_interval_),
-		rev_weights(rev_weights_),p_stop(p_stop_),debug(debug_),
+		rev_weights(rev_weights_),p_stop(p_stop_),alpha(alpha_),epsilon(epsilon_),debug(debug_),
 		currentState_revHists(nb_chains_*nb_temperatures_),currentState_revMeans(nb_chains_*nb_temperatures_),
 		rev_path_avgsize(nb_chains_*nb_temperatures_),hist_chains(nb_chains_), distr_accept(0.0, 1.0),proposalMean(rng_){
 
@@ -343,7 +364,7 @@ public:
 		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),
 		sample_interval(parameters.sample_interval),sample_amount(parameters.sample_amount),
 		backup_interval(parameters.backup_interval),print_interval(parameters.print_interval),
-		rev_weights(parameters.probs),p_stop(parameters.p_stop),debug(debug_),
+		rev_weights(parameters.probs),p_stop(parameters.p_stop),debug(debug_),alpha(parameters.alpha),epsilon(parameters.epsilon),
 		currentState_revHists(parameters.nb_chains*parameters.nb_temperatures),currentState_revMeans(parameters.nb_chains*parameters.nb_temperatures),
 		rev_path_avgsize(parameters.nb_chains*parameters.nb_temperatures),hist_chains(parameters.nb_chains),
 		distr_accept(0.0, 1.0),proposalMean(rng_){
@@ -376,6 +397,8 @@ public:
 		ar & rev_dist;
 		ar & rev_weights;
 		ar & p_stop;
+		ar & alpha;
+		ar & epsilon;
 		ar & currentState_revHists;
 		ar & currentState_revMeans;
 		ar & hist_chains;

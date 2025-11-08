@@ -105,7 +105,7 @@ void ReversalMCMC::initializeChains(){
 	// the sampling of shorter and longer paths.
 	// - p_neutral used in initial paths in York, Durrett, and Nielsen:
 	// [0.025 (short initial inversions paths), 0.7 (long initial inversion paths)]
-	RandomReversalScenario sampler_std(rev_weights,p_stop,false);
+	RandomReversalScenario sampler_std(rev_weights,p_stop,alpha,epsilon,false);
 	const double p_neutral     = sampler_std.rev_weights[ReversalType::GOOD]/2.0;
 	const double p_neutral_min = sampler_std.rev_weights[ReversalType::BAD];
 	const double p_delta = (nb_chains > 1) ? (p_neutral-p_neutral_min)/(nb_chains-1) : 0.0;
@@ -117,7 +117,7 @@ void ReversalMCMC::initializeChains(){
 			const int idx     = temp_idx*nb_chains + chain_idx;
 			const double temp = 1.0/(1.0+temp_idx*delta_temp);
 
-			RandomReversalScenario sampler(rev_weights,p_stop,false);
+			RandomReversalScenario sampler(rev_weights,p_stop,alpha,epsilon,false);
 			sampler.rev_weights[ReversalType::NEUTRAL] = p_neutral-chain_idx*p_delta;
 			currentState_revHists[idx] = sampler.sampleScenario(genome_B,rng);
 			currentState_revMeans[idx] = proposalMean.sampleReversalMean(currentState_revHists[idx].size());
@@ -133,7 +133,7 @@ std::string ReversalMCMC::runSingleChain(const int chainIdx, const double chainT
 	double rev_mean = currentState_revMeans[chainIdx];
 	// Sample a modified reversal history.
 	if(debug){std::cout << "\nSampling modified scenario (chainTemp=" << chainTemp << ")..." << std::endl;}
-	RandomReversalScenario sampler(rev_weights, p_stop, debug);
+	RandomReversalScenario sampler(rev_weights, p_stop, alpha, epsilon, debug);
 	ProposalReversalScenario proposalHist = sampler.sampleModifiedScenario(genome_B, reversals, rng);
 
 	std::string status =  "  L_cur=" + std::to_string(proposalHist.L_cur)
@@ -648,7 +648,7 @@ std::vector<ReversalRandom> RandomReversalScenario::sampleScenario(GenomeMultich
 	return reversals;
 }
 
-int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N, const double alpha, const double epsilon){
+int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N){
 	// q(l) ~ 1 - tanh(epsilon*(l/(alpha*N)-1))
 	// - alpha: lengths small than N*alpha are roughly equally likely represented.
 	//          For example, alpha=0.65, means that there is more or less the same 
@@ -803,7 +803,7 @@ ProposalReversalScenario RandomReversalScenario::sampleModifiedScenario(GenomeMu
 		printSortingScenario(genome_B, reversals_new, j, j+l_new);
 	}
 	// std::vector<ReversalRandom> reversals_new;
-	return ProposalReversalScenario(reversals_cur, reversals_new, j, N, l, N_new, l_new, genome_B.n);
+	return ProposalReversalScenario(reversals_cur, reversals_new, j, N, l, N_new, l_new, genome_B.n, alpha, epsilon);
 }
 
 void RandomReversalScenario::printSortingScenario(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, int pos_beg, int pos_end) {

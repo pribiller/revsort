@@ -86,6 +86,15 @@ public:
 	// Steps in which stats about the chains are printed.
 	int print_interval{50};
 
+	// Sampling subpath parameters.
+	// q(l) ~ 1 - tanh(epsilon*(l/(alpha*N)-1))
+	// - alpha: lengths small than N*alpha are roughly equally likely represented.
+	//          For example, alpha=0.65, means that there is more or less the same 
+	//          chance to sample a size between 0 and 65% of the total size of the 
+	//          path (N). From this point on, the probability drops to almost 0.
+	double alpha{0.30};
+	double epsilon{8};
+
 	// If the probability of bad reversals is too low, then the proposal ratio of better paths decreases:
 	// - Proposal ratio increases as P(old|new) / P(new|old).
 	// If the old path is composed of one or more bad reversals, and the probability of bad reversals is very low,
@@ -147,6 +156,12 @@ public:
 		if (parvalues_map.find("print_interval") != parvalues_map.end()) {
 			print_interval = std::stoi(parvalues_map["print_interval"]);
 		}
+		if (parvalues_map.find("alpha") != parvalues_map.end()) {
+			alpha = std::stod(parvalues_map["alpha"]);
+		}
+		if (parvalues_map.find("epsilon") != parvalues_map.end()) {
+			epsilon = std::stod(parvalues_map["epsilon"]);
+		}
 		if (parvalues_map.find("p_good") != parvalues_map.end()) {
 			p_good = std::stod(parvalues_map["p_good"]);
 		}
@@ -164,20 +179,22 @@ public:
 
 	std::string print() override {
 		return "MCMC; id_run=" + id_run
-			+ ", nb_chains=" + std::to_string(nb_chains) 
-			+ ", nb_temperatures=" + std::to_string(nb_temperatures) 
-			+ ", delta_temp=" + std::to_string(delta_temp) 
+			+ ", nb_chains="   + std::to_string(nb_chains) 
+			+ ", nb_temperatures="   + std::to_string(nb_temperatures) 
+			+ ", delta_temp="  + std::to_string(delta_temp) 
 			+ ", check_convergence=" + std::to_string(check_convergence)
-			+ ", max_steps=" + std::to_string(max_steps) 
-			+ ", pre_burnin_steps=" + std::to_string(pre_burnin_steps)
-			+ ", sample_interval="  + std::to_string(sample_interval)
-			+ ", sample_amount="    + std::to_string(sample_amount)
-			+ ", backup_interval="  + std::to_string(backup_interval)
-			+ ", print_interval="  + std::to_string(print_interval)
-			+ ", p_good=" + std::to_string(p_good)
+			+ ", max_steps="   + std::to_string(max_steps) 
+			+ ", pre_burnin_steps="  + std::to_string(pre_burnin_steps)
+			+ ", sample_interval="   + std::to_string(sample_interval)
+			+ ", sample_amount="     + std::to_string(sample_amount)
+			+ ", backup_interval="   + std::to_string(backup_interval)
+			+ ", print_interval="    + std::to_string(print_interval)
+			+ ", alpha="     + std::to_string(alpha)
+			+ ", epsilon="   + std::to_string(epsilon)
+			+ ", p_good="    + std::to_string(p_good)
 			+ ", p_neutral=" + std::to_string(p_neutral)
-			+ ", p_bad="  + std::to_string(p_bad)
-			+ ", p_stop=" + std::to_string(p_stop);
+			+ ", p_bad="     + std::to_string(p_bad)
+			+ ", p_stop="    + std::to_string(p_stop);
 	}
 };
 
