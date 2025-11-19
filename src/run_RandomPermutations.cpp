@@ -64,11 +64,17 @@ SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMult
 }
 
 ReversalMCMC testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, int verbose, McmcOptions* parameters){
-	const bool debug = (verbose > 2);	
+	const bool debug = (verbose > 2);
 	std::cout << "Starting " << parameters->print() << "..." << std::endl;
 	ReversalMCMC mcmc(genome_A,genome_B,rng,(*parameters),false);
+
+	// Load last saved state if the option "resume_run" is 'true' and the checkpoint file exists.
+	const std::string bkp_filename = mcmc.getBackupFilename();
+	if((parameters->resume_run) && isValidPath(bkp_filename)){mcmc.loadState(bkp_filename);}
+	
 	mcmc.run();
 	return mcmc;
+
 }
 
 GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const int nb_reversals, const double probRev, std::mt19937& rng){

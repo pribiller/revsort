@@ -118,6 +118,11 @@ std::vector<Reversal> applyRandomReversals(GenomePermutation<BlockT>& genperm, i
 		// Uniform distribution in the closed interval [0,n-2] (the rightmost cap will never appear in any reversal).
 		std::uniform_int_distribution distr(1, genperm.n-2);
 
+		std::vector<int> perm_i = genperm.getExtendedPerm();
+		std::cout << "[d=0]: ";
+		for(int i: perm_i){std::cout << i << " ";}
+		std::cout << std::endl;
+
 		// Apply d random reversals.
 		for (int i = 0; i < nb_reversals; ++i){
 			// Choose two random genes.
@@ -135,6 +140,11 @@ std::vector<Reversal> applyRandomReversals(GenomePermutation<BlockT>& genperm, i
 
 			// Apply reversal (g_beg,g_end].
 			applyReversal(genperm, g_beg->id, g_end->id);
+
+			perm_i = genperm.getExtendedPerm();
+			std::cout << "[d=" << (i+1) << "]: ";
+			for(int i: perm_i){std::cout << i << " ";}
+			std::cout << "(" << g_beg->id << ", " << g_end->id << "]" << std::endl;
 
 			// Save reversal.
 			reversals.emplace_back(g_beg->id, g_end->id, g_beg_next->id, g_end_next->id);

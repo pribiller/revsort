@@ -190,7 +190,7 @@ public:
 	double getPosteriorRatio(const double rev_mean, const int L_cur_, const int L_new_, const int N_);
 
 	// Acceptance probability.
-	double getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop, const double chain_temp);
+	double getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop, const double chain_temp, const bool isPreBurninOver);
 
 };
 
@@ -435,7 +435,7 @@ public:
 
 	void initializeIdRun(); // TODO: Currently not used.
 	void initializeChains();
-	std::string runSingleChain(const int chainIdx, const double chainTemp);
+	std::string runSingleChain(const int chainIdx, const double chainTemp, const bool isPreBurninOver);
 	void run();
 
 	// Save the state of the object to a file
@@ -454,4 +454,6 @@ public:
 
 	double computeWithinChainVariance();
 	double computeBetweenChainVariance();
+
+	inline std::string getBackupFilename() const {return id_run + ".bkp";}
 };

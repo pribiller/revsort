@@ -127,7 +127,7 @@ void ReversalMCMC::initializeChains(){
 	}
 }
 
-std::string ReversalMCMC::runSingleChain(const int chainIdx, const double chainTemp){
+std::string ReversalMCMC::runSingleChain(const int chainIdx, const double chainTemp, const bool isPreBurninOver){
 
 	std::vector<ReversalRandom>& reversals = currentState_revHists[chainIdx];
 	double rev_mean = currentState_revMeans[chainIdx];
@@ -136,14 +136,23 @@ std::string ReversalMCMC::runSingleChain(const int chainIdx, const double chainT
 	RandomReversalScenario sampler(rev_weights, p_stop, alpha, epsilon, debug);
 	ProposalReversalScenario proposalHist = sampler.sampleModifiedScenario(genome_B, reversals, rng);
 
+	std::string status_L_new = "[EQUAL]";
+	if (proposalHist.L_new < proposalHist.L_cur) {
+		status_L_new = "[SMALL]";
+
+	} else if (proposalHist.L_new > proposalHist.L_cur) {
+		status_L_new = "[BIG]";
+	}
+
 	std::string status =  "  L_cur=" + std::to_string(proposalHist.L_cur)
 						+ "  l_cur=" + std::to_string(proposalHist.l_cur)
 						+ "  L_new=" + std::to_string(proposalHist.L_new)
-						+ "  l_new=" + std::to_string(proposalHist.l_new);
+						+ "  l_new=" + std::to_string(proposalHist.l_new)
+						+ "  " + status_L_new;
 
 	// Compute the acceptance probability of the modified reversal history.
 	if(debug){std::cout << "\nComputing acceptance probability..." << std::endl;}
-	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop, chainTemp);
+	double acceptanceProb = proposalHist.getAcceptanceProb(rev_mean, sampler.rev_weights, sampler.p_stop, chainTemp, isPreBurninOver);
 	if(debug){std::cout << "Acceptance prob. = " << acceptanceProb << "; Posterior ratio = " << proposalHist.posteriorRatio << "; Proposal ratio = " << proposalHist.proposalRatio << std::endl;}
 
 	status = status + "; Rev.Types: Cur= ";
@@ -212,7 +221,7 @@ double ReversalMCMC::computeBetweenChainVariance(){
 void ReversalMCMC::run(){
 	
 	// TODO: Change directory for the run.
-	const std::string bkp_filename = id_run + ".bkp";
+	const std::string bkp_filename = getBackupFilename();
 
 	bool sample_state     = false;
 	int last_sampled_step = 0;
@@ -224,6 +233,11 @@ void ReversalMCMC::run(){
 		++cur_step;
 		std::vector<std::string> status_all(nb_chains*nb_temperatures);
 
+		// Pre-burn-in phase ignores proposal ratio and only considers posterior ratio.
+		// According to Larget et al. (2004), ignoring the Hastings ratio correction for a number of pre-burn-in updates 
+		// will rapidly drive the initial inversion history and tree closer to most parsimonious solutions where the posterior distribution is higher.
+		const bool isPreBurninOver = (cur_step > pre_burnin_steps);
+
 		// std::cout << "Running step " << cur_step << std::endl;
 
 		// Run current step for all chains in parallel.
@@ -234,10 +248,10 @@ void ReversalMCMC::run(){
 
 				const int idx     = temp_idx*nb_chains + chain_idx;
 				const double temp = 1.0/(1.0+temp_idx*delta_temp);
-				status_all[idx]   = runSingleChain(idx, temp);
+				status_all[idx]   = runSingleChain(idx, temp, isPreBurninOver);
 				
 				// Update average path size for each chain (L_j).
-				if(cur_step > pre_burnin_steps) {
+				if(isPreBurninOver) {
 					const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
 					// Initial step.
 					if(steps_after_pre_burnin == 1){
@@ -291,7 +305,7 @@ void ReversalMCMC::run(){
 		}
 
 		// Compute convergence measures if pre burn-in phase is over.
-		if((cur_step > pre_burnin_steps) && (nb_chains > 1)){
+		if(isPreBurninOver && (nb_chains > 1)){
 			const int steps_after_pre_burnin = cur_step-pre_burnin_steps;
 			// It stores the history of a chain (visited states so far).
 			for (int idx=0; idx<nb_chains; ++idx){
@@ -307,7 +321,7 @@ void ReversalMCMC::run(){
 		}
 
 		// Sample one of the current states.
-		sample_state = (sample_state || ((check_convergence && (R <= 1.1)) || (!check_convergence && (cur_step > pre_burnin_steps))));
+		sample_state = (sample_state || ((check_convergence && (R <= 1.1)) || (!check_convergence && isPreBurninOver)));
 		if (sample_state){
 			if((last_sampled_step % sample_interval) == 0){
 				const int rdmidx = distr_sample(rng);
@@ -343,7 +357,7 @@ void ReversalMCMC::run(){
 				std::cout << " [Chain " << idx << "] Avg. path size: " << rev_path_avgsize[idx] << "; cur path = " << currentState_revHists[idx].size() << " ; cur lambda = " << currentState_revMeans[idx] << " / " << status_all[idx] << std::endl;
 			}
 			std::cout << " Avg. lambda = " << (avg_revMean_cur/nb_chains) << "; Avg. path size=" << (avg_revPath_cur/nb_chains) << std::endl;
-			if ((cur_step > pre_burnin_steps) && (nb_chains > 1)) {
+			if (isPreBurninOver && (nb_chains > 1)) {
 				std::cout << "  R=" << R << "; W=" << W << "; B=" << B << std::endl;
 			} else {
 				std::cout << "  R=N/A; W=N/A; B=N/A " << ((nb_chains > 1) ? "[Pre burn in phase]" : "[Available only if nb. chains > 1]") << std::endl;
@@ -540,8 +554,12 @@ double ProposalReversalScenario::getPosteriorRatio(const double rev_mean, const 
 
 // The acceptance probability is the minimum of one and
 // the product of the posterior ratio and the proposal ratio.
-double ProposalReversalScenario::getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop, const double chain_temp){
-	double acceptanceProb = std::min(1.0, getProposalRatio(rev_weights, p_stop)*std::pow(getPosteriorRatio(rev_mean),chain_temp));
+double ProposalReversalScenario::getAcceptanceProb(	const double rev_mean, const std::vector<double>& rev_weights, 
+													const double p_stop, const double chain_temp, const bool isPreBurninOver){
+	// Pre burn in phase ignores proposal ratio and only considers posterior ratio.
+	// According to Larget et al. (2004), ignoring the Hastings ratio correction for a number of pre-burn-in updates 
+	// will rapidly drive the initial inversion history and tree closer to most parsimonious solutions where the posterior distribution is higher.
+	double acceptanceProb = std::min(1.0, ((isPreBurninOver) ? getProposalRatio(rev_weights, p_stop) : 1.0)*std::pow(getPosteriorRatio(rev_mean),chain_temp));
 	// std::cout << " > Acceptance : " << acceptanceProb << "; Proposal ratio : " << proposalRatio << "; Posterior ratio : " << posteriorRatio << std::endl;
 	return acceptanceProb;
 }

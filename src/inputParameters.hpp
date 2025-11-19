@@ -83,6 +83,12 @@ public:
 	// or any other problem.
 	int backup_interval{500};
 
+	// Checks if a backup file was saved for the run.
+	// If a backup file exists and this option is 'true', then the last saved state is going 
+	// to be load and the run is going to be resumed from the last checkpoint. 
+	// Otherwise, the MCMC run starts from scratch (step 1).
+	bool resume_run{false};
+
 	// Steps in which stats about the chains are printed.
 	int print_interval{50};
 
@@ -153,6 +159,9 @@ public:
 		if (parvalues_map.find("backup_interval") != parvalues_map.end()) {
 			backup_interval = std::stoi(parvalues_map["backup_interval"]);
 		}
+		if (parvalues_map.find("resume_run") != parvalues_map.end()) {
+			resume_run = ((parvalues_map["resume_run"] == "true") || (parvalues_map["resume_run"] == "1"));
+		}
 		if (parvalues_map.find("print_interval") != parvalues_map.end()) {
 			print_interval = std::stoi(parvalues_map["print_interval"]);
 		}
@@ -188,6 +197,7 @@ public:
 			+ ", sample_interval="   + std::to_string(sample_interval)
 			+ ", sample_amount="     + std::to_string(sample_amount)
 			+ ", backup_interval="   + std::to_string(backup_interval)
+			+ ", resume_run="        + std::to_string(resume_run)
 			+ ", print_interval="    + std::to_string(print_interval)
 			+ ", alpha="     + std::to_string(alpha)
 			+ ", epsilon="   + std::to_string(epsilon)

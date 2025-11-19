@@ -9,6 +9,7 @@ pre_burnin_steps=10
 sample_interval=1000
 sample_amount=10000
 backup_interval=500
+resume_run=true
 print_interval=20
 alpha=0.30
 epsilon=8
