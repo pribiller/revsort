@@ -74,6 +74,11 @@ public:
 	int max_steps{100000};
 	int pre_burnin_steps{1000};
 
+	// If the flag 'ignore_proposal_ratio' is true, then the acceptance probability 
+	// depends only on the posterior ratio. Otherwise, the acceptance probability
+	// is the product of posterior ratio and proposal ratio.
+	bool ignore_proposal_ratio{false};
+
 	// Sampling parameters.
 	int sample_interval{1000}; // Based on Larget et al. (2004)
 	int sample_amount{10000};  // 10 million steps. Based on Miklos and Darling (2009).
@@ -117,10 +122,10 @@ public:
 	McmcOptions(){method = RevMethodType::MCMC;}
 
 	McmcOptions(const int nb_chains_, const int nb_temperatures_, const int delta_temp_, 
-		const int max_steps_, const int pre_burnin_steps_, 
+		const int max_steps_, const int pre_burnin_steps_, const bool ignore_proposal_ratio_,
 		const double p_good_, const double p_neutral_, const double p_bad_, 
 		const double p_stop_):nb_chains(nb_chains_),nb_temperatures(nb_temperatures_),delta_temp(delta_temp_),
-		max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
+		max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),ignore_proposal_ratio(ignore_proposal_ratio_),
 		p_good(p_good_),p_neutral(p_neutral_),p_bad(p_bad_),p_stop(p_stop_){
 		method = RevMethodType::MCMC;
 		probs  = {p_good, p_neutral, p_bad};
@@ -142,13 +147,16 @@ public:
 			delta_temp = std::stod(parvalues_map["delta_temp"]);
 		}
 		if (parvalues_map.find("check_convergence") != parvalues_map.end()) {
-			check_convergence = (parvalues_map["check_convergence"] == "true");
+			check_convergence = ((parvalues_map["check_convergence"] == "true") || (parvalues_map["check_convergence"] == "1"));
 		}
 		if (parvalues_map.find("max_steps") != parvalues_map.end()) {
 			max_steps = std::stoi(parvalues_map["max_steps"]);
 		}
 		if (parvalues_map.find("pre_burnin_steps") != parvalues_map.end()) {
 			pre_burnin_steps = std::stoi(parvalues_map["pre_burnin_steps"]);
+		}
+		if (parvalues_map.find("ignore_proposal_ratio") != parvalues_map.end()) {
+			ignore_proposal_ratio = ((parvalues_map["ignore_proposal_ratio"] == "true") || (parvalues_map["ignore_proposal_ratio"] == "1"));
 		}
 		if (parvalues_map.find("sample_interval") != parvalues_map.end()) {
 			sample_interval = std::stoi(parvalues_map["sample_interval"]);
@@ -194,6 +202,7 @@ public:
 			+ ", check_convergence=" + std::to_string(check_convergence)
 			+ ", max_steps="   + std::to_string(max_steps) 
 			+ ", pre_burnin_steps="  + std::to_string(pre_burnin_steps)
+			+ ", ignore_proposal_ratio="  + std::to_string(ignore_proposal_ratio)
 			+ ", sample_interval="   + std::to_string(sample_interval)
 			+ ", sample_amount="     + std::to_string(sample_amount)
 			+ ", backup_interval="   + std::to_string(backup_interval)

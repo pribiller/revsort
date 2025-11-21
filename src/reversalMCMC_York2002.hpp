@@ -190,7 +190,7 @@ public:
 	double getPosteriorRatio(const double rev_mean, const int L_cur_, const int L_new_, const int N_);
 
 	// Acceptance probability.
-	double getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop, const double chain_temp, const bool isPreBurninOver);
+	double getAcceptanceProb(const double rev_mean, const std::vector<double>& rev_weights, const double p_stop, const double chain_temp, const bool ignoreProposalRatio);
 
 };
 
@@ -306,6 +306,11 @@ public:
 	int max_steps{100000};
 	int pre_burnin_steps{1000};
 
+	// If the flag 'ignore_proposal_ratio' is true, then the acceptance probability 
+	// depends only on the posterior ratio. Otherwise, the acceptance probability
+	// is the product of posterior ratio and proposal ratio.
+	bool ignore_proposal_ratio{false};
+
 	// Sampling parameters.
 	int sample_interval{1000}; // Based on Larget et al. (2004)
 	int sample_amount{10000};  // 10 million steps. Based on Miklos and Darling (2009).
@@ -333,11 +338,11 @@ public:
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
 		const std::string id_run_, const int nb_chains_, const int nb_temperatures_, const double delta_temp_,
-		const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, 
+		const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, const bool ignore_proposal_ratio_,
 		const int sample_interval_, const int sample_amount_, const int backup_interval_, const int print_interval_,
 		std::vector<double>& rev_weights_, const double p_stop_, const double alpha_, const double epsilon_, const bool debug_):genome_B(genome_B_),rng(rng_),
 		id_run(id_run_),nb_chains(nb_chains_),nb_temperatures(nb_temperatures_),delta_temp(delta_temp_),
-		check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),
+		check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),ignore_proposal_ratio(ignore_proposal_ratio_),
 		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),print_interval(print_interval_),
 		rev_weights(rev_weights_),p_stop(p_stop_),alpha(alpha_),epsilon(epsilon_),debug(debug_),
 		currentState_revHists(nb_chains_*nb_temperatures_),currentState_revMeans(nb_chains_*nb_temperatures_),
@@ -361,7 +366,7 @@ public:
 		McmcOptions& parameters, const bool debug_):genome_B(genome_B_),rng(rng_),
 		id_run(parameters.id_run),nb_chains(parameters.nb_chains),nb_temperatures(parameters.nb_temperatures),delta_temp(parameters.delta_temp),
 		check_convergence(parameters.check_convergence),
-		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),
+		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),ignore_proposal_ratio(parameters.ignore_proposal_ratio),
 		sample_interval(parameters.sample_interval),sample_amount(parameters.sample_amount),
 		backup_interval(parameters.backup_interval),print_interval(parameters.print_interval),
 		rev_weights(parameters.probs),p_stop(parameters.p_stop),debug(debug_),alpha(parameters.alpha),epsilon(parameters.epsilon),
@@ -408,6 +413,7 @@ public:
 		ar & R;
 		ar & max_steps;
 		ar & pre_burnin_steps;
+		ar & ignore_proposal_ratio;
 		ar & sample_interval;
 		ar & sample_amount;
 		ar & backup_interval;
@@ -435,7 +441,7 @@ public:
 
 	void initializeIdRun(); // TODO: Currently not used.
 	void initializeChains();
-	std::string runSingleChain(const int chainIdx, const double chainTemp, const bool isPreBurninOver);
+	std::string runSingleChain(const int chainIdx, const double chainTemp, const bool ignoreProposalRatio);
 	void run();
 
 	// Save the state of the object to a file

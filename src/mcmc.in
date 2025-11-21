@@ -6,6 +6,7 @@ id_run=rev_mcmc
 check_convergence=true
 max_steps=1000
 pre_burnin_steps=10
+ignore_proposal_ratio=false
 sample_interval=1000
 sample_amount=10000
 backup_interval=500
