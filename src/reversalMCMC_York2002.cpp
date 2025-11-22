@@ -241,7 +241,7 @@ void ReversalMCMC::run(){
 		// According to Larget et al. (2004), ignoring the Hastings ratio correction for a number of pre-burn-in updates 
 		// will rapidly drive the initial inversion history and tree closer to most parsimonious solutions where the posterior distribution is higher.
 		const bool isPreBurninOver     = (cur_step > pre_burnin_steps);
-		const bool ignoreProposalRatio = (ignore_proposal_ratio || isPreBurninOver);
+		const bool ignoreProposalRatio = (ignore_proposal_ratio || !isPreBurninOver);
 
 		// std::cout << "Running step " << cur_step << std::endl;
 
