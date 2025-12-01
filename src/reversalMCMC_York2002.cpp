@@ -106,7 +106,7 @@ void ReversalMCMC::initializeChains(){
 	// - p_neutral used in initial paths in York, Durrett, and Nielsen:
 	// [0.025 (short initial inversions paths), 0.7 (long initial inversion paths)]
 	RandomReversalScenario sampler_std(rev_weights,p_stop,alpha,epsilon,false);
-	const double p_neutral     = sampler_std.rev_weights[ReversalType::GOOD]/2.0;
+	const double p_neutral     = sampler_std.rev_weights[ReversalType::GOOD]*2.0;
 	const double p_neutral_min = sampler_std.rev_weights[ReversalType::BAD];
 	const double p_delta = (nb_chains > 1) ? (p_neutral-p_neutral_min)/(nb_chains-1) : 0.0;
 
@@ -229,7 +229,8 @@ void ReversalMCMC::run(){
 
 	bool sample_state     = false;
 	int last_sampled_step = 0;
-	std::uniform_int_distribution distr_sample(0, nb_chains-1);
+	//std::uniform_int_distribution distr_sample(0, nb_chains-1);
+	std::uniform_real_distribution distr_sample(0.0, 1.0);
 	const int N = genome_B.n;
 
 	while((cur_step < max_steps) && (sampled_revMeans.size() < sample_amount)){
@@ -275,35 +276,40 @@ void ReversalMCMC::run(){
 		} 
 		// std::cout << "Swapping chains..." << std::endl;
 		ProposalReversalScenario propSwap;
+		const double swapProb = 0.5;
 		for (int temp_idx=0; temp_idx<(nb_temperatures-1); ++temp_idx){
 			for (int chain_idx=0; chain_idx<nb_chains; ++chain_idx){
 
-				const int idx_cur  = temp_idx*nb_chains     + chain_idx;
-				const int idx_heat = (temp_idx+1)*nb_chains + chain_idx;
-				
-				const double temp_cur  = 1.0/(1.0+temp_idx*delta_temp);
-				const double temp_heat = 1.0/(1.0+(temp_idx+1)*delta_temp);
+				// Check if a swap should be done between two adjacent chains.
+				double val = distr_accept(rng);
+				if(val <= swapProb){
+					const int idx_cur  = temp_idx*nb_chains     + chain_idx;
+					const int idx_heat = (temp_idx+1)*nb_chains + chain_idx;
+					
+					const double temp_cur  = 1.0/(1.0+temp_idx*delta_temp);
+					const double temp_heat = 1.0/(1.0+(temp_idx+1)*delta_temp);
 
-				const int L_cur  = currentState_revHists[idx_cur].size();
-				const int L_heat = currentState_revHists[idx_heat].size();
+					const int L_cur  = currentState_revHists[idx_cur].size();
+					const int L_heat = currentState_revHists[idx_heat].size();
 
-				double rev_mean_cur  = currentState_revMeans[idx_cur];
-				double rev_mean_heat = currentState_revMeans[idx_heat];
-				
-				// Check if states of chain i at temperature j and j+1 should be swaped.
-				// Swap of states is accepted with probability: min(1,[(post_i^temp_j)*(post_j^temp_i)]/[(post_j^temp_j)*(post_i^temp_i)])
-				const double acceptanceProb_swap = std::min(1.0, std::pow(propSwap.getPosteriorRatio(rev_mean_cur, L_cur, L_heat, N),temp_cur)*std::pow(propSwap.getPosteriorRatio(rev_mean_heat, L_heat, L_cur, N),temp_heat));
+					double rev_mean_cur  = currentState_revMeans[idx_cur];
+					double rev_mean_heat = currentState_revMeans[idx_heat];
+					
+					// Check if states of chain i at temperature j and j+1 should be swaped.
+					// Swap of states is accepted with probability: min(1,[(post_i^temp_j)*(post_j^temp_i)]/[(post_j^temp_j)*(post_i^temp_i)])
+					const double acceptanceProb_swap = std::min(1.0, std::pow(propSwap.getPosteriorRatio(rev_mean_cur, L_cur, L_heat, N),temp_cur)*std::pow(propSwap.getPosteriorRatio(rev_mean_heat, L_heat, L_cur, N),temp_heat));
 
-				const double val = distr_accept(rng);
-				if(val <= acceptanceProb_swap){
-					if((int(cur_step) % print_interval) == 0){
-						std::cout << " [ACCEPTED] : Chains w/temps " << temp_idx << " (L=" << L_cur<< ") and " << (temp_idx+1) << " (L=" << L_heat << ") swaped; rdm=" << val << "; accepProb=" << boost::lexical_cast<std::string>(acceptanceProb_swap) << std::endl;
-					}
-					std::swap(currentState_revHists[idx_cur], currentState_revHists[idx_heat]);
-					std::swap(currentState_revMeans[idx_cur], currentState_revMeans[idx_heat]);					
-				} else {
-					if((int(cur_step) % print_interval) == 0){
-						std::cout << " [REJECTED] : Chains w/temps " << temp_idx << " (L=" << L_cur<< ") and " << (temp_idx+1) << " (L=" << L_heat << ") not swaped; rdm=" << val << "; accepProb=" << boost::lexical_cast<std::string>(acceptanceProb_swap) << std::endl;
+					val = distr_accept(rng);
+					if(val <= acceptanceProb_swap){
+						if((int(cur_step) % print_interval) == 0){
+							std::cout << " [ACCEPTED] : Chains w/temps " << temp_idx << " (L=" << L_cur<< ") and " << (temp_idx+1) << " (L=" << L_heat << ") swaped; rdm=" << val << "; accepProb=" << boost::lexical_cast<std::string>(acceptanceProb_swap) << std::endl;
+						}
+						std::swap(currentState_revHists[idx_cur], currentState_revHists[idx_heat]);
+						std::swap(currentState_revMeans[idx_cur], currentState_revMeans[idx_heat]);					
+					} else {
+						if((int(cur_step) % print_interval) == 0){
+							std::cout << " [REJECTED] : Chains w/temps " << temp_idx << " (L=" << L_cur<< ") and " << (temp_idx+1) << " (L=" << L_heat << ") not swaped; rdm=" << val << "; accepProb=" << boost::lexical_cast<std::string>(acceptanceProb_swap) << std::endl;
+						}
 					}
 				}
 			}
@@ -329,12 +335,12 @@ void ReversalMCMC::run(){
 		sample_state = (sample_state || ((check_convergence && (R <= 1.1)) || (!check_convergence && isPreBurninOver)));
 		if (sample_state){
 			if((last_sampled_step % sample_interval) == 0){
-				const int rdmidx = distr_sample(rng);
-				sampled_revHists.emplace_back(currentState_revHists[rdmidx]);
-				sampled_revMeans.emplace_back(currentState_revMeans[rdmidx]);
-				// for(ReversalRandom rev : currentState_revHists[rdmidx]){
-				// 	std::cout << "Reversal (" << rev.g_beg << ", " << rev.g_end << ")" << std::endl;
-				// }
+				for (int chain_idx=0; chain_idx<nb_chains; ++chain_idx){
+					if(distr_sample(rng) < 0.5){
+						sampled_revHists.emplace_back(currentState_revHists[chain_idx]);
+						sampled_revMeans.emplace_back(currentState_revMeans[chain_idx]);
+					}
+				}
 			}
 			++last_sampled_step;
 		}
@@ -371,6 +377,21 @@ void ReversalMCMC::run(){
 	}
 	// Save the last state.
 	saveState(bkp_filename);
+}
+
+void ReversalMCMC::saveSamples(const std::string& filename) {
+	// It stores sampled values.
+	// Format: Mean path size (μ), Path size, List of reversal operations.
+	std::ofstream ofs(filename);
+	ofs << "# Columns explanation: (1) Mean path size parameter (μ); (2) Path size; (3) Path details---each reversal: (2i,2i+1];" << std::endl;
+	const int sample_len = sampled_revHists.size();
+	for (int sample_idx=0; sample_idx<sample_len; ++sample_idx){
+		ofs << sampled_revMeans[sample_idx] << ";" << sampled_revHists[sample_idx].size() << ";";
+		std::string rev_sep = "";
+		for (ReversalRandom rev : sampled_revHists[sample_idx]){ofs << rev_sep << rev.g_beg << "," << rev.g_end; rev_sep = ",";}
+		ofs << ";" << std::endl;
+	}
+	ofs.close();
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -671,33 +692,69 @@ std::vector<ReversalRandom> RandomReversalScenario::sampleScenario(GenomeMultich
 	return reversals;
 }
 
+// int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N){
+// 	// q(l) ~ 1 - tanh(epsilon*(l/(alpha*N)-1))
+// 	// - alpha: lengths small than N*alpha are roughly equally likely represented.
+// 	//          For example, alpha=0.65, means that there is more or less the same 
+// 	//          chance to sample a size between 0 and 65% of the total size of the 
+// 	//          path (N). From this point on, the probability drops to almost 0.
+// 	// Compute CDF of q(l).
+// 	std::vector<double> lprobs_cum(N,0.0);
+// 	double l_total = 0;
+// 	int l = 1;
+// 	double prob_l = 1.0-std::tanh(epsilon*(static_cast<double>(l)/(alpha*static_cast<double>(N))-1.0));
+// 	lprobs_cum[0] = prob_l;	
+// 	for(l=2; l<=N; ++l){ // l: 1..N; l_idx: 0..N-1
+// 		// By commenting this line, all path lenghts have the same probability of being sampled.
+// 		prob_l = 1.0-std::tanh(epsilon*(static_cast<double>(l)/(alpha*static_cast<double>(N))-1.0));
+// 		lprobs_cum[l-1] = lprobs_cum[l-2] + prob_l;
+// 		l_total += prob_l;
+// 	}
+// 	// Sample l.
+// 	std::uniform_real_distribution distr(0.0, l_total); // [0, rev_weights_total)
+// 	double rdmval = distr(rng);
+// 	int l_chosen = 1;
+// 	// Find the index corresponding to the random value
+// 	for (int l_idx = 0; l_idx < N; ++l_idx) {
+// 		if (rdmval < lprobs_cum[l_idx]) {
+// 			l_chosen = (l_idx+1);
+// 			break;
+// 		}
+// 	}
+// 	return l_chosen;
+// }
+
 int RandomReversalScenario::samplePathLength(std::mt19937& rng, const int N){
-	// q(l) ~ 1 - tanh(epsilon*(l/(alpha*N)-1))
-	// - alpha: lengths small than N*alpha are roughly equally likely represented.
-	//          For example, alpha=0.65, means that there is more or less the same 
-	//          chance to sample a size between 0 and 65% of the total size of the 
-	//          path (N). From this point on, the probability drops to almost 0.
-	// Compute CDF of q(l).
-	std::vector<double> lprobs_cum(N,0.0);
-	double l_total = 0;
-	int l = 1;
-	double prob_l = 1.0-std::tanh(epsilon*(static_cast<double>(l)/(alpha*static_cast<double>(N))-1.0));
-	lprobs_cum[0] = prob_l;	
-	for(l=2; l<=N; ++l){ // l: 1..N; l_idx: 0..N-1
-		// By commenting this line, all path lenghts have the same probability of being sampled.
-		prob_l = 1.0-std::tanh(epsilon*(static_cast<double>(l)/(alpha*static_cast<double>(N))-1.0));
-		lprobs_cum[l-1] = lprobs_cum[l-2] + prob_l;
-		l_total += prob_l;
-	}
-	// Sample l.
-	std::uniform_real_distribution distr(0.0, l_total); // [0, rev_weights_total)
-	double rdmval = distr(rng);
 	int l_chosen = 1;
-	// Find the index corresponding to the random value
-	for (int l_idx = 0; l_idx < N; ++l_idx) {
-		if (rdmval < lprobs_cum[l_idx]) {
-			l_chosen = (l_idx+1);
-			break;
+	if(N > 2) {
+		// Empirically, it seems that paths below 30 reversals have a higher 
+		// chance to end up being accepted.
+		if(N < 30) {
+			std::uniform_int_distribution distr_path_size(2, N);
+			l_chosen = distr_path_size(rng);
+		} else {
+			// Two possible cases: 
+			// (1) Most of times a small path segment is replaced;
+			// (2) Few times there is a chance to replace a big part of the path (45%--65% of the path).
+			double p_big_change = 0.10;
+			std::uniform_real_distribution distr_path_type(0.0, 1.0);
+			const double rdmval = distr_path_type(rng);
+			// Big path scenario (rare).
+			if (rdmval < p_big_change) {
+				const int l_lb = (int) 0.45*N;
+				const int l_ub = (int) 0.75*N;
+				// Sample l.
+				std::uniform_int_distribution distr_path_size(l_lb, l_ub); // [0, rev_weights_total)
+				l_chosen = distr_path_size(rng);
+			// Small path scenario (common).
+			// Empirically, it seems that paths larger than 30 reversals seem to be often rejected.
+			} else {
+				const int l_lb = 10;
+				const int l_ub = 25;
+				// Sample l.
+				std::uniform_int_distribution distr_path_size(l_lb, l_ub); // [0, rev_weights_total)
+				l_chosen = distr_path_size(rng);
+			}
 		}
 	}
 	return l_chosen;

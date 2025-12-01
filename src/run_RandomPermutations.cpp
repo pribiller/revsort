@@ -70,7 +70,14 @@ ReversalMCMC testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultic
 
 	// Load last saved state if the option "resume_run" is 'true' and the checkpoint file exists.
 	const std::string bkp_filename = mcmc.getBackupFilename();
-	if((parameters->resume_run) && isValidPath(bkp_filename)){mcmc.loadState(bkp_filename);}
+	const std::string out_filename = mcmc.getSampleFilename();
+	if((parameters->resume_run) && isValidPath(bkp_filename)){
+		mcmc.loadState(bkp_filename);
+		mcmc.saveSamples(out_filename); // Save sampled results so far.
+	}
+	
+	// Update parameters if needed (not all parameters can be modified).
+	mcmc.updateParameters((*parameters));
 	
 	mcmc.run();
 	return mcmc;
@@ -108,12 +115,12 @@ GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const 
 		for(int i : genome_B_rdm.getExtendedGenome()){std::cout << i << " ";}
 		std::cout << std::endl;
 
-		std::cout << "Reversal history" << std::endl;
-		RandomReversalScenario rdmReversalScenario;
-		for (Reversal& rev : reversals){
-			std::cout << " Reversal (" << rev.g_beg << ", " << rev.g_end << "] becomes ";
-			std::cout << " (" << rev.g_beg << ", " << rev.g_beg_next << "]" << std::endl;
-		}
+		// std::cout << "Reversal history" << std::endl;
+		// RandomReversalScenario rdmReversalScenario;
+		// for (Reversal& rev : reversals){
+		// 	std::cout << " Reversal (" << rev.g_beg << ", " << rev.g_end << "] becomes ";
+		// 	std::cout << " (" << rev.g_beg << ", " << rev.g_beg_next << "]" << std::endl;
+		// }
 
 		return genome_B_rdm;
 	} else {

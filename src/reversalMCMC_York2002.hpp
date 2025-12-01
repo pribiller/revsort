@@ -389,6 +389,24 @@ public:
 		initializeChains();
 	}
 
+	void updateParameters(McmcOptions& parameters){
+		
+		// TODO: Update seed if needed.
+		delta_temp        = parameters.delta_temp;
+		check_convergence = parameters.check_convergence;
+		max_steps         = parameters.max_steps;
+		pre_burnin_steps  = parameters.pre_burnin_steps;
+		ignore_proposal_ratio = parameters.ignore_proposal_ratio;
+		sample_interval   = parameters.sample_interval; 
+		sample_amount     = parameters.sample_amount;
+		backup_interval   = parameters.backup_interval;
+		print_interval    = parameters.print_interval;
+
+		// Not all parameters can be updated.
+		//rev_weights(parameters.probs),p_stop(parameters.p_stop),
+		//alpha(parameters.alpha),epsilon(parameters.epsilon),
+	}
+
 	// Serialization with Boost.
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version) {
@@ -443,6 +461,7 @@ public:
 	void initializeChains();
 	std::string runSingleChain(const int chainIdx, const double chainTemp, const bool ignoreProposalRatio);
 	void run();
+	void saveSamples(const std::string& filename);
 
 	// Save the state of the object to a file
 	void saveState(const std::string& filename) const {
@@ -462,4 +481,6 @@ public:
 	double computeBetweenChainVariance();
 
 	inline std::string getBackupFilename() const {return id_run + ".bkp";}
+	inline std::string getSampleFilename() const {return id_run + ".samp";}
+	
 };
