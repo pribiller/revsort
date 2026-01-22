@@ -43,7 +43,7 @@
  * 1 -2 -3 4 5 6
  * >TestcaseNamePair2
  * 1 2 3 4 5 6
- * -2 -1 -5 4 6
+ * -2 -1 3 -5 4 6
  * 
  * Compile:
  * g++ run_InputFile.cpp sortByReversals.cpp findComponents_Bader2001.cpp sortOrientedByReversals_Tannier2007.cpp solveUnoriented_HannenhalliPevzner1999.cpp genome.cpp -o revsort_input

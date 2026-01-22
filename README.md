@@ -67,7 +67,7 @@ inputFile.txt:
 1 -2 -3 4 5 6
 >GenomePair2_refisidentity
 1 2 3 4 5 6
--2 -1 -5 4 6
+-2 -1 3 -5 4 6
 ```
 
 ### Use case: Random permutations
