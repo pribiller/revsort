@@ -19,6 +19,17 @@
 #include <sstream>
 
 //////////////////////////////
+// Debug levels.
+//////////////////////////////
+
+enum DEBUG_LVL {
+	DEBUG_OFF = 0,		// No debugging  - for cluster: only basic stats are printed;
+	DEBUG_LOW = 1,		// Low verbosity - for user: basic messages are printed;
+	DEBUG_MEDIUM = 2,	// Medium verbosity - for user: basic messages + replay of the sorting scenario (not recommended if the genome is too big);
+	DEBUG_HIGH = 3		// High verbosity - for developer: very detailed messages, useful for debugging;
+};
+
+//////////////////////////////
 // String functions.
 //////////////////////////////
 

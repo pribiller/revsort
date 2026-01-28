@@ -91,7 +91,7 @@ std::vector<int> UnorientedComponents::findHurdles() {
 	// the component where the gene is (more precisely, it is the index of the tree's root).
 	std::vector<std::pair<int,int>> sortedUnorientedElems = getSortedUnorientedElements();
 	// Print sorted unoriented elements .
-	if(debug){
+	if(debug >= DEBUG_HIGH){
 		std::cout << std::endl << "Unoriented elements = " << sortedUnorientedElems.size() << std::endl;
 		for (std::pair<int, int> const& elem : sortedUnorientedElems) {
 			std::cout << elem.first << "[" << elem.second << "] ";
@@ -101,7 +101,7 @@ std::vector<int> UnorientedComponents::findHurdles() {
 	// Find hurdles.
 	std::vector<int> hurdles;
 	if (sortedUnorientedElems.size() == 0) {
-		if(debug){std::cout << std::endl << "Hurdles = 0 (no unoriented components)" << std::endl;}
+		if(debug >= DEBUG_HIGH){std::cout << std::endl << "Hurdles = 0 (no unoriented components)" << std::endl;}
 		return hurdles;
 	} 
 	int current_idx =  0;
@@ -160,7 +160,7 @@ std::vector<int> UnorientedComponents::findHurdles() {
 		} 
 	}
 	// Print hurdles sorted by rightmost element.
-	if(debug){
+	if(debug >= DEBUG_HIGH){
 		std::cout << std::endl << "Hurdles = " << hurdles.size() << std::endl;
 		for (int const& root_idx : hurdles) {
 			std::cout << ">Component max=" << comps.forest[root_idx].max << std::endl;
@@ -202,7 +202,7 @@ int UnorientedComponents::getRandomBlackEdge(const Cycle& comp, std::mt19937& rn
 // Get a **random** black edge, so different parsimonious scenarios can be sampled.
 std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt19937& rng) {
 
-	if(debug) genperm.printBlocks();
+	if(debug >= DEBUG_HIGH){genperm.printBlocks();}
 
 	// List of reversals to transform *all* unoriented components into oriented ones.
 	std::vector<Reversal> reversals;
@@ -221,7 +221,7 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 
 		// Merge two non-consecutive unoriented components with one reversal.
 		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
-		if(debug) std::cout << "[Merge components] Reversal: (" << rev.g_beg << " " << rev.g_end << "]; Chosen gene extremities: (" << gen_ext_beg << ", " << gen_ext_end << "]" << std::endl;
+		if(debug >= DEBUG_HIGH){std::cout << "[Merge components] Reversal: (" << rev.g_beg << " " << rev.g_end << "]; Chosen gene extremities: (" << gen_ext_beg << ", " << gen_ext_end << "]" << std::endl;}
 
 		applyReversal(genperm, rev.g_beg, rev.g_end);
 
@@ -249,9 +249,9 @@ std::vector<Reversal> UnorientedComponents::clearUnorientedComponents(std::mt199
 		}
 		// Merge two non-consecutive unoriented components with one reversal.
 		Reversal rev = getReversal(gen_ext_beg, gen_ext_end);
-		if(debug) std::cout << "[Split last component] Reversal: (" << rev.g_beg << " " << rev.g_end << "]; Chosen gene extremities: (" << gen_ext_beg << ", " << gen_ext_end << "]" << std::endl;
+		if(debug >= DEBUG_HIGH){std::cout << "[Split last component] Reversal: (" << rev.g_beg << " " << rev.g_end << "]; Chosen gene extremities: (" << gen_ext_beg << ", " << gen_ext_end << "]" << std::endl;}
 		applyReversal(genperm, rev.g_beg, rev.g_end);
-		genperm.printBlocks();
+		if(debug >= DEBUG_HIGH){genperm.printBlocks();}
 		// Labels correspond to extended signed permutation.
 		reversals.emplace_back(rev);
 	}

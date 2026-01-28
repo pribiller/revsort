@@ -266,9 +266,9 @@ std::vector<std::pair<int,int>> ReversalSampler::getGoodReversalsOriented(Cycle&
 			std::pair<int,int> rev(uns_ext_1,uns_ext_2);
 			if (std::find(goodReversals.begin(), goodReversals.end(), rev) == goodReversals.end()){
 				goodReversals.emplace_back(rev);
-				if(debug){std::cout << "Good reversal (gene " << (g_idx+1) << "): [" << uns_ext_1 << ", " << uns_ext_2 << "] - ADDED" << std::endl;}
+				if(debug >= DEBUG_HIGH){std::cout << "Good reversal (gene " << (g_idx+1) << "): [" << uns_ext_1 << ", " << uns_ext_2 << "] - ADDED" << std::endl;}
 			} else {
-				if(debug){std::cout << "Good reversal (gene " << (g_idx+1) << "): [" << uns_ext_1 << ", " << uns_ext_2 << "] - IGNORED" << std::endl;}
+				if(debug >= DEBUG_HIGH){std::cout << "Good reversal (gene " << (g_idx+1) << "): [" << uns_ext_1 << ", " << uns_ext_2 << "] - IGNORED" << std::endl;}
 			}
 		}
 	}
@@ -523,7 +523,7 @@ double ReversalSampler::countReversals(){
 	double obs_nb_reversals = countReversalsOrientedComponents();
 	obs_nb_reversals    += countReversalsUnorientedComponents();
 	
-	if(debug){std::cout << " - Total nb. of reversals : Obs=" << obs_nb_reversals << "; Exp=" << exp_nb_reversals << std::endl;}
+	if(debug >= DEBUG_OFF){std::cout << " - Total nb. of reversals : Obs=" << obs_nb_reversals << "; Exp=" << exp_nb_reversals << std::endl;}
 	if(static_cast<int>(obs_nb_reversals) != exp_nb_reversals){
 		std::cout << "ERROR! The number of observed reversals differs from the expected number of reversals (Obs.=" << obs_nb_reversals << "; Exp.="<< exp_nb_reversals << ").\nProgram is aborting." << std::endl;
 		exit(1);
@@ -648,7 +648,7 @@ std::pair<int,int> ReversalSampler::sampleOriented(const int cycle_idx, const Re
 	std::pair<int, int> reversal{-1, -1};
 	switch(revtype) {
 		case ReversalType::GOOD: {
-			if(debug){std::cout << " --- Good" << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Good" << std::endl;}
 			std::vector<std::pair<int,int>>& goodReversals = rev_counters[cycle_idx].reversals[ReversalType::GOOD];
 			std::uniform_int_distribution distr(0, static_cast<int>(goodReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -656,12 +656,12 @@ std::pair<int,int> ReversalSampler::sampleOriented(const int cycle_idx, const Re
 			break;
 		}
 		case ReversalType::NEUTRAL: {
-			if(debug){std::cout << " --- Neutral" << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Neutral" << std::endl;}
 
 			std::vector<std::pair<int,int>>  allReversals  = getReversalsFromCycle(cycle_idx);
 			std::vector<std::pair<int,int>>& goodReversals = rev_counters[cycle_idx].reversals[ReversalType::GOOD];
 
-			if(debug){
+			if(debug >= DEBUG_HIGH){
 				std::cout << "\t\t Good reversals (" << goodReversals.size() << ") = " ;
 				for (std::pair<int, int>& r : goodReversals) {
 					std::cout << " (" << r.first << ", " << r.second << ")";
@@ -677,7 +677,7 @@ std::pair<int,int> ReversalSampler::sampleOriented(const int cycle_idx, const Re
 			break;
 		}
 		case ReversalType::BAD: {
-			if(debug){std::cout << " --- Bad" << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Bad" << std::endl;}
 			std::vector<std::pair<int,int>> badReversals = makeAllCombinations(comps.getGeneExtremities(comps.forest[cycle_idx], true), getGeneExtNotInCycle(cycle_idx));
 			std::uniform_int_distribution distr(0, static_cast<int>(badReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -703,7 +703,7 @@ std::pair<int,int> ReversalSampler::sampleUnoriented(const int cycle_idx, const 
 			break;
 		}
 		case ReversalType::NEUTRAL: {
-			if(debug){std::cout << "\t It is neutral" << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << "\t It is neutral" << std::endl;}
 			std::vector<std::pair<int,int>> allReversals = getReversalsFromCycle(cycle_idx);
 			std::uniform_int_distribution distr(0, static_cast<int>(allReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -711,7 +711,7 @@ std::pair<int,int> ReversalSampler::sampleUnoriented(const int cycle_idx, const 
 			break;
 		}
 		case ReversalType::BAD: {
-			if(debug){std::cout << " --- Bad " << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Bad " << std::endl;}
 			std::vector<std::pair<int,int>> badReversals = makeAllCombinations(comps.getGeneExtremities(comps.forest[cycle_idx], true), getGeneExtNotInCycle(cycle_idx));
 			std::uniform_int_distribution distr(0, static_cast<int>(badReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -740,7 +740,7 @@ std::pair<int,int> ReversalSampler::sampleTrivial(const int cycle_idx, const Rev
 			break;
 		}
 		case ReversalType::BAD: {
-			if(debug){std::cout << " --- Bad" << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Bad" << std::endl;}
 			std::vector<std::pair<int,int>> badReversals = makeAllCombinations(comps.getGeneExtremities(comps.forest[cycle_idx], true), getGeneExtNotInCycle(cycle_idx));
 			std::uniform_int_distribution distr(0, static_cast<int>(badReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -809,25 +809,25 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 	std::pair<int, int> reversal{-1, -1};
 	switch(revtype) {
 		case ReversalType::GOOD: {
-			if(debug){std::cout << " --- Good ";}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Good ";}
 			std::vector<std::pair<int,int>> goodReversals;
 
 			// Case: Many hurdles (h > 3).
 			if(hurdles.size() > 3){
-				if(debug){std::cout << " --- Many hurdles ";}
+				if(debug >= DEBUG_HIGH){std::cout << " --- Many hurdles ";}
 
 				std::vector<int> hurdle_exts_notadj = getDifference(hurdle_exts_all, hurdle_exts_adj);
 				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_notadj);
 
 			// Case: Few hurdles (h=2 or 3).
 			} else if(hurdles.size() > 1){ 
-				if(debug){std::cout << " --- Few hurdles ";}
+				if(debug >= DEBUG_HIGH){std::cout << " --- Few hurdles ";}
 
 				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_adj);
 
 			// Case: Single hurdle (h=1).
 			} else {
-				if(debug){std::cout << " --- Single hurdle ";}
+				if(debug >= DEBUG_HIGH){std::cout << " --- Single hurdle ";}
 
 				std::vector<int> hurdle_exts_own_diff = getDifference(hurdle_exts_own, cycle_exts);
 				goodReversals = makeAllCombinations(cycle_exts, hurdle_exts_own_diff);
@@ -835,7 +835,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 				goodReversals.insert(goodReversals.end(), cycReversals.begin(), cycReversals.end());
 			}
 
-			if(debug){std::cout << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << std::endl;}
 
 			std::uniform_int_distribution distr(0, static_cast<int>(goodReversals.size()) - 1);
 			const int rdmidx = distr(rng);
@@ -843,7 +843,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 			break;
 		}
 		case ReversalType::NEUTRAL: {
-			if(debug){std::cout << " --- Neutral " << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Neutral " << std::endl;}
 			
 			// Case: many hurdles or few hurdles.
 			if(hurdles.size() > 1){
@@ -864,7 +864,7 @@ std::pair<int,int> ReversalSampler::sampleHurdle(const int cycle_idx, const Reve
 			break;
 		}
 		case ReversalType::BAD: {
-			if(debug){std::cout << " --- Bad " << std::endl;}
+			if(debug >= DEBUG_HIGH){std::cout << " --- Bad " << std::endl;}
 
 			// All gene extremities.
 			std::vector<int> gene_exts_all = comps.getGeneExtremities(true);
@@ -892,22 +892,22 @@ std::pair<int,int> ReversalSampler::sampleReversalFromCycle(const int cycle_idx,
 	switch(cycles_info[cycle_idx].type) {
 
 		case CycleType::ORIENTED: {
-			if(debug){std::cout << "It is oriented ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is oriented ";}
 			reversal = sampleOriented(cycle_idx, revtype, rng);
 			break;
 		}
 		case CycleType::UNORIENTED: {
-			if(debug){std::cout << "It is unoriented ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is unoriented ";}
 			reversal = sampleUnoriented(cycle_idx, revtype, rng);
 			break;
 		}
 		case CycleType::TRIVIAL: {
-			if(debug){std::cout << "It is trivial ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is trivial ";}
 			reversal = sampleTrivial(cycle_idx, revtype, rng);
 			break;
 		}
 		case CycleType::HURDLE: {
-			if(debug){std::cout << "It is hurdle ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is hurdle ";}
 			reversal = sampleHurdle(cycle_idx, revtype, rng);
 			break;
 		}
@@ -923,7 +923,7 @@ ReversalRandom ReversalSampler::sampleReversal(std::mt19937& rng, bool updateCom
 	}
 	// Sample reversal type.
 	ReversalType revtype = sampleReversalType(rng);
-	if(debug){std::cout << "\n > Sampled type " << revtype << " : nb. rev=" << rev_totals[revtype] << "; prob.=" << rev_weights[revtype] << std::endl;}
+	if(debug >= DEBUG_MEDIUM){std::cout << "\n > Sampled type " << revtype << " : nb. rev=" << rev_totals[revtype] << "; prob.=" << rev_weights[revtype] << std::endl;}
 
 	// Sample a cycle based on how many reversals of the chosen reversal type each cycle has.
 	int cycle_idx = sampleCycle(revtype, rng);
@@ -935,7 +935,7 @@ ReversalRandom ReversalSampler::sampleReversal(std::mt19937& rng, bool updateCom
 							comps.getGene(comps.perm[comps.idxs[blackEdges.second]+1]), // end point of black edge
 							revtype, cycles_info[cycle_idx].type, rev_totals);
 
-	if(debug){std::cout << "- Sampled reversal: exts=(" << blackEdges.first << ", " << blackEdges.second << "); genes: (" << reversal.g_beg << ", " << reversal.g_end << "]" << std::endl;}
+	if(debug >= DEBUG_MEDIUM){std::cout << "- Sampled reversal: exts=(" << blackEdges.first << ", " << blackEdges.second << "); genes: (" << reversal.g_beg << ", " << reversal.g_end << "]" << std::endl;}
 	return reversal;
 }
 
@@ -1082,22 +1082,22 @@ ReversalType ReversalSampler::getReversalType(const std::pair<int,int>& rev){
 	switch(cycles_info[cycle_idx].type) {
 
 		case CycleType::ORIENTED: {
-			if(debug){std::cout << "It is oriented ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is oriented ";}
 			revtype = getReversalType_Oriented(cycle_idx, rev);
 			break;
 		}
 		case CycleType::UNORIENTED: {
-			if(debug){std::cout << "It is unoriented ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is unoriented ";}
 			revtype = getReversalType_Unoriented(cycle_idx, rev);
 			break;
 		}
 		case CycleType::TRIVIAL: {
-			if(debug){std::cout << "It is trivial ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is trivial ";}
 			revtype = getReversalType_Trivial(cycle_idx, rev);
 			break;
 		}
 		case CycleType::HURDLE: {
-			if(debug){std::cout << "It is hurdle ";}
+			if(debug >= DEBUG_HIGH){std::cout << "It is hurdle ";}
 			revtype = getReversalType_Hurdle(cycle_idx, rev);
 			break;
 		}

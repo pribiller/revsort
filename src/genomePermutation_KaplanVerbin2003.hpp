@@ -32,6 +32,8 @@
 #include <utility>   // move
 #include <algorithm> // find_if, reverse
 
+#include "utils.hpp"
+
 /*******************************************************
  * Auxiliary data structures.
  *******************************************************/
@@ -162,7 +164,7 @@ protected:
 	std::pair<int,int> getGeneExtremities(const int g_label, const int g_pos, const std::vector<int>& gene_extremities) const;
 
 public:
-	bool debug{false}; // if ``true``, details of the computation will be printed.
+	int debug{DEBUG_OFF}; // if ``true``, details of the computation will be printed.
 
 	int n; // number of genes
 	
@@ -322,9 +324,9 @@ std::vector<int> GenomePermutation<BlockT>::getExtendedPerm(std::vector<int>& ge
 	// Sort gene extremities by their position in the current permutation.
 	std::unordered_map<int,int> gene_to_pos_map = sortGeneExtremities(gene_extremities);
 
-	if(debug) std::cout << "Sorted gene extremities: " << std::endl;
-	if(debug) for(const int& g: gene_extremities){std::cout << g << " ";}
-	if(debug) std::cout << std::endl;
+	if(debug >= DEBUG_MEDIUM) std::cout << "Sorted gene extremities: " << std::endl;
+	if(debug >= DEBUG_MEDIUM) for(const int& g: gene_extremities){std::cout << g << " ";}
+	if(debug >= DEBUG_MEDIUM) std::cout << std::endl;
 	
 	// Re-label gene extremities.
 	int g_ext = gene_extremities[0];
@@ -591,7 +593,7 @@ void GenomePermutation<BlockT>::balanceBlock(const int gene){
 	// If the block is too small, then concatenate the block with a neighboring block.
 	while(b->permutationSegment.size() < minBlockSize){
 
-		if(debug) std::cout << "\t [balanceBlock] Block needs to increase in size: cur.size=" <<  b->permutationSegment.size() << " / minBlockSize=" << minBlockSize << " / " << b->printBlock() << std::endl;
+		if(debug >= DEBUG_HIGH) std::cout << "\t [balanceBlock] Block needs to increase in size: cur.size=" <<  b->permutationSegment.size() << " / minBlockSize=" << minBlockSize << " / " << b->printBlock() << std::endl;
 
 		typename std::list<BlockT>::iterator b_prev = std::prev(b);
 		typename std::list<BlockT>::iterator b_next = std::next(b);
@@ -599,19 +601,19 @@ void GenomePermutation<BlockT>::balanceBlock(const int gene){
 		const int b_next_size = (b_next != blockList.end()) ? b_next->permutationSegment.size() : (n+1);
 		// Concatenate blocks.
 		if(b_prev_size < b_next_size){
-			if(debug) std::cout << "\t [balanceBlock] Concatenate blocks: " << b_prev->printBlock() << " and " << b->printBlock() << std::endl;
+			if(debug >= DEBUG_HIGH) std::cout << "\t [balanceBlock] Concatenate blocks: " << b_prev->printBlock() << " and " << b->printBlock() << std::endl;
 			concatenateBlocks(b_prev, b);
 			b = b_prev; // b was erased; update reference.
 		} else {
-			if(debug) std::cout << "\t [balanceBlock] Concatenate blocks: " << b->printBlock() << " and " << b_next->printBlock() << std::endl;
+			if(debug >= DEBUG_HIGH) std::cout << "\t [balanceBlock] Concatenate blocks: " << b->printBlock() << " and " << b_next->printBlock() << std::endl;
 			concatenateBlocks(b, b_next);
 		}
-		if(debug) std::cout << "\t [balanceBlock] After concatenation: " << printBlocks() << std::endl;
+		if(debug >= DEBUG_HIGH) std::cout << "\t [balanceBlock] After concatenation: " << printBlocks() << std::endl;
 	}
 	
 	// If the block is too big, then split the block into two blocks.
 	if(b->permutationSegment.size() > maxBlockSize) {
-		if(debug) std::cout << "\t [balanceBlock] Block needs to reduce in size: cur.size=" <<  b->permutationSegment.size() << " / maxBlockSize=" << maxBlockSize << " / " << b->printBlock() << std::endl;
+		if(debug >= DEBUG_HIGH) std::cout << "\t [balanceBlock] Block needs to reduce in size: cur.size=" <<  b->permutationSegment.size() << " / maxBlockSize=" << maxBlockSize << " / " << b->printBlock() << std::endl;
 
 		typename std::list<Gene<BlockT>>::iterator g_mid_it = b->permutationSegment.begin();
 		std::advance(g_mid_it, std::floor(b->permutationSegment.size()/2));

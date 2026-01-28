@@ -162,7 +162,7 @@ public:
 	double proposalRatio{0.0};  // Updated in getProposalRatio.
 	double posteriorRatio{0.0}; // Updated in getPosteriorRatio.
 
-	bool debug{false};
+	int debug{DEBUG_OFF};
 
 	ProposalReversalScenario(std::vector<ReversalRandom>& currentReversalScenario_, std::vector<ReversalRandom>& proposedReversalScenario_, 
 		const int path_beg_, const int L_cur_, const int l_cur_, const int L_new_, const int l_new_, const int N_,
@@ -211,11 +211,11 @@ public:
 	double alpha{0.30}; 
 	double epsilon{8};
 
-	bool debug{false};
+	int debug{DEBUG_OFF};
 	
 	RandomReversalScenario(){}
 
-	RandomReversalScenario(const std::vector<double>& rev_weights_, const double p_stop_, const double alpha_, const double epsilon_, const bool debug_):rev_weights(rev_weights_),p_stop(p_stop_),alpha(alpha_),epsilon(epsilon_),debug(debug_){
+	RandomReversalScenario(const std::vector<double>& rev_weights_, const double p_stop_, const double alpha_, const double epsilon_, const int debug_):rev_weights(rev_weights_),p_stop(p_stop_),alpha(alpha_),epsilon(epsilon_),debug(debug_){
 	}
 
 	std::vector<ReversalRandom> getSubpath(GenomeMultichrom<int>& genome_B, std::vector<ReversalRandom>& reversals, const int pos_beg, const int pos_end);
@@ -258,7 +258,7 @@ public:
 
 	GenomeMultichrom<int>& genome_B;
 	std::mt19937& rng;
-	bool debug;
+	int debug{DEBUG_OFF};
 
 	int rev_dist{-1}; // It makes sure that estimated nb. of reversals is equal or above the reversal distance.
 	std::vector<double>& rev_weights; // Weight of each type of reversal.
@@ -340,7 +340,7 @@ public:
 		const std::string id_run_, const int nb_chains_, const int nb_temperatures_, const double delta_temp_,
 		const bool check_convergence_, const int max_steps_, const int pre_burnin_steps_, const bool ignore_proposal_ratio_,
 		const int sample_interval_, const int sample_amount_, const int backup_interval_, const int print_interval_,
-		std::vector<double>& rev_weights_, const double p_stop_, const double alpha_, const double epsilon_, const bool debug_):genome_B(genome_B_),rng(rng_),
+		std::vector<double>& rev_weights_, const double p_stop_, const double alpha_, const double epsilon_, const int debug_):genome_B(genome_B_),rng(rng_),
 		id_run(id_run_),nb_chains(nb_chains_),nb_temperatures(nb_temperatures_),delta_temp(delta_temp_),
 		check_convergence(check_convergence_),max_steps(max_steps_),pre_burnin_steps(pre_burnin_steps_),ignore_proposal_ratio(ignore_proposal_ratio_),
 		sample_interval(sample_interval_),sample_amount(sample_amount_),backup_interval(backup_interval_),print_interval(print_interval_),
@@ -363,7 +363,7 @@ public:
 
 	// The occurrence of inversions is a Poisson process with unknown mean lambda.
 	ReversalMCMC(GenomeMultichrom<int>& genome_A_, GenomeMultichrom<int>& genome_B_, std::mt19937& rng_, 
-		McmcOptions& parameters, const bool debug_):genome_B(genome_B_),rng(rng_),
+		McmcOptions& parameters, const int debug_):genome_B(genome_B_),rng(rng_),
 		id_run(parameters.id_run),nb_chains(parameters.nb_chains),nb_temperatures(parameters.nb_temperatures),delta_temp(parameters.delta_temp),
 		check_convergence(parameters.check_convergence),
 		max_steps(parameters.max_steps),pre_burnin_steps(parameters.pre_burnin_steps),ignore_proposal_ratio(parameters.ignore_proposal_ratio),

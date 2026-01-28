@@ -57,6 +57,7 @@
 #include <memory>	 // shared_ptr
 #include <chrono>
 
+#include "utils.hpp"
 #include "genome.hpp"
 #include "reversal.hpp"
 #include "findComponents_Bader2001.hpp"
@@ -87,7 +88,7 @@ public:
 
 	std::vector<Reversal> reversals; // It saves all reversals in the solution.
 
-	bool debug{false};
+	int debug{DEBUG_OFF};
 
 	// Some stats.
 	int nb_breakpoints{0};
@@ -101,8 +102,8 @@ public:
 	int obs_distance{0};
 	int t{0};
 
-	SortByReversals(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, bool debug=false):genome_A(genome_A),genome_B(genome_B),debug(debug){
-		if(debug){printInputGenomes();}
+	SortByReversals(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, int debug=DEBUG_OFF):genome_A(genome_A),genome_B(genome_B),debug(debug){
+		if(debug >= DEBUG_LOW){printInputGenomes();}
 	}
 
 	void printGenome(std::vector<int> perm);

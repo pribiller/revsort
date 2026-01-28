@@ -37,6 +37,7 @@
 #include "genomePermutation_KaplanVerbin2003.hpp"
 #include "reversalBST_KaplanVerbin2003.hpp"
 #include "reversal.hpp"
+#include "utils.hpp"
 
 /*******************************************************
  * Data structures to implement balanced 
@@ -226,17 +227,17 @@ private:
 	std::vector<Node<BlockTree>*> getNewSolvedAdjacencies(Reversal rev);
 
 public:
-	bool debug{false};
+	int debug{DEBUG_OFF};
 
 	// Parameterized constructor.
-	GenomeSort(const std::vector<int>& perm, bool debug=false): genperm(perm){
+	GenomeSort(const std::vector<int>& perm, int debug=DEBUG_OFF): genperm(perm){
 		// Initialize map of arcs.
 		initializeNodes();
 		// Initialize trees.
 		initializeTrees();
 		// Print blocks.
 		// std::cout << genperm.printBlocks() << std::endl;
-		if(debug){printTrees();}
+		if(debug >= DEBUG_HIGH){printTrees();}
 	}
 
 	// Apply reversal (g_beg, g_end].

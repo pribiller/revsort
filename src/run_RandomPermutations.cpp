@@ -37,25 +37,25 @@
 #include "sortByReversals.hpp"
 #include "reversalMCMC_York2002.hpp"
 
+#include "utils.hpp"
 #include "inputParameters.hpp"
 
 /*******************************************************
  * Some basic tests.
 *******************************************************/
 
-SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, int verbose){
-	const bool debug = (verbose > 2);
+SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, int debug){
 	SortByReversals sortGenome(genome_A,genome_B,debug);
 	// Sort genome and measure time.
 	sortGenome.sort(rng);
 	// [Check 1] Check if the sorting scenario ends with the identity permutation (i.e. no breakpoints).
-	bool correctSolution = ((verbose > 1) ? sortGenome.printSolution() : sortGenome.checkSolution());
+	bool correctSolution = ((debug >= DEBUG_MEDIUM) ? sortGenome.printSolution() : sortGenome.checkSolution());
 	if(!correctSolution){
 		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
 		exit(1);
 	}
 	// [Check 2] Check if the number of reversals is minimal.
-	correctSolution = ((verbose > 0) ? sortGenome.printStats() : sortGenome.checkDistance());
+	correctSolution = ((debug >= DEBUG_LOW) ? sortGenome.printStats() : sortGenome.checkDistance());
 	if(!correctSolution){
 		std::cout << "ERROR! Problem during the sorting. Program is aborting." << std::endl;
 		exit(1);
@@ -63,9 +63,8 @@ SortByReversals testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMult
 	return sortGenome;
 }
 
-ReversalMCMC testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, int verbose, McmcOptions* parameters){
-	const bool debug = (verbose > 2);
-	std::cout << "Starting " << parameters->print() << "..." << std::endl;
+ReversalMCMC testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, int debug, McmcOptions* parameters){
+	if(debug >= DEBUG_LOW){std::cout << "Starting " << parameters->print() << "..." << std::endl;}
 	ReversalMCMC mcmc(genome_A,genome_B,rng,(*parameters),false);
 
 	// Load last saved state if the option "resume_run" is 'true' and the checkpoint file exists.
@@ -84,10 +83,10 @@ ReversalMCMC testCase_reversalMCMC(GenomeMultichrom<int>& genome_A, GenomeMultic
 
 }
 
-GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const int nb_reversals, const double probRev, std::mt19937& rng){
+GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const int nb_reversals, const double probRev, std::mt19937& rng, const int debug){
 	if(nb_reversals > 0){
 		GenomePermutation<BlockSimple> genome_B(genome_A.getExtendedGenome());
-		std::vector<Reversal> reversals = applyRandomReversals(genome_B, nb_reversals, rng);
+		std::vector<Reversal> reversals = applyRandomReversals(genome_B, nb_reversals, rng, debug);
 		// Convert labels in the random genome.
 		std::vector<int> genome_B_perm = genome_B.getUnextendedPerm();
 		std::vector<int> genome_B_labels;
@@ -105,15 +104,17 @@ GenomeMultichrom<int> createRandomGenome(GenomeMultichrom<int>& genome_A, const 
 		// Convert labels of reversal history.
 		GenomeMultichrom<int> genome_B_rdm(genome_B_labels, genome_B_signs, genome_A.gene_labels_map);
 
-		std::cout << "Random genomes" << std::endl;
+		if(debug >= DEBUG_LOW){
+			std::cout << "Random genomes" << std::endl;
 
-		std::cout << "Genome A: ";
-		for(int i : genome_A.getExtendedGenome()){std::cout << i << " ";}
-		std::cout << std::endl;
+			std::cout << "Genome A: ";
+			for(int i : genome_A.getExtendedGenome()){std::cout << i << " ";}
+			std::cout << std::endl;
 
-		std::cout << "Genome B: ";
-		for(int i : genome_B_rdm.getExtendedGenome()){std::cout << i << " ";}
-		std::cout << std::endl;
+			std::cout << "Genome B: ";
+			for(int i : genome_B_rdm.getExtendedGenome()){std::cout << i << " ";}
+			std::cout << std::endl;
+		}
 
 		// std::cout << "Reversal history" << std::endl;
 		// RandomReversalScenario rdmReversalScenario;
@@ -175,12 +176,12 @@ int main(int argc, char* argv[]) {
 	int const nbgenes   = std::stoi(argv[3]); // input (command line argument): number of genes.
 	int const nbreversals = std::stoi(argv[4]); // input (command line argument): number of reversals.
 	int const nbtests   = std::stoi(argv[5]); // input (command line argument): how many random permutations will be generated.
-	int const verbose   = std::stoi(argv[6]); // input (command line argument): verbose mode (0: [cluster] only basic stats are printed; 1: [user] basic messages; 2: [user] basic messages+replay of the sorting scenario (not recommended if the genome is too big); 3: [developer] very detailed debugging messages.
+	int const debug     = std::stoi(argv[6]); // input (command line argument): verbose mode (0: [cluster] only basic stats are printed; 1: [user] basic messages; 2: [user] basic messages+replay of the sorting scenario (not recommended if the genome is too big); 3: [developer] very detailed debugging messages.
 	int const nbchrom   = 1; // For now only unichromosomal genomes.
 
 	RevMethodOptions* methodPars = checkParameters(method);
 	
-	if(verbose > 0) {
+	if(debug >= DEBUG_LOW) {
 		std::cout << "**********************************************" << std::endl;
 		std::cout << "* Sort by reversals with random permutations *" << std::endl;
 		std::cout << "**********************************************" << std::endl << std::endl;
@@ -196,29 +197,29 @@ int main(int argc, char* argv[]) {
 	// Distribution for the probability of negative signs in genes.
 	std::uniform_real_distribution<> distr(0.0, 1.0);
 
-	if(verbose < 1) {std::cout << "test;t_µs;d_obs;d_exp;nb_breakpoints;nb_hurdles;cyc_nontriv;cyc_tot;comp_tot;comp_ori;comp_unori;" << std::endl;}
+	if(debug == DEBUG_OFF) {std::cout << "test;t_µs;d_obs;d_exp;nb_breakpoints;nb_hurdles;cyc_nontriv;cyc_tot;comp_tot;comp_ori;comp_unori;" << std::endl;}
 
 	// Generate random tests.
 	for(int i=0; i<nbtests; ++i){
 
 		// Probability for a gene to have negative sign.
 		double const probRev = distr(rng);
-		if(verbose > 0) {std::cout << std::endl << std::endl << "Test " << (i+1) << ": Random genome (n=" << nbgenes << ";p_rev=" << probRev << ")" << std::endl;} 
+		if(debug >= DEBUG_LOW) {std::cout << std::endl << std::endl << "Test " << (i+1) << ": Random genome (n=" << nbgenes << ";p_rev=" << probRev << ")" << std::endl;} 
 
 		// Create random genomes using the random constructor.
 		GenomeMultichrom<int> genome_A(rng, nbgenes, nbchrom, probRev);
-		GenomeMultichrom<int> genome_B = createRandomGenome(genome_A, nbreversals, probRev, rng);
+		GenomeMultichrom<int> genome_B = createRandomGenome(genome_A, nbreversals, probRev, rng, debug);
 
 		// Sort genomes using the expected number of reversals.
 		if(methodPars->method == RevMethodType::MCMC){
-			ReversalMCMC solution = testCase_reversalMCMC(genome_A, genome_B, rng, verbose, dynamic_cast<McmcOptions*>(methodPars));
+			ReversalMCMC solution = testCase_reversalMCMC(genome_A, genome_B, rng, debug, dynamic_cast<McmcOptions*>(methodPars));
 		// Sort genomes using the minimum number of reversals.
 		} else {
-			SortByReversals solution = testCase_generalSort(genome_A, genome_B, rng, verbose);
-			if(verbose < 1) {std::cout << (i+1) << ";" << solution.t << ";" << solution.obs_distance << ";" << solution.exp_distance << ";" << solution.nb_breakpoints << ";" << solution.nb_hurdles << ";" << solution.nb_cycles_nontrivial << ";" << solution.nb_cycles << ";" << solution.nb_components << ";" << solution.nb_components_oriented << ";" << solution.nb_components_unoriented << ";" << std::endl;}
+			SortByReversals solution = testCase_generalSort(genome_A, genome_B, rng, debug);
+			if(debug == DEBUG_OFF) {std::cout << (i+1) << ";" << solution.t << ";" << solution.obs_distance << ";" << solution.exp_distance << ";" << solution.nb_breakpoints << ";" << solution.nb_hurdles << ";" << solution.nb_cycles_nontrivial << ";" << solution.nb_cycles << ";" << solution.nb_components << ";" << solution.nb_components_oriented << ";" << solution.nb_components_unoriented << ";" << std::endl;}
 		}
 
 	} 
-	if(verbose > 0) {std::cout << std::endl << "Bye bye" << std::endl;}
+	if(debug >= DEBUG_LOW) {std::cout << std::endl << "Bye bye" << std::endl;}
 	return 0;
 }

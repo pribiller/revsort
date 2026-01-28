@@ -123,6 +123,7 @@
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
 
+#include "utils.hpp"
 #include "genome.hpp"
 #include "reversal.hpp"
 #include "findComponents_Bader2001.hpp"
@@ -230,9 +231,9 @@ public:
 	int nb_genes{0};
 	int nb_hurdles{0};
 
-	bool debug{false};
+	int debug{DEBUG_OFF};
 
-	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, bool debug=false, double p_good=1.0, double p_neutral=0.020, double p_bad=0.015):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
+	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, bool debug=DEBUG_OFF, double p_good=1.0, double p_neutral=0.020, double p_bad=0.015):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
 		initializeComponents();
 		initializeCounts();
 		std::vector<double> probs = {p_good, p_neutral, p_bad};
@@ -241,7 +242,7 @@ public:
 		initializeRevProbs(probs);
 	}
 
-	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, std::vector<double>& rev_weights, bool debug=false):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
+	ReversalSampler(GenomePermutation<BlockSimple>& genperm_, std::vector<double>& rev_weights, int debug=DEBUG_OFF):genperm(genperm_),rev_weights(ReversalType_COUNT, 0),rev_weights_cum(ReversalType_COUNT, 0),rev_totals(ReversalType_COUNT, 0.0),debug(debug){
 		initializeComponents();
 		initializeCounts();
 		initializeRevProbs(rev_weights);

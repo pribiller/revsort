@@ -49,6 +49,8 @@
 #include <utility>   // move, pair
 #include <random>
 
+#include "utils.hpp"
+
 /*******************************************************
  *  Auxiliary structures
 *******************************************************/
@@ -93,7 +95,7 @@ protected:
 	
 public:
 	
-	bool debug{false};
+	int debug{DEBUG_OFF};
 
 	std::vector<int> perm;   // pos i stores a gene extremity.
 	std::vector<int> idxs;   // pos i stores the current position of gene extremity i in the permutation.
@@ -104,10 +106,10 @@ public:
 
 	ConnectedComponents(){}
 
-	ConnectedComponents(const std::vector<int> unsignedExtPerm, bool debug=false):perm(unsignedExtPerm),idxs(perm.size()),cycles(perm.size(),-1),debug(debug){
-		if(debug){printUnsignedExtPerm();}
+	ConnectedComponents(const std::vector<int> unsignedExtPerm, int debug=DEBUG_OFF):perm(unsignedExtPerm),idxs(perm.size()),cycles(perm.size(),-1),debug(debug){
+		if(debug >= DEBUG_HIGH){printUnsignedExtPerm();}
 		findConnectedComponents();
-		if(debug){printComponents();}
+		if(debug >= DEBUG_HIGH){printComponents();}
 	}
 
 	void printComponent(const Cycle& comp, std::string indent, const int& n, const std::vector<Cycle>& forest) const;

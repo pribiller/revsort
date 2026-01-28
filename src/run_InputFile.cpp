@@ -70,7 +70,7 @@
  * Some basic tests.
 *******************************************************/
 
-void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+void testCase_generalSort(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const int debug){
 	SortByReversals sortGenome(genome_A,genome_B,debug);
 	sortGenome.sort(rng);
 	// [Check 1] Check if the sorting scenario ends with the identity permutation (i.e. no breakpoints).
@@ -203,7 +203,7 @@ int main(int argc, char* argv[]) {
 
 	// Parameters specified by the user.
 	int const seed   = std::stoi(argv[1]); // input (command line argument): seed random number generator.
-	bool const debug = (std::stoi(argv[2]) > 0);
+	int const debug  = std::stoi(argv[2]);
 	std::string const filename = argv[3];
 
 	// Create a random number generator

@@ -52,8 +52,8 @@ void GenomeSort::initializeNodes(){
 	for (int g=0; g<(genperm.n-1); g++) {
 		nodes.emplace_back((*genperm.genes[g]), (*genperm.genes[g+1]));
 	}
-	if (debug) {std::cout << "Nodes:" << std::endl;}
-	if (debug) {for(Node<BlockTree> &n : nodes) {std::cout << " \t" << n.printNode() << std::endl;}}
+	if (debug >= DEBUG_HIGH) {std::cout << "Nodes:" << std::endl;}
+	if (debug >= DEBUG_HIGH) {for(Node<BlockTree> &n : nodes) {std::cout << " \t" << n.printNode() << std::endl;}}
 }
 	
 void GenomeSort::printNodesBlockDetails(){
@@ -184,13 +184,13 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	g_end = std::abs(g_end);
 
 	std::string applyReversal_str = "\n<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
-	if (debug) {std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;}
+	if (debug >= DEBUG_HIGH) {std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;}
 	
 	// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 	genperm.splitBlock(g_beg);
 	genperm.splitBlock(g_end);
 	// (1.1) After splitting blocks, we must reconstruct from scratch the associated trees.
-	if (debug) {std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;}
+	if (debug >= DEBUG_HIGH) {std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;}
 
 	// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
 	updateTreesBeforeReversal(g_beg, g_end);
@@ -219,7 +219,7 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	// every tree, even those outside the reversal, are processed separately.
 	updateTreesAfterReversal(g_beg, g_end);
 
-	if (debug) {std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;}
+	if (debug >= DEBUG_HIGH) {std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;}
 
 	// (4) Concatenate and split blocks in such a way that the size of each block 
 	// lies within the interval [½×√(n×log(n)), 2×√(n×log(n))].
@@ -231,7 +231,7 @@ void GenomeSort::applyReversal(int g_beg, int g_end) {
 	// (4.1) After concatenating and splitting blocks, reconstruct from scratch the associated trees.
 	updateTreesEndReversal();
 
-	if (debug) {
+	if (debug >= DEBUG_HIGH) {
 		std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
 		printTrees();
 	}
@@ -247,7 +247,7 @@ Transform permutation A into B by reversal operations.
 */
 std::deque<Reversal> GenomeSort::sortByReversals(){
 
-	if (debug) {
+	if (debug >= DEBUG_HIGH) {
 		std::cout << "\n\nSort by reversals: " << genperm.printBlocks("\n\t") << std::endl;
 		printTrees();
 	}
@@ -264,14 +264,14 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 		// Update status of arc from ``used`` to ``unused``.
 		// Check if the other adjacency affected by the reversal was also ``solved``.
 		//safeReversal->gene.block->tree.setUsed(safeReversal);
-		if (debug) {std::cout << "\n\nMark used genes" << std::endl;}
+		if (debug >= DEBUG_HIGH) {std::cout << "\n\nMark used genes" << std::endl;}
 		std::vector<Node<BlockTree>*> solved = getNewSolvedAdjacencies(rev);
 		for (Node<BlockTree>* node : solved) {
 			node->gene.block->tree.setUsed(node);
-			if (debug) {std::cout << "\t> Mark gene " << node->gene.id << "=USED" << std::endl;}
+			if (debug >= DEBUG_HIGH) {std::cout << "\t> Mark gene " << node->gene.id << "=USED" << std::endl;}
 		}
-		if (debug) {std::cout << genperm.printBlocks("\n\t") << std::endl;}
-		if (debug) {printTrees();}
+		if (debug >= DEBUG_HIGH) {std::cout << genperm.printBlocks("\n\t") << std::endl;}
+		if (debug >= DEBUG_HIGH) {printTrees();}
 
 		// s1 <- s1 + [new arc].
 		s1.push_back(rev);
@@ -280,7 +280,7 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 		// If sorted, either the last element of s1 or the first element of s2 should be popped. 
 		// Supposedly, it makes no difference.
 		while((!s2.empty()) && (nodes[s2.front().g_arc-1].isSorted())){
-			if (debug) {std::cout << "\nRemoving reversal (" << s2.front().g_arc << ") from s2 (reversal is equivalente to last reversal applied)..." << std::endl;}
+			if (debug >= DEBUG_HIGH) {std::cout << "\nRemoving reversal (" << s2.front().g_arc << ") from s2 (reversal is equivalente to last reversal applied)..." << std::endl;}
 			// s2 <- -[new arc] +s2 
 			s2.pop_front();
 		}
@@ -292,7 +292,7 @@ std::deque<Reversal> GenomeSort::sortByReversals(){
 		if(hasUnused()){
 			// while current permutation does not have unused oriented arc.
 			while(safeReversal == nullptr){
-				if (debug) {std::cout << std::endl << "Undoing reversal (no safe reversals)... " << rev.printReversal() << std::endl;}
+				if (debug >= DEBUG_HIGH) {std::cout << std::endl << "Undoing reversal (no safe reversals)... " << rev.printReversal() << std::endl;}
 				// Undo reversal.
 				rev = s1.back();
 				applyReversal(rev.g_beg, rev.g_beg_next);

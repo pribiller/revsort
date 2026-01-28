@@ -29,6 +29,7 @@
 #include <utility>   // move, pair
 #include <random>    // mt19937
 
+#include "utils.hpp"
 #include "genomePermutation_KaplanVerbin2003.hpp"
 
 /*******************************************************
@@ -58,19 +59,19 @@ public:
 template <typename BlockT>
 void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 	
-	const bool debug = genperm.debug;
+	const int debug = genperm.debug;
 	
 	g_beg = std::abs(g_beg);
 	g_end = std::abs(g_end);
 	
 	std::string applyReversal_str = "\n<applyReversal (" + std::to_string(g_beg) + ", " + std::to_string(g_end) + "] >";
-	if(debug) std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug >= DEBUG_HIGH) std::cout << applyReversal_str << " Before splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
 	
 	// (1) Split at most two blocks so that the endpoints of the reversal correspond to endpoints of blocks;
 	genperm.splitBlock(g_beg);
 	genperm.splitBlock(g_end);
 
-	if(debug) std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug >= DEBUG_HIGH) std::cout << applyReversal_str << " After splitting blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
 	// (2) Flip ``reversed`` flag of each block between the endpoints of the reversal;
 	typename std::list<BlockT>::iterator reversal_beg  = std::next(genperm.getBlock(g_beg)); // this block is the first reversed block.
@@ -94,7 +95,7 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 		blockPos += b->permutationSegment.size();
 	}
 
-	if(debug) std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug >= DEBUG_HIGH) std::cout << applyReversal_str << " After reversing blocks: " << genperm.printBlocks("\n\t") << std::endl;
 
 	// (4) Concatenate and split blocks in such a way that the size of each block 
 	// lies within the interval [½×√(n×log(n)), 2×√(n×log(n))].
@@ -104,12 +105,12 @@ void applyReversal(GenomePermutation<BlockT>& genperm, int g_beg, int g_end) {
 	genperm.balanceBlock(g_after_beg);
 	genperm.balanceBlock(g_after_end);
 	
-	if(debug) std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
+	if(debug >= DEBUG_HIGH) std::cout << applyReversal_str << " End of reversal: " << genperm.printBlocks("\n\t") << std::endl;
 }
 
 // Apply d random reversals.
 template <typename BlockT>
-std::vector<Reversal> applyRandomReversals(GenomePermutation<BlockT>& genperm, int nb_reversals, std::mt19937& rng) {
+std::vector<Reversal> applyRandomReversals(GenomePermutation<BlockT>& genperm, int nb_reversals, std::mt19937& rng, const int debug) {
 	// Reversal format: extended permutation (not the original labels).
 	std::vector<Reversal> reversals;
 	// Two genes in the extended permutation are caps that shouldn't be reversed.
@@ -119,9 +120,11 @@ std::vector<Reversal> applyRandomReversals(GenomePermutation<BlockT>& genperm, i
 		std::uniform_int_distribution distr(1, genperm.n-2);
 
 		std::vector<int> perm_i = genperm.getExtendedPerm();
-		std::cout << "[d=0]: ";
-		for(int i: perm_i){std::cout << i << " ";}
-		std::cout << std::endl;
+		if(debug >= DEBUG_LOW){
+			std::cout << "[d=0]: ";
+			for(int i: perm_i){std::cout << i << " ";}
+			std::cout << std::endl;
+		}
 
 		// Apply d random reversals.
 		for (int i = 0; i < nb_reversals; ++i){
@@ -141,10 +144,12 @@ std::vector<Reversal> applyRandomReversals(GenomePermutation<BlockT>& genperm, i
 			// Apply reversal (g_beg,g_end].
 			applyReversal(genperm, g_beg->id, g_end->id);
 
-			perm_i = genperm.getExtendedPerm();
-			std::cout << "[d=" << (i+1) << "]: ";
-			for(int i: perm_i){std::cout << i << " ";}
-			std::cout << "(" << g_beg->id << ", " << g_end->id << "]" << std::endl;
+			if(debug >= DEBUG_LOW){
+				perm_i = genperm.getExtendedPerm();
+				std::cout << "[d=" << (i+1) << "]: ";
+				for(int i: perm_i){std::cout << i << " ";}
+				std::cout << "(" << g_beg->id << ", " << g_end->id << "]" << std::endl;
+			}
 
 			// Save reversal.
 			reversals.emplace_back(g_beg->id, g_end->id, g_beg_next->id, g_end_next->id);

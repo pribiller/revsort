@@ -76,10 +76,7 @@ void SortByReversals::printInputGenomes(){
 }
 
 bool SortByReversals::printSolution(){
-	bool debug_prev = debug;
-	debug = true;
 	bool is_correct = checkSolution();
-	debug = debug_prev;
 	return is_correct;
 }
 
@@ -97,13 +94,13 @@ bool SortByReversals::printStats(){
 
 // Check if final permutation is equal to the identity permutation.
 bool SortByReversals::checkSolution(){
-	if(debug){std::cout << "\nSorting by reversals - Solution (" << reversals.size() << " reversals)" << std::endl;}
+	if(debug >= DEBUG_MEDIUM){std::cout << "\nSorting by reversals - Solution (" << reversals.size() << " reversals)" << std::endl;}
 	GenomePermutation<BlockSimple> genperm_final(genome_B.getExtendedGenome());
-	if(debug){printGenome(genperm_final.getExtendedPerm());}
+	if(debug >= DEBUG_MEDIUM){printGenome(genperm_final.getExtendedPerm());}
 	for(Reversal const &rev : reversals) {
-		if(debug){std::cout << "(" << rev.g_beg << "," << rev.g_end << "]" << std::endl;}
+		if(debug >= DEBUG_MEDIUM){std::cout << "(" << rev.g_beg << "," << rev.g_end << "]" << std::endl;}
 		applyReversal(genperm_final, rev.g_beg, rev.g_end);
-		if(debug){printGenome(genperm_final.getExtendedPerm());}
+		if(debug >= DEBUG_MEDIUM){printGenome(genperm_final.getExtendedPerm());}
 	}
 	return (genperm_final.getBreakpoints() == 0);
 }
@@ -172,7 +169,7 @@ void SortByReversals::sort(std::mt19937& rng){
 	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
 	nb_breakpoints = genperm.getBreakpoints();
 	// Find connected components.
-	if(debug){std::cout << "Find connected components..." << std::endl << std::endl;}
+	if(debug >= DEBUG_LOW){std::cout << "Find connected components..." << std::endl << std::endl;}
 	ConnectedComponents comps = ConnectedComponents(genperm.getUnsignedExtendedPerm(),debug);
 	nb_components=comps.rootList.size();
 	nb_cycles=comps.forest.size();
@@ -189,43 +186,30 @@ void SortByReversals::sort(std::mt19937& rng){
 		if(comps.forest[root_idx].genes.size() == 2){--nb_cycles_nontrivial;}
 	}
 	// Transform unoriented components into oriented components using the minimum number of reversals.
-	if(debug){std::cout << "Transform unoriented components into oriented components..." << std::endl;}
+	if(debug >= DEBUG_LOW){std::cout << "Transform unoriented components into oriented components..." << std::endl;}
 	UnorientedComponents comps_unoriented = UnorientedComponents(genperm, comps);
 	comps_unoriented.debug = debug;
 	reversals  = comps_unoriented.clearUnorientedComponents(rng);
 	nb_hurdles = comps_unoriented.nb_hurdles;
-	// For debugging.
-	if(debug){
-		std::cout << "Genome B -- Oriented unextended:\n";
-		printGenome(genperm.getUnextendedPerm());
-		std::cout << "Genome B -- Oriented extended:\n";
-		printGenome(genperm.getExtendedPerm());
-		std::cout << "Genome B -- Unsigned extended:\n";
-		printGenome(genperm.getUnsignedExtendedPerm());
-	}
+
 	// Part II: Sort oriented components.
 	// Find connected components again (all hurdles should be all oriented now; some non-hurdle components might still be unoriented).
 	comps = ConnectedComponents(genperm.getUnsignedExtendedPerm(),debug);
 	// Sort each connected component separately.
-	if(debug){std::cout << "Sort connected components by reversals" << std::endl;}
+	if(debug >= DEBUG_LOW){std::cout << "Sort connected components by reversals" << std::endl;}
 	
 	for(const int& root_idx: comps.rootList){
-		if(debug){comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);}
+		if(debug >= DEBUG_HIGH){comps.printComponent(comps.forest[root_idx], "", comps.perm.size(), comps.forest);}
 		std::unordered_map<int,std::pair<int,int>> newlabels_map;
 		// Permutation **must** start at 1: [1 2 .. gene]
 		std::vector<int> perm = genperm.getExtendedPerm(comps.forest[root_idx].genes,newlabels_map);
-		if(debug){
-			std::cout << "\n\nExtended permutation: " << std::endl;
-			for(const int& g: perm){std::cout << g << "[" << newlabels_map[std::abs(g)].first << "," << newlabels_map[std::abs(g)].second << "] ";}
-			std::cout << std::endl;
-		}
 		// Sort component.
-		if(debug){std::cout << "Sort permutation..." << std::endl;}
+		if(debug >= DEBUG_HIGH){std::cout << "Sort permutation..." << std::endl;}
 		GenomeSort genomeSort = GenomeSort(perm);
 		genomeSort.debug = debug;
 		std::deque<Reversal> reversalsPerComp = genomeSort.sortByReversals();
 		// Apply reversals to the permutation.
-		if(debug){std::cout << "Save reversals..." << std::endl;}
+		if(debug >= DEBUG_HIGH){std::cout << "Save reversals..." << std::endl;}
 		// printGenome(genperm.getExtendedPerm());
 		for(Reversal const &rev : reversalsPerComp) {
 			Reversal rev_ = convertLabels(rev, newlabels_map, genperm);

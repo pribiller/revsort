@@ -42,6 +42,7 @@
 
 #include "findComponents_Bader2001.hpp"
 #include "reversal.hpp"
+#include "utils.hpp"
 
 class BlockSimple : public BlockBase<BlockSimple> {
 public:
@@ -65,11 +66,11 @@ protected:
 public:
 	ConnectedComponents& comps;
 	GenomePermutation<BlockSimple>& genperm;
-	bool debug{false};
+	int debug{DEBUG_OFF};
 
 	int nb_hurdles{0};
 
-	UnorientedComponents(GenomePermutation<BlockSimple>& genperm, ConnectedComponents& comps):genperm(genperm),comps(comps){
+	UnorientedComponents(GenomePermutation<BlockSimple>& genperm, ConnectedComponents& comps, int debug=DEBUG_OFF):genperm(genperm),comps(comps),debug(debug){
 
 	}
 

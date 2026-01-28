@@ -36,7 +36,7 @@
  * Some basic tests.
 *******************************************************/
 
-void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const int debug){
 
 	std::cout << "Starting MCMC..." << std::endl;
 
@@ -46,6 +46,14 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	const int max_steps=20;
 	const int pre_burnin_steps=10;
 	
+	// TODO: Adjust these new parameters:
+	const int nb_temperatures=2;  // TODO
+	const double delta_temp=0.01; // TODO
+	const bool ignore_proposal_ratio=false;
+
+	const double alpha=0.01;   // TODO
+	const double epsilon=0.01; // TODO
+
 	const int sample_interval=2;
 	const int sample_amount  =10;
 	const int backup_interval=5;
@@ -59,9 +67,10 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 
 	std::vector<double> probs = {p_good, p_neutral, p_bad};
 	const double p_stop=0.999; //0.99;
-
-	ReversalMCMC mcmc(genome_A,genome_B,rng,id_run,nb_chains,check_convergence,max_steps,pre_burnin_steps,
-		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,false);
+	
+	ReversalMCMC mcmc(genome_A,genome_B,rng,id_run,nb_chains,
+		nb_temperatures,delta_temp,check_convergence,max_steps,pre_burnin_steps,ignore_proposal_ratio,
+		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,alpha,epsilon,debug);
 	const std::string filename = "test_serialize.dat";
 	mcmc.saveState(filename);
 	mcmc.run();
@@ -71,7 +80,7 @@ void testCase_reversalMCMC_serialization(GenomeMultichrom<int>& genome_A, Genome
 	mcmc_saved.run();
 }
 
-void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const int debug){
 
 	std::cout << "Starting MCMC..." << std::endl;
 
@@ -121,11 +130,11 @@ void testCase_reversalMCMC_convergence(GenomeMultichrom<int>& genome_A, GenomeMu
 	const double p_stop=0.999; //0.99;
 
 	ReversalMCMC mcmc(genome_A,genome_B,rng,id_run,nb_chains,check_convergence,max_steps,pre_burnin_steps,
-		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,false);
+		sample_interval,sample_amount,backup_interval,print_interval,probs,p_stop,debug);
 	mcmc.run();
 }
 
-void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const int debug){
 	
 	SortByReversals sortGenome(genome_A,genome_B,false);
 	//sortGenome.printInputGenomes();
@@ -173,7 +182,7 @@ void testCase_sampleModifiedScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	std::cout << "\nCur. mean= " << rev_mean << "; New mean=" << rev_mean_prop << "; Acceptance prob.=" << acceptanceProb_mean << std::endl;
 }
 
-void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const int debug){
 
 	SortByReversals sortGenome(genome_A,genome_B,false);
 	sortGenome.sort(rng);
@@ -195,7 +204,7 @@ void testCase_sampleReversalScenario(GenomeMultichrom<int>& genome_A, GenomeMult
 	bool correctSolution = sortGenome.printStats();
 }
 
-void testCase_sampleOneReversal(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const bool debug){
+void testCase_sampleOneReversal(GenomeMultichrom<int>& genome_A, GenomeMultichrom<int>& genome_B, std::mt19937& rng, const int debug){
 
 	GenomePermutation<BlockSimple> genperm(genome_B.getExtendedGenome());
 
@@ -219,7 +228,7 @@ void testCase_sampleOneReversal(GenomeMultichrom<int>& genome_A, GenomeMultichro
 // {-2,5,4,-1,3,6,9,-7,-8}
 // Reversal distance = 5 reversals. 
 // Details for Reversal distance (d) computation: 10 breakpoints (b); 5 cycles(c); 0 hurdles(h): d = b-c+h (+1 if fortress).
-void testCase_Garg2019(std::mt19937& rng, bool debug){
+void testCase_Garg2019(std::mt19937& rng, int debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false};
 
@@ -243,7 +252,7 @@ void testCase_Garg2019(std::mt19937& rng, bool debug){
 // all its elements appearing in a consecutive order, apparently 
 // in this case there are no hurdles (h=0). 
 // However, the program finds h=1. Notice that, if h=2, the expected and observed values would match.
-void testCase_Bader2001(std::mt19937& rng, bool debug){
+void testCase_Bader2001(std::mt19937& rng, int debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false, false, false};
 
@@ -259,7 +268,7 @@ void testCase_Bader2001(std::mt19937& rng, bool debug){
 
 // Example used in the paper from Tannier et al. (2007) (Figure 4).
 // {0, -1, 3, 2, 4}
-void testCase_Tannier2007_Figure4(std::mt19937& rng, bool debug){
+void testCase_Tannier2007_Figure4(std::mt19937& rng, int debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false};
 
@@ -275,7 +284,7 @@ void testCase_Tannier2007_Figure4(std::mt19937& rng, bool debug){
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(a)).
 // {+5, +7, +6, +8, +1, +3, +2, +4}
-void testCase_Hannehalli1999_Fig4a(std::mt19937& rng, bool debug){
+void testCase_Hannehalli1999_Fig4a(std::mt19937& rng, int debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false};
 
@@ -291,7 +300,7 @@ void testCase_Hannehalli1999_Fig4a(std::mt19937& rng, bool debug){
 
 // Example used in the paper from Hannehalli and Pevzner (1999) (Figure 4(b)).
 // {+2, +4, +3, +5, +7, +6, +8, +1}
-void testCase_Hannehalli1999_Fig4b(std::mt19937& rng, bool debug){
+void testCase_Hannehalli1999_Fig4b(std::mt19937& rng, int debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false};
 
@@ -307,7 +316,7 @@ void testCase_Hannehalli1999_Fig4b(std::mt19937& rng, bool debug){
 
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Section 10.4.2).
 // {0, 2, 1, 3, 5, 7, 6, 8, 9, 4, 10}
-void testCase_Bergeron2005_Sec10_4_2(std::mt19937& rng, bool debug){
+void testCase_Bergeron2005_Sec10_4_2(std::mt19937& rng, int debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false};
 
@@ -324,7 +333,7 @@ void testCase_Bergeron2005_Sec10_4_2(std::mt19937& rng, bool debug){
 // Example used in the book ``Mathematics of Evolution and Phylogeny`` (2005) (Figure 10.6).
 // P_2 = {0, -3, 1, 2, 4, 6, 5, 7, -15, -13, -14, -12, -10, -11, -9, 8, 16}
 // d(P_2) = 13.
-void testCase_Bergeron2005_Fig10_6(std::mt19937& rng, bool debug){
+void testCase_Bergeron2005_Fig10_6(std::mt19937& rng, int debug){
 	std::vector<int>  genome_multichrom_A  = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 	std::vector<bool> genome_orientation_A = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
 
@@ -344,13 +353,13 @@ int main(int argc, char* argv[]) {
 		std::cout << "ERROR! No extra command line argument passed other than program name. Program is aborting." << std::endl;
 		exit(1);
 	} else if (argc != 3) {
-		std::cout << "ERROR! Wrong number of arguments. Expected: ./program [seed] [debug]. Program is aborting." << std::endl;
+		std::cout << "ERROR! Wrong number of arguments. Expected: ./program [seed] [verbose]. Program is aborting." << std::endl;
 		exit(1);
 	}
 
 	// Parameters specified by the user.
-	int const seed   = std::stoi(argv[1]); // input (command line argument): seed random number generator.
-	bool const debug = (std::stoi(argv[2]) > 0);
+	int const seed  = std::stoi(argv[1]); // input (command line argument): seed random number generator.
+	int const debug = std::stoi(argv[2]);
 
 	// Create a random number generator
 	std::cout << "- Seed to reproduce tests: " << seed << std::endl;
